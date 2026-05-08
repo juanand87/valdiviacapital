@@ -6,15 +6,15 @@
 
 // Configuración de la base de datos
 define('DB_HOST', 'localhost');
-define('DB_NAME', 'nombre_base_de_datos');
-define('DB_USER', 'usuario_db');
-define('DB_PASS', 'password_db');
+define('DB_NAME', 'bd_valdivia');        // Nombre de la BD en producción
+define('DB_USER', 'cpses_k007nefycb');  // Usuario del hosting
+define('DB_PASS', 'TU_PASSWORD_AQUI');
 define('DB_CHARSET', 'utf8mb4');
 
 // Configuración del sitio
-define('SITE_URL', 'http://localhost/valdiviacapital');
-define('SITE_NAME', 'Nombre del Sitio');
-define('SITE_DESCRIPTION', 'Descripción del sitio');
+define('SITE_URL', 'https://tudominio.cl');
+define('SITE_NAME', 'Valdivia Capital');
+define('SITE_DESCRIPTION', 'El principal medio de comunicación digital de la región');
 
 // Zona horaria
 date_default_timezone_set('America/Santiago');
