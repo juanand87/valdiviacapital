@@ -67,8 +67,7 @@ if (!empty($query)) {
             <div class="header-content">
                 <div class="logo">
                     <a href="index.php">
-                        <h1>VALDIVIA CAPITAL</h1>
-                        <p class="tagline">La voz de la región &bull; Valdivia, Chile</p>
+                        <img src="https://valdiviacapital.cl/logovc.png" alt="Valdivia Capital" class="site-logo">
                     </a>
                 </div>
                 <div class="header-search">
