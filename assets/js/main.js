@@ -88,22 +88,16 @@ function updateCurrentDate() {
     const fecha = new Date();
     const fechaTexto = `${dias[fecha.getDay()]}, ${fecha.getDate()} de ${meses[fecha.getMonth()]} de ${fecha.getFullYear()}`;
     
-    $('.top-header .date span').text(fechaTexto);
+    $('#current-date').text(fechaTexto);
 }
 
-// Animación al scroll
+// Animación al scroll con clase CSS
 function animateOnScroll() {
-    $('.news-card, .widget').each(function() {
+    $('.fade-in, .hero-grid-card, .widget').each(function() {
         const elementTop = $(this).offset().top;
-        const elementBottom = elementTop + $(this).outerHeight();
-        const viewportTop = $(window).scrollTop();
-        const viewportBottom = viewportTop + $(window).height();
-        
-        if (elementBottom > viewportTop && elementTop < viewportBottom) {
-            $(this).css({
-                'opacity': '1',
-                'transform': 'translateY(0)'
-            });
+        const viewportBottom = $(window).scrollTop() + $(window).height();
+        if (elementTop < viewportBottom - 40) {
+            $(this).addClass('visible');
         }
     });
 }
