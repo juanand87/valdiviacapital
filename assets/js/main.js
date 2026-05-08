@@ -97,7 +97,7 @@ function animateOnScroll() {
         const elementTop = $(this).offset().top;
         const viewportBottom = $(window).scrollTop() + $(window).height();
         if (elementTop < viewportBottom - 40) {
-            $(this).addClass('visible');
+            $(this).css({ opacity: '', transform: '' }).addClass('visible');
         }
     });
 }
@@ -126,9 +126,5 @@ function compartirNoticia(red, titulo, url) {
     }
 }
 
-// Inicialización de estilos de animación
-$('.news-card, .widget').css({
-    'opacity': '0',
-    'transform': 'translateY(20px)',
-    'transition': 'all 0.6s ease'
-});
+// Inicialización de estilos de animación (solo vía CSS, no inline)
+// Los estilos iniciales se manejan con .fade-in { opacity: 0 } en style.css
