@@ -1,3 +1,4 @@
+<?php require_once __DIR__ . '/../../includes/maintenance.php'; ?>
 <aside class="sidebar">
     <div class="sidebar-header">
         <h2><i class="fas fa-newspaper"></i> Los Ríos</h2>
