@@ -1,6 +1,41 @@
 <?php
 $page_title = 'Configuración IA';
 require_once '../includes/config.php';
+require_once '../includes/gemini.php';
+
+// AJAX: test de conexión con Gemini
+if (isset($_POST['action']) && $_POST['action'] === 'test_gemini') {
+    header('Content-Type: application/json');
+    $db = getDB();
+    $config = getConfigIA($db);
+    if (empty($config['gemini_api_key'])) {
+        echo json_encode(['ok' => false, 'msg' => 'No hay API Key configurada.']);
+        exit;
+    }
+    $modelo = $config['gemini_modelo'] ?? 'gemini-1.5-flash';
+    $payload = json_encode(['contents' => [['parts' => [['text' => 'Responde solo: OK']]]]]);
+    $opts = ['http' => [
+        'method'  => 'POST',
+        'header'  => "Content-Type: application/json\r\n",
+        'content' => $payload,
+        'timeout' => 10,
+        'ignore_errors' => true
+    ]];
+    $url = "https://generativelanguage.googleapis.com/v1beta/models/{$modelo}:generateContent?key={$config['gemini_api_key']}";
+    $response = @file_get_contents($url, false, stream_context_create($opts));
+    if ($response === false) {
+        echo json_encode(['ok' => false, 'msg' => 'No se pudo conectar con la API de Gemini.']);
+    } else {
+        $data = json_decode($response, true);
+        if (isset($data['error'])) {
+            echo json_encode(['ok' => false, 'msg' => $data['error']['message'] ?? 'Error desconocido']);
+        } else {
+            echo json_encode(['ok' => true, 'msg' => 'Conexión exitosa con Gemini ✓']);
+        }
+    }
+    exit;
+}
+
 include 'includes/header.php';
 
 $db = getDB();
@@ -122,12 +157,45 @@ $config = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 </div>
             <?php endforeach; ?>
             
-            <div class="form-actions">
+            <div class="form-actions" style="display:flex; gap:12px; align-items:center;">
                 <button type="submit" class="btn btn-primary">
                     <i class="fas fa-save"></i> Guardar Configuración
                 </button>
+                <button type="button" class="btn btn-secondary" id="btn-test-gemini" onclick="testGemini()">
+                    <i class="fas fa-plug"></i> Probar conexión
+                </button>
+                <span id="test-gemini-result" style="font-weight:600;"></span>
             </div>
         </form>
+
+<script>
+function testGemini() {
+    const btn = document.getElementById('btn-test-gemini');
+    const result = document.getElementById('test-gemini-result');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Probando...';
+    result.textContent = '';
+    result.style.color = '';
+    fetch(window.location.href, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: 'action=test_gemini'
+    })
+    .then(r => r.json())
+    .then(data => {
+        result.textContent = data.msg;
+        result.style.color = data.ok ? '#16a34a' : '#dc2626';
+    })
+    .catch(() => {
+        result.textContent = 'Error al contactar el servidor.';
+        result.style.color = '#dc2626';
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-plug"></i> Probar conexión';
+    });
+}
+</script>
     </div>
 </div>
 

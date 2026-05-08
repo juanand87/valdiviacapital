@@ -294,24 +294,36 @@ function convertirCSSaXPath($selector) {
         return "//{$matches[1]}[@id='{$matches[2]}']";
     }
     
-    // Selector descendente (div .clase, .padre .hijo)
+    // Selector descendente (div .clase, .padre .hijo, h3.clase a)
     if (strpos($selector, ' ') !== false) {
         $parts = explode(' ', $selector);
         $xpath = '';
         foreach ($parts as $part) {
             $part = trim($part);
             if (empty($part)) continue;
-            
+
             if (strpos($part, '.') === 0) {
-                // Es una clase
-                $clase = substr($part, 1);
-                $xpath .= "//*[contains(concat(' ', normalize-space(@class), ' '), ' {$clase} ')]";
+                // .clase
+                $clases = explode('.', substr($part, 1));
+                $conds = array_map(fn($c) => "contains(concat(' ', normalize-space(@class), ' '), ' {$c} ')", $clases);
+                $xpath .= "//*[" . implode(' and ', $conds) . "]";
             } elseif (strpos($part, '#') === 0) {
-                // Es un ID
+                // #id
                 $id = substr($part, 1);
                 $xpath .= "//*[@id='{$id}']";
+            } elseif (strpos($part, '.') !== false) {
+                // tag.clase o tag.clase1.clase2
+                $dotPos = strpos($part, '.');
+                $tag = substr($part, 0, $dotPos);
+                $clases = explode('.', substr($part, $dotPos + 1));
+                $conds = array_map(fn($c) => "contains(concat(' ', normalize-space(@class), ' '), ' {$c} ')", $clases);
+                $xpath .= "//{$tag}[" . implode(' and ', $conds) . "]";
+            } elseif (strpos($part, '#') !== false) {
+                // tag#id
+                list($tag, $id) = explode('#', $part, 2);
+                $xpath .= "//{$tag}[@id='{$id}']";
             } else {
-                // Es una etiqueta
+                // etiqueta simple
                 $xpath .= "//{$part}";
             }
         }
