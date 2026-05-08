@@ -221,5 +221,4 @@ INSERT IGNORE INTO configuracion_ia (nombre, valor, descripcion) VALUES
 ('gemini_prompt_base',  'Eres un periodista profesional. A partir de la siguiente información extraída de una noticia, escribe un artículo periodístico completo, profesional y bien redactado. Mantén la objetividad y el estilo periodístico. La información es:\n\nTítulo: {titulo}\nAutor: {autor}\nCategoría: {categoria}\nContenido original: {contenido}\n\nEscribe el artículo completo con introducción, desarrollo y conclusión. Mantén un tono profesional y objetivo.', 'Prompt base para generar redacciones con IA');
 
 SELECT 'Instalación completada exitosamente.' AS resultado;
-SELECT CONCAT('Tablas creadas: ', COUNT(*)) AS tablas FROM information_schema.TABLES WHERE TABLE_SCHEMA = 'bd_valdivia';
 
