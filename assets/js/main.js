@@ -2,21 +2,39 @@
 // VALDIVIA CAPITAL - JavaScript Principal
 // ========================================
 
+// ---- MODO OSCURO (sin jQuery, sin flash) ----
+(function () {
+    // Aplicar preferencia guardada inmediatamente
+    if (localStorage.getItem('darkMode') === '1') {
+        document.documentElement.classList.add('dark-mode');
+    }
+
+    function syncDmBtn() {
+        var btn = document.getElementById('btn-dark-mode');
+        if (!btn) return;
+        var dark = document.documentElement.classList.contains('dark-mode');
+        btn.innerHTML = dark
+            ? '<i class="fas fa-sun"></i> <span class="dm-label">Claro</span>'
+            : '<i class="fas fa-moon"></i> <span class="dm-label">Oscuro</span>';
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        syncDmBtn();
+        var btn = document.getElementById('btn-dark-mode');
+        if (btn) {
+            btn.addEventListener('click', function () {
+                var isDark = document.documentElement.classList.toggle('dark-mode');
+                localStorage.setItem('darkMode', isDark ? '1' : '0');
+                syncDmBtn();
+            });
+        }
+    });
+})();
+
 $(document).ready(function() {
     
     // Fecha actual en el header
     updateCurrentDate();
-
-    // ---- MODO OSCURO ----
-    if (localStorage.getItem('darkMode') === '1') {
-        document.documentElement.classList.add('dark-mode');
-    }
-    $('#btn-dark-mode').on('click', function () {
-        const isDark = document.documentElement.classList.toggle('dark-mode');
-        localStorage.setItem('darkMode', isDark ? '1' : '0');
-    });
-    
-    // Newsletter form
     $('#newsletter-form').on('submit', function(e) {
         e.preventDefault();
         const $form = $(this);

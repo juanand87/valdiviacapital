@@ -72,6 +72,7 @@ $comentarios = $stmtCom->fetchAll();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo clean($noticia['titulo']); ?> - Valdivia Capital</title>
+    <script>if(localStorage.getItem('darkMode')==='1')document.documentElement.classList.add('dark-mode');</script>
     <meta name="description" content="<?php echo clean(truncate(strip_tags($noticia['bajada']), 160)); ?>">
     <meta property="og:title" content="<?php echo clean($noticia['titulo']); ?>">
     <meta property="og:description" content="<?php echo clean(truncate(strip_tags($noticia['bajada']), 200)); ?>">
