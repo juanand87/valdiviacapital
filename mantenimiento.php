@@ -84,11 +84,9 @@ header('Retry-After: 3600');
         }
 
         .logo-wrap img {
-            max-width: 280px;
+            max-width: 320px;
             width: 100%;
             height: auto;
-            filter: brightness(0) invert(1);
-            opacity: 0.9;
         }
 
         .icon-wrap {
