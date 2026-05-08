@@ -1,0 +1,5 @@
+# Protección para carpeta cache
+# Denegar todo acceso desde navegador
+
+Order Allow,Deny
+Deny from all

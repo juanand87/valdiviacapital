@@ -1,0 +1,36 @@
+PASOS PARA REINSTALAR LA BASE DE DATOS COMPLETA
+=================================================
+
+Tu base de datos actual tiene una estructura antigua que no coincide con el código.
+
+OPCIÓN 1: Reinstalar completamente (RECOMENDADO)
+------------------------------------------------
+1. Abre phpMyAdmin: http://localhost/phpmyadmin
+2. Elimina la base de datos actual:
+   - Haz clic en "losrios" en el panel izquierdo
+   - Clic en pestaña "Operaciones"
+   - Baja hasta "Eliminar base de datos"
+   - Confirma
+
+3. Importa database.sql:
+   - Clic en "Importar" arriba
+   - Clic en "Seleccionar archivo"
+   - Navega a: C:\xampp\htdocs\losrios\database.sql
+   - Clic en "Continuar" abajo
+   
+4. Recarga tu sitio: http://localhost/losrios
+
+Esto te dará:
+✅ Todas las columnas necesarias (color, icono, orden, publicado, etc.)
+✅ 10 categorías con datos completos
+✅ 7 noticias de ejemplo sobre Los Ríos
+✅ 5 usuarios/periodistas de ejemplo
+
+
+OPCIÓN 2: Solo agregar columna faltante (puede seguir con errores)
+-----------------------------------------------------------------
+Ejecuta en phpMyAdmin SQL:
+
+ALTER TABLE noticias ADD COLUMN publicado TINYINT(1) DEFAULT 1 AFTER vistas;
+
+⚠️ ADVERTENCIA: Es probable que falten más columnas. Te recomiendo la OPCIÓN 1.
