@@ -54,6 +54,10 @@ $stmtNews = $db->prepare("
 $stmtNews->execute($heroIds);
 $noticias = $stmtNews->fetchAll();
 
+// IDs ya mostrados (para el cargar más)
+$shownIds = array_merge($heroIds, array_column($noticias, 'id'));
+$shownIds = array_map('intval', array_unique($shownIds));
+
 // Lo más leído (sidebar)
 $trending = $db->query("
     SELECT n.id, n.titulo, n.slug, n.vistas
@@ -167,7 +171,11 @@ $tickerNoticias = $db->query("
                     <?php else: ?>
                         <img src="https://picsum.photos/seed/<?= $hero['id'] ?>/800/500" alt="<?= clean($hero['titulo']) ?>">
                     <?php endif; ?>
-                    <span class="hero-badge"><i class="fas fa-star"></i> Destacado</span>
+                    <?php if (strtotime($hero['fecha_publicacion']) > strtotime('-2 hours')): ?>
+                        <span class="badge-ultima-hora"><i class="fas fa-bolt"></i> Última hora</span>
+                    <?php else: ?>
+                        <span class="hero-badge"><i class="fas fa-star"></i> Destacado</span>
+                    <?php endif; ?>
                 </div>
                 <div class="hero-content">
                     <div class="hero-category"><?= clean($hero['cat_nombre']) ?></div>
@@ -235,6 +243,9 @@ $tickerNoticias = $db->query("
                                             <img src="https://picsum.photos/seed/<?= $n['id'] ?>news/600/400" alt="<?= clean($n['titulo']) ?>">
                                         <?php endif; ?>
                                         <span class="category-badge" style="background:<?= clean($n['cat_color']) ?>;"><?= clean($n['cat_nombre']) ?></span>
+                                        <?php if (strtotime($n['fecha_publicacion']) > strtotime('-2 hours')): ?>
+                                        <span class="badge-ultima-hora"><i class="fas fa-bolt"></i> Última hora</span>
+                                        <?php endif; ?>
                                     </div>
                                     <div class="news-body">
                                         <div class="news-cat-label"><?= clean($n['cat_nombre']) ?></div>
@@ -255,6 +266,14 @@ $tickerNoticias = $db->query("
                         <?php endif; ?>
 
                     </div><!-- /news-grid -->
+
+                    <!-- Botón cargar más -->
+                    <div class="load-more-wrap" id="load-more-wrap">
+                        <button id="btn-cargar-mas" class="btn-load-more">
+                            <i class="fas fa-sync-alt spinner"></i>
+                            <span class="label"><i class="fas fa-plus-circle"></i> Cargar más noticias</span>
+                        </button>
+                    </div>
                 </section>
             </main>
 
@@ -350,6 +369,36 @@ $tickerNoticias = $db->query("
 
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="assets/js/main.js"></script>
+    <script>
+    (function ($) {
+        var excludeIds = <?php echo json_encode($shownIds); ?>;
 
+        $('#btn-cargar-mas').on('click', function () {
+            var $btn = $(this);
+            $btn.addClass('loading').prop('disabled', true);
+
+            $.getJSON('ajax/cargar_noticias.php', { exclude: excludeIds.join(','), limite: 6 })
+                .done(function (data) {
+                    if (data.html) {
+                        var $cards = $(data.html);
+                        $('#news-grid').append($cards);
+                        // Activar fade-in en las nuevas tarjetas
+                        setTimeout(function () {
+                            $cards.filter('.news-card').css({ opacity: '', transform: '' }).addClass('visible');
+                        }, 50);
+                        excludeIds = excludeIds.concat(data.newIds);
+                    }
+                    if (!data.hasMore) {
+                        $('#load-more-wrap').fadeOut(300);
+                    } else {
+                        $btn.removeClass('loading').prop('disabled', false);
+                    }
+                })
+                .fail(function () {
+                    $btn.removeClass('loading').prop('disabled', false);
+                });
+        });
+    })(jQuery);
+    </script>
 </body>
 </html>
