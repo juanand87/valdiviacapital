@@ -1,25 +1,36 @@
 <?php
 require_once 'includes/config.php';
 
-// Obtener ID de la noticia
-$id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
+// Obtener noticia por slug (o por id como fallback)
+$slug = $_GET['slug'] ?? '';
+$id   = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
 
-if (!$id) {
+$db = getDB();
+if ($slug !== '') {
+    $stmt = $db->prepare("
+        SELECT n.*, c.nombre as categoria_nombre, c.slug as categoria_slug, c.color as categoria_color,
+               u.nombre as autor_nombre
+        FROM noticias n
+        INNER JOIN categorias c ON n.categoria_id = c.id
+        INNER JOIN usuarios u ON n.autor_id = u.id
+        WHERE n.slug = ? AND n.publicado = 1
+    ");
+    $stmt->execute([$slug]);
+} elseif ($id) {
+    $stmt = $db->prepare("
+        SELECT n.*, c.nombre as categoria_nombre, c.slug as categoria_slug, c.color as categoria_color,
+               u.nombre as autor_nombre
+        FROM noticias n
+        INNER JOIN categorias c ON n.categoria_id = c.id
+        INNER JOIN usuarios u ON n.autor_id = u.id
+        WHERE n.id = ? AND n.publicado = 1
+    ");
+    $stmt->execute([$id]);
+} else {
     header('Location: index.php');
     exit;
 }
 
-// Obtener noticia
-$db = getDB();
-$stmt = $db->prepare("
-    SELECT n.*, c.nombre as categoria_nombre, c.slug as categoria_slug, c.color as categoria_color,
-           u.nombre as autor_nombre, u.biografia as autor_bio
-    FROM noticias n
-    INNER JOIN categorias c ON n.categoria_id = c.id
-    INNER JOIN usuarios u ON n.autor_id = u.id
-    WHERE n.id = ? AND n.publicado = 1
-");
-$stmt->execute([$id]);
 $noticia = $stmt->fetch();
 
 if (!$noticia) {
@@ -27,8 +38,11 @@ if (!$noticia) {
     exit;
 }
 
-// Obtener noticias relacionadas
-$stmt = $db->prepare("
+// Incrementar vistas
+$db->prepare("UPDATE noticias SET vistas = vistas + 1 WHERE id = ?")->execute([$noticia['id']]);
+
+// Noticias relacionadas
+$stmtRel = $db->prepare("
     SELECT n.*, c.color as categoria_color
     FROM noticias n
     INNER JOIN categorias c ON n.categoria_id = c.id
@@ -36,27 +50,35 @@ $stmt = $db->prepare("
     ORDER BY n.fecha_publicacion DESC
     LIMIT 3
 ");
-$stmt->execute([$noticia['categoria_id'], $id]);
-$relacionadas = $stmt->fetchAll();
+$stmtRel->execute([$noticia['categoria_id'], $noticia['id']]);
+$relacionadas = $stmtRel->fetchAll();
 
-// Obtener comentarios
-$stmt = $db->prepare("
-    SELECT * FROM comentarios 
+// Comentarios
+$stmtCom = $db->prepare("
+    SELECT * FROM comentarios
     WHERE noticia_id = ? AND aprobado = 1
     ORDER BY created_at DESC
 ");
-$stmt->execute([$id]);
-$comentarios = $stmt->fetchAll();
+$stmtCom->execute([$noticia['id']]);
+$comentarios = $stmtCom->fetchAll();
 ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo clean($noticia['titulo']); ?> - Diario Los Ríos</title>
+    <title><?php echo clean($noticia['titulo']); ?> - Valdivia Capital</title>
     <meta name="description" content="<?php echo clean(truncate(strip_tags($noticia['bajada']), 160)); ?>">
+    <meta property="og:title" content="<?php echo clean($noticia['titulo']); ?>">
+    <meta property="og:description" content="<?php echo clean(truncate(strip_tags($noticia['bajada']), 200)); ?>">
+    <?php if ($noticia['imagen_principal']): ?>
+    <meta property="og:image" content="<?php echo clean($noticia['imagen_principal']); ?>">
+    <?php endif; ?>
+    <meta property="og:type" content="article">
     <link rel="stylesheet" href="assets/css/style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         .article-full {
@@ -223,17 +245,17 @@ $comentarios = $stmt->fetchAll();
     </style>
 </head>
 <body>
-    <!-- Header Superior -->
+    <!-- Barra superior -->
     <div class="top-header">
         <div class="container">
             <div class="top-header-content">
                 <div class="date">
-                    <i class="far fa-calendar"></i>
-                    <span>Viernes, 21 de Febrero de 2026</span>
+                    <i class="far fa-calendar-alt"></i>
+                    <span id="current-date"></span>
                 </div>
                 <div class="social-links">
                     <a href="#"><i class="fab fa-facebook-f"></i></a>
-                    <a href="#"><i class="fab fa-twitter"></i></a>
+                    <a href="#"><i class="fab fa-x-twitter"></i></a>
                     <a href="#"><i class="fab fa-instagram"></i></a>
                     <a href="#"><i class="fab fa-youtube"></i></a>
                 </div>
@@ -241,19 +263,19 @@ $comentarios = $stmt->fetchAll();
         </div>
     </div>
 
-    <!-- Header Principal -->
+    <!-- Header principal -->
     <header class="main-header">
         <div class="container">
             <div class="header-content">
                 <div class="logo">
                     <a href="index.php">
-                        <h1>DIARIO LOS RÍOS</h1>
-                        <p class="tagline">La voz de la región • Valdivia, Chile</p>
+                        <h1>VALDIVIA CAPITAL</h1>
+                        <p class="tagline">La voz de la región &bull; Valdivia, Chile</p>
                     </a>
                 </div>
                 <div class="header-search">
                     <form class="search-form" action="busqueda.php" method="GET">
-                        <input type="text" name="q" placeholder="Buscar noticias..." required>
+                        <input type="text" name="q" placeholder="Buscar noticias...">
                         <button type="submit"><i class="fas fa-search"></i></button>
                     </form>
                 </div>
@@ -300,9 +322,6 @@ $comentarios = $stmt->fetchAll();
             <?php if ($noticia['imagen_principal']): ?>
             <div class="article-image-main">
                 <img src="<?php echo clean($noticia['imagen_principal']); ?>" alt="<?php echo clean($noticia['titulo']); ?>">
-                <?php if ($noticia['imagen_caption']): ?>
-                <p class="image-caption"><?php echo clean($noticia['imagen_caption']); ?></p>
-                <?php endif; ?>
             </div>
             <?php endif; ?>
 
@@ -329,7 +348,7 @@ $comentarios = $stmt->fetchAll();
             <div class="related-news">
                 <h3 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 20px;">Noticias Relacionadas</h3>
                 <?php foreach ($relacionadas as $relacionada): ?>
-                <a href="noticia.php?id=<?php echo $relacionada['id']; ?>" class="related-item">
+                <a href="noticia.php?slug=<?php echo clean($relacionada['slug']); ?>" class="related-item">
                     <?php if ($relacionada['imagen_principal']): ?>
                         <img src="<?php echo clean($relacionada['imagen_principal']); ?>" alt="<?php echo clean($relacionada['titulo']); ?>">
                     <?php else: ?>
@@ -370,10 +389,14 @@ $comentarios = $stmt->fetchAll();
         <div class="container">
             <div class="footer-grid">
                 <div class="footer-column">
-                    <h3>Sobre Nosotros</h3>
-                    <p style="color: rgba(255,255,255,0.8); line-height: 1.7;">
-                        Diario Los Ríos es el principal medio de comunicación digital de la región.
-                    </p>
+                    <span class="footer-logo-text">VALDIVIA CAPITAL</span>
+                    <p style="color:rgba(255,255,255,0.7);margin-top:10px;">El principal medio de comunicación digital de la región, comprometido con la información veraz y oportuna.</p>
+                    <div class="footer-social">
+                        <a href="#"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#"><i class="fab fa-x-twitter"></i></a>
+                        <a href="#"><i class="fab fa-instagram"></i></a>
+                        <a href="#"><i class="fab fa-youtube"></i></a>
+                    </div>
                 </div>
                 <div class="footer-column">
                     <h3>Secciones</h3>
@@ -382,33 +405,26 @@ $comentarios = $stmt->fetchAll();
                         <li><a href="seccion.php?cat=politica">Política</a></li>
                         <li><a href="seccion.php?cat=economia">Economía</a></li>
                         <li><a href="seccion.php?cat=deportes">Deportes</a></li>
+                        <li><a href="seccion.php?cat=cultura">Cultura</a></li>
+                        <li><a href="seccion.php?cat=turismo">Turismo</a></li>
                     </ul>
                 </div>
                 <div class="footer-column">
                     <h3>Contáctanos</h3>
                     <ul>
-                        <li>Valdivia, Los Ríos, Chile</li>
-                        <li>+56 9 8765 4321</li>
-                        <li>contacto@diariolosrios.cl</li>
+                        <li><i class="fas fa-map-marker-alt"></i> Valdivia, Los Ríos, Chile</li>
+                        <li><i class="fas fa-phone"></i> +56 9 8765 4321</li>
+                        <li><i class="fas fa-envelope"></i> contacto@valdiviacapital.cl</li>
                     </ul>
-                </div>
-                <div class="footer-column">
-                    <h3>Síguenos</h3>
-                    <div class="social-links" style="font-size: 1.5rem; gap: 20px;">
-                        <a href="#"><i class="fab fa-facebook-f"></i></a>
-                        <a href="#"><i class="fab fa-twitter"></i></a>
-                        <a href="#"><i class="fab fa-instagram"></i></a>
-                        <a href="#"><i class="fab fa-youtube"></i></a>
-                    </div>
                 </div>
             </div>
             <div class="footer-bottom">
-                <p>&copy; 2026 Diario Los Ríos. Todos los derechos reservados.</p>
+                <p>&copy; <?php echo date('Y'); ?> Valdivia Capital. Todos los derechos reservados.</p>
             </div>
         </div>
     </footer>
 
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="assets/js/main.js"></script>
 </body>
 </html>

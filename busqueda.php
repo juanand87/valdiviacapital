@@ -35,23 +35,25 @@ if (!empty($query)) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Buscar: <?php echo clean($query); ?> - Diario Los Ríos</title>
+    <title>Buscar: <?php echo clean($query); ?> - Valdivia Capital</title>
     <link rel="stylesheet" href="assets/css/style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-    <!-- Header Superior -->
+    <!-- Barra superior -->
     <div class="top-header">
         <div class="container">
             <div class="top-header-content">
                 <div class="date">
-                    <i class="far fa-calendar"></i>
-                    <span>Viernes, 21 de Febrero de 2026</span>
+                    <i class="far fa-calendar-alt"></i>
+                    <span id="current-date"></span>
                 </div>
                 <div class="social-links">
                     <a href="#"><i class="fab fa-facebook-f"></i></a>
-                    <a href="#"><i class="fab fa-twitter"></i></a>
+                    <a href="#"><i class="fab fa-x-twitter"></i></a>
                     <a href="#"><i class="fab fa-instagram"></i></a>
                     <a href="#"><i class="fab fa-youtube"></i></a>
                 </div>
@@ -59,19 +61,19 @@ if (!empty($query)) {
         </div>
     </div>
 
-    <!-- Header Principal -->
+    <!-- Header principal -->
     <header class="main-header">
         <div class="container">
             <div class="header-content">
                 <div class="logo">
                     <a href="index.php">
-                        <h1>DIARIO LOS RÍOS</h1>
-                        <p class="tagline">La voz de la región • Valdivia, Chile</p>
+                        <h1>VALDIVIA CAPITAL</h1>
+                        <p class="tagline">La voz de la región &bull; Valdivia, Chile</p>
                     </a>
                 </div>
                 <div class="header-search">
                     <form class="search-form" action="busqueda.php" method="GET">
-                        <input type="text" name="q" placeholder="Buscar noticias..." value="<?php echo clean($query); ?>" required>
+                        <input type="text" name="q" placeholder="Buscar noticias..." value="<?php echo clean($query); ?>">
                         <button type="submit"><i class="fas fa-search"></i></button>
                     </form>
                 </div>
@@ -108,12 +110,12 @@ if (!empty($query)) {
                 <div class="news-grid">
                     <?php foreach ($resultados as $noticia): ?>
                     <article class="news-card">
-                        <a href="noticia.php?id=<?php echo $noticia['id']; ?>">
+                        <a href="noticia.php?slug=<?php echo clean($noticia['slug']); ?>">
                             <div class="news-image">
                                 <?php if ($noticia['imagen_principal']): ?>
                                     <img src="<?php echo clean($noticia['imagen_principal']); ?>" alt="<?php echo clean($noticia['titulo']); ?>">
                                 <?php else: ?>
-                                    <img src="https://via.placeholder.com/600x400/2563eb/ffffff?text=Noticia" alt="<?php echo clean($noticia['titulo']); ?>">
+                                    <img src="https://picsum.photos/seed/<?php echo $noticia['id']; ?>bsq/600/400" alt="<?php echo clean($noticia['titulo']); ?>">
                                 <?php endif; ?>
                                 <span class="category-badge" style="background: <?php echo $noticia['categoria_color']; ?>;">
                                     <?php echo strtoupper($noticia['categoria_nombre']); ?>
@@ -172,10 +174,14 @@ if (!empty($query)) {
         <div class="container">
             <div class="footer-grid">
                 <div class="footer-column">
-                    <h3>Sobre Nosotros</h3>
-                    <p style="color: rgba(255,255,255,0.8); line-height: 1.7;">
-                        Diario Los Ríos es el principal medio de comunicación digital de la región.
-                    </p>
+                    <span class="footer-logo-text">VALDIVIA CAPITAL</span>
+                    <p style="color:rgba(255,255,255,0.7);margin-top:10px;">El principal medio de comunicación digital de la región, comprometido con la información veraz y oportuna.</p>
+                    <div class="footer-social">
+                        <a href="#"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#"><i class="fab fa-x-twitter"></i></a>
+                        <a href="#"><i class="fab fa-instagram"></i></a>
+                        <a href="#"><i class="fab fa-youtube"></i></a>
+                    </div>
                 </div>
                 <div class="footer-column">
                     <h3>Secciones</h3>
@@ -184,33 +190,26 @@ if (!empty($query)) {
                         <li><a href="seccion.php?cat=politica">Política</a></li>
                         <li><a href="seccion.php?cat=economia">Economía</a></li>
                         <li><a href="seccion.php?cat=deportes">Deportes</a></li>
+                        <li><a href="seccion.php?cat=cultura">Cultura</a></li>
+                        <li><a href="seccion.php?cat=turismo">Turismo</a></li>
                     </ul>
                 </div>
                 <div class="footer-column">
                     <h3>Contáctanos</h3>
                     <ul>
-                        <li>Valdivia, Los Ríos, Chile</li>
-                        <li>+56 9 8765 4321</li>
-                        <li>contacto@diariolosrios.cl</li>
+                        <li><i class="fas fa-map-marker-alt"></i> Valdivia, Los Ríos, Chile</li>
+                        <li><i class="fas fa-phone"></i> +56 9 8765 4321</li>
+                        <li><i class="fas fa-envelope"></i> contacto@valdiviacapital.cl</li>
                     </ul>
-                </div>
-                <div class="footer-column">
-                    <h3>Síguenos</h3>
-                    <div class="social-links" style="font-size: 1.5rem; gap: 20px;">
-                        <a href="#"><i class="fab fa-facebook-f"></i></a>
-                        <a href="#"><i class="fab fa-twitter"></i></a>
-                        <a href="#"><i class="fab fa-instagram"></i></a>
-                        <a href="#"><i class="fab fa-youtube"></i></a>
-                    </div>
                 </div>
             </div>
             <div class="footer-bottom">
-                <p>&copy; 2026 Diario Los Ríos. Todos los derechos reservados.</p>
+                <p>&copy; <?php echo date('Y'); ?> Valdivia Capital. Todos los derechos reservados.</p>
             </div>
         </div>
     </footer>
 
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="assets/js/main.js"></script>
 </body>
 </html>

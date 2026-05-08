@@ -1,10 +1,11 @@
 <?php
 require_once 'includes/config.php';
 
-// Obtener categoría de la URL
 $categoria_slug = $_GET['cat'] ?? 'regional';
+$pagina  = max(1, filter_input(INPUT_GET, 'p', FILTER_VALIDATE_INT) ?: 1);
+$por_pagina = 12;
+$offset  = ($pagina - 1) * $por_pagina;
 
-// Obtener información de la categoría
 $db = getDB();
 $stmt = $db->prepare("SELECT * FROM categorias WHERE slug = ? AND activo = 1");
 $stmt->execute([$categoria_slug]);
@@ -15,8 +16,14 @@ if (!$categoria) {
     exit;
 }
 
-// Obtener noticias de esta categoría
-$stmt = $db->prepare("
+// Total para paginación
+$stmtTotal = $db->prepare("SELECT COUNT(*) FROM noticias WHERE categoria_id = ? AND publicado = 1");
+$stmtTotal->execute([$categoria['id']]);
+$total = $stmtTotal->fetchColumn();
+$total_paginas = max(1, ceil($total / $por_pagina));
+
+// Noticias de la página actual
+$stmtN = $db->prepare("
     SELECT n.*, c.nombre as categoria_nombre, c.slug as categoria_slug, c.color as categoria_color,
            u.nombre as autor_nombre
     FROM noticias n
@@ -24,33 +31,35 @@ $stmt = $db->prepare("
     INNER JOIN usuarios u ON n.autor_id = u.id
     WHERE n.categoria_id = ? AND n.publicado = 1
     ORDER BY n.fecha_publicacion DESC
-    LIMIT 12
+    LIMIT $por_pagina OFFSET $offset
 ");
-$stmt->execute([$categoria['id']]);
-$noticias = $stmt->fetchAll();
+$stmtN->execute([$categoria['id']]);
+$noticias = $stmtN->fetchAll();
 ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo clean($categoria['nombre']); ?> - Diario Los Ríos</title>
+    <title><?php echo clean($categoria['nombre']); ?> - Valdivia Capital</title>
     <link rel="stylesheet" href="assets/css/style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-    <!-- Header Superior -->
+    <!-- Barra superior -->
     <div class="top-header">
         <div class="container">
             <div class="top-header-content">
                 <div class="date">
-                    <i class="far fa-calendar"></i>
-                    <span>Viernes, 21 de Febrero de 2026</span>
+                    <i class="far fa-calendar-alt"></i>
+                    <span id="current-date"></span>
                 </div>
                 <div class="social-links">
                     <a href="#"><i class="fab fa-facebook-f"></i></a>
-                    <a href="#"><i class="fab fa-twitter"></i></a>
+                    <a href="#"><i class="fab fa-x-twitter"></i></a>
                     <a href="#"><i class="fab fa-instagram"></i></a>
                     <a href="#"><i class="fab fa-youtube"></i></a>
                 </div>
@@ -58,19 +67,19 @@ $noticias = $stmt->fetchAll();
         </div>
     </div>
 
-    <!-- Header Principal -->
+    <!-- Header principal -->
     <header class="main-header">
         <div class="container">
             <div class="header-content">
                 <div class="logo">
                     <a href="index.php">
-                        <h1>DIARIO LOS RÍOS</h1>
-                        <p class="tagline">La voz de la región • Valdivia, Chile</p>
+                        <h1>VALDIVIA CAPITAL</h1>
+                        <p class="tagline">La voz de la región &bull; Valdivia, Chile</p>
                     </a>
                 </div>
                 <div class="header-search">
                     <form class="search-form" action="busqueda.php" method="GET">
-                        <input type="text" name="q" placeholder="Buscar noticias..." required>
+                        <input type="text" name="q" placeholder="Buscar noticias...">
                         <button type="submit"><i class="fas fa-search"></i></button>
                     </form>
                 </div>
@@ -94,14 +103,19 @@ $noticias = $stmt->fetchAll();
     </nav>
 
     <!-- Título de Sección -->
-    <section style="background: linear-gradient(135deg, <?php echo $categoria['color']; ?>, <?php echo $categoria['color']; ?>dd); padding: 40px 0; margin-bottom: 40px;">
+    <section style="background: var(--color-primary); padding: 30px 0; margin-bottom: 40px; border-bottom: 4px solid rgba(0,0,0,0.15);">
         <div class="container">
-            <h1 style="color: white; font-size: 2.5rem; font-weight: 800; margin: 0;">
-                <i class="<?php echo $categoria['icono']; ?>"></i>
+            <nav style="font-size:13px;color:rgba(255,255,255,0.7);margin-bottom:8px;">
+                <a href="index.php" style="color:rgba(255,255,255,0.7);">Inicio</a>
+                <span style="margin:0 6px;">/</span>
+                <span style="color:#fff;"><?php echo clean($categoria['nombre']); ?></span>
+            </nav>
+            <h1 style="color: white; font-size: 2rem; font-weight: 800; margin: 0;">
+                <i class="<?php echo clean($categoria['icono']); ?>"></i>
                 <?php echo clean($categoria['nombre']); ?>
             </h1>
-            <p style="color: rgba(255,255,255,0.9); margin-top: 10px;">
-                <?php echo clean($categoria['descripcion']); ?>
+            <p style="color: rgba(255,255,255,0.85); margin-top: 6px; font-size: 14px;">
+                <?php echo $total; ?> noticia<?php echo $total != 1 ? 's' : ''; ?> publicada<?php echo $total != 1 ? 's' : ''; ?>
             </p>
         </div>
     </section>
@@ -111,12 +125,12 @@ $noticias = $stmt->fetchAll();
         <div class="news-grid" style="margin-bottom: 60px;">
             <?php foreach ($noticias as $noticia): ?>
             <article class="news-card">
-                <a href="noticia.php?id=<?php echo $noticia['id']; ?>">
+                <a href="noticia.php?slug=<?php echo clean($noticia['slug']); ?>">
                     <div class="news-image">
                         <?php if ($noticia['imagen_principal']): ?>
                             <img src="<?php echo clean($noticia['imagen_principal']); ?>" alt="<?php echo clean($noticia['titulo']); ?>">
                         <?php else: ?>
-                            <img src="https://via.placeholder.com/600x400/2563eb/ffffff?text=<?php echo urlencode($categoria['nombre']); ?>" alt="<?php echo clean($noticia['titulo']); ?>">
+                            <img src="https://picsum.photos/seed/<?php echo $noticia['id']; ?>sec/600/400" alt="<?php echo clean($noticia['titulo']); ?>">
                         <?php endif; ?>
                         <span class="category-badge" style="background: <?php echo $noticia['categoria_color']; ?>;">
                             <?php echo strtoupper($noticia['categoria_nombre']); ?>
@@ -141,10 +155,26 @@ $noticias = $stmt->fetchAll();
         <div style="text-align: center; padding: 60px 20px;">
             <h3>No hay noticias disponibles en esta categoría</h3>
             <p style="color: var(--color-gray); margin-top: 10px;">Vuelve pronto para ver nuevo contenido</p>
-            <a href="index.php" class="btn-primary" style="margin-top: 20px; display: inline-block;">
-                Volver al inicio
-            </a>
+            <a href="index.php" style="display:inline-block;margin-top:20px;padding:12px 28px;background:var(--color-primary);color:#fff;border-radius:6px;font-weight:600;">Volver al inicio</a>
         </div>
+        <?php endif; ?>
+
+        <!-- Paginación -->
+        <?php if ($total_paginas > 1): ?>
+        <nav style="display:flex;justify-content:center;gap:8px;padding:40px 0;">
+            <?php if ($pagina > 1): ?>
+                <a href="seccion.php?cat=<?php echo $categoria_slug; ?>&p=<?php echo $pagina - 1; ?>" style="padding:8px 16px;border:2px solid var(--color-primary);border-radius:6px;color:var(--color-primary);font-weight:600;">&laquo; Anterior</a>
+            <?php endif; ?>
+            <?php for ($i = 1; $i <= $total_paginas; $i++): ?>
+                <a href="seccion.php?cat=<?php echo $categoria_slug; ?>&p=<?php echo $i; ?>"
+                   style="padding:8px 14px;border-radius:6px;font-weight:600;<?php echo $i === $pagina ? 'background:var(--color-primary);color:#fff;' : 'border:2px solid var(--color-light);color:var(--color-dark);'; ?>">
+                    <?php echo $i; ?>
+                </a>
+            <?php endfor; ?>
+            <?php if ($pagina < $total_paginas): ?>
+                <a href="seccion.php?cat=<?php echo $categoria_slug; ?>&p=<?php echo $pagina + 1; ?>" style="padding:8px 16px;border:2px solid var(--color-primary);border-radius:6px;color:var(--color-primary);font-weight:600;">Siguiente &raquo;</a>
+            <?php endif; ?>
+        </nav>
         <?php endif; ?>
     </div>
 
@@ -153,10 +183,14 @@ $noticias = $stmt->fetchAll();
         <div class="container">
             <div class="footer-grid">
                 <div class="footer-column">
-                    <h3>Sobre Nosotros</h3>
-                    <p style="color: rgba(255,255,255,0.8); line-height: 1.7;">
-                        Diario Los Ríos es el principal medio de comunicación digital de la región.
-                    </p>
+                    <span class="footer-logo-text">VALDIVIA CAPITAL</span>
+                    <p style="color:rgba(255,255,255,0.7);margin-top:10px;">El principal medio de comunicación digital de la región, comprometido con la información veraz y oportuna.</p>
+                    <div class="footer-social">
+                        <a href="#"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#"><i class="fab fa-x-twitter"></i></a>
+                        <a href="#"><i class="fab fa-instagram"></i></a>
+                        <a href="#"><i class="fab fa-youtube"></i></a>
+                    </div>
                 </div>
                 <div class="footer-column">
                     <h3>Secciones</h3>
@@ -165,33 +199,26 @@ $noticias = $stmt->fetchAll();
                         <li><a href="seccion.php?cat=politica">Política</a></li>
                         <li><a href="seccion.php?cat=economia">Economía</a></li>
                         <li><a href="seccion.php?cat=deportes">Deportes</a></li>
+                        <li><a href="seccion.php?cat=cultura">Cultura</a></li>
+                        <li><a href="seccion.php?cat=turismo">Turismo</a></li>
                     </ul>
                 </div>
                 <div class="footer-column">
                     <h3>Contáctanos</h3>
                     <ul>
-                        <li>Valdivia, Los Ríos, Chile</li>
-                        <li>+56 9 8765 4321</li>
-                        <li>contacto@diariolosrios.cl</li>
+                        <li><i class="fas fa-map-marker-alt"></i> Valdivia, Los Ríos, Chile</li>
+                        <li><i class="fas fa-phone"></i> +56 9 8765 4321</li>
+                        <li><i class="fas fa-envelope"></i> contacto@valdiviacapital.cl</li>
                     </ul>
-                </div>
-                <div class="footer-column">
-                    <h3>Síguenos</h3>
-                    <div class="social-links" style="font-size: 1.5rem; gap: 20px;">
-                        <a href="#"><i class="fab fa-facebook-f"></i></a>
-                        <a href="#"><i class="fab fa-twitter"></i></a>
-                        <a href="#"><i class="fab fa-instagram"></i></a>
-                        <a href="#"><i class="fab fa-youtube"></i></a>
-                    </div>
                 </div>
             </div>
             <div class="footer-bottom">
-                <p>&copy; 2026 Diario Los Ríos. Todos los derechos reservados.</p>
+                <p>&copy; <?php echo date('Y'); ?> Valdivia Capital. Todos los derechos reservados.</p>
             </div>
         </div>
     </footer>
 
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="assets/js/main.js"></script>
 </body>
 </html>
