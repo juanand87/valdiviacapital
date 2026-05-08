@@ -101,7 +101,10 @@ $categorias = $db->query("SELECT * FROM categorias WHERE activo = 1 ORDER BY nom
 <?php if (isset($_GET['success'])): ?>
     <div style="background: #d1fae5; color: #065f46; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
         <i class="fas fa-check-circle"></i> Noticia guardada correctamente
-        <a href="../noticia.php?id=<?php echo $_GET['id']; ?>" target="_blank" style="margin-left: 15px;">
+        <?php
+            $slugGuardado = $db->query("SELECT slug FROM noticias WHERE id = " . (int)$_GET['id'])->fetchColumn();
+        ?>
+        <a href="../noticia.php?slug=<?php echo htmlspecialchars($slugGuardado); ?>" target="_blank" style="margin-left: 15px;">
             <i class="fas fa-external-link-alt"></i> Ver en el sitio
         </a>
     </div>
@@ -179,11 +182,15 @@ $categorias = $db->query("SELECT * FROM categorias WHERE activo = 1 ORDER BY nom
                     <button type="submit" class="btn btn-primary" style="width: 100%;">
                         <i class="fas fa-save"></i> <?php echo $editando ? 'Actualizar' : 'Publicar'; ?>
                     </button>
-                    
+
+                    <button type="button" onclick="abrirVistaPrevia()" class="btn" style="width:100%;margin-top:10px;background:#6366f1;color:white;">
+                        <i class="fas fa-eye"></i> Vista previa
+                    </button>
+
                     <?php if ($editando): ?>
-                        <a href="../noticia.php?id=<?php echo $noticia['id']; ?>" target="_blank" 
+                        <a href="../noticia.php?slug=<?php echo htmlspecialchars($noticia['slug']); ?>" target="_blank" 
                            class="btn" style="width: 100%; margin-top: 10px; background: #4299e1; color: white;">
-                            <i class="fas fa-external-link-alt"></i> Ver noticia
+                            <i class="fas fa-external-link-alt"></i> Ver noticia publicada
                         </a>
                     <?php endif; ?>
                 </div>
@@ -261,6 +268,30 @@ $categorias = $db->query("SELECT * FROM categorias WHERE activo = 1 ORDER BY nom
 </form>
 
 <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+
+<!-- Modal Vista Previa -->
+<div id="modal-preview" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;overflow-y:auto;padding:30px 16px;">
+    <div style="max-width:820px;margin:0 auto;background:white;border-radius:12px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+        <div style="background:#c8102e;color:white;padding:14px 24px;display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-weight:700;font-size:15px;"><i class="fas fa-eye"></i> Vista Previa</span>
+            <button onclick="cerrarVistaPrevia()" style="background:rgba(255,255,255,0.2);border:none;color:white;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:16px;">&times;</button>
+        </div>
+        <div style="padding:32px;">
+            <div id="preview-cat-badge" style="display:inline-block;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:white;background:#c8102e;margin-bottom:16px;"></div>
+            <h1 id="preview-titulo" style="font-size:2rem;font-weight:800;line-height:1.3;margin-bottom:16px;color:#222;"></h1>
+            <p id="preview-bajada" style="font-size:1.15rem;color:#666;line-height:1.7;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid #eee;"></p>
+            <div style="display:flex;gap:20px;font-size:13px;color:#888;margin-bottom:24px;flex-wrap:wrap;">
+                <span><i class="fas fa-user"></i> <?php echo htmlspecialchars($_SESSION['admin_nombre'] ?? 'Redacción'); ?></span>
+                <span><i class="far fa-clock"></i> Ahora</span>
+                <span><i class="fas fa-book-open"></i> <span id="preview-tiempo">1</span> min de lectura</span>
+            </div>
+            <div id="preview-imagen-wrap" style="margin-bottom:24px;display:none;">
+                <img id="preview-imagen" src="" alt="" style="width:100%;border-radius:8px;">
+            </div>
+            <div id="preview-contenido" style="font-size:1.05rem;line-height:1.8;color:#333;"></div>
+        </div>
+    </div>
+</div>
 <script>
 // Inicializar Quill
 var quill = new Quill('#editor', {
@@ -311,6 +342,45 @@ function actualizarPreview(url) {
     
     img.src = url;
 }
+
+// Vista previa
+function abrirVistaPrevia() {
+    const titulo   = document.querySelector('[name=titulo]').value || 'Sin título';
+    const bajada   = document.querySelector('[name=bajada]').value || '';
+    const imagen   = document.getElementById('imagen_principal').value;
+    const catSel   = document.querySelector('[name=categoria_id]');
+    const catNombre = catSel && catSel.selectedIndex > 0 ? catSel.options[catSel.selectedIndex].text : '';
+    const contenidoHTML = quill.root.innerHTML;
+    const palabras = quill.getText().trim().split(/\s+/).length;
+    const tLect   = Math.max(1, Math.round(palabras / 200));
+
+    document.getElementById('preview-titulo').textContent   = titulo;
+    document.getElementById('preview-bajada').textContent   = bajada;
+    document.getElementById('preview-cat-badge').textContent = catNombre;
+    document.getElementById('preview-contenido').innerHTML  = contenidoHTML;
+    document.getElementById('preview-tiempo').textContent   = tLect;
+
+    const imgWrap = document.getElementById('preview-imagen-wrap');
+    if (imagen) {
+        document.getElementById('preview-imagen').src = imagen;
+        imgWrap.style.display = 'block';
+    } else {
+        imgWrap.style.display = 'none';
+    }
+
+    document.getElementById('modal-preview').style.display = 'block';
+    document.body.style.overflow = 'hidden';
+}
+
+function cerrarVistaPrevia() {
+    document.getElementById('modal-preview').style.display = 'none';
+    document.body.style.overflow = '';
+}
+
+// Cerrar modal al click fuera del contenido
+document.getElementById('modal-preview').addEventListener('click', function(e) {
+    if (e.target === this) cerrarVistaPrevia();
+});
 </script>
 
 <?php include 'includes/footer.php'; ?>
