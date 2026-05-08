@@ -94,6 +94,92 @@ body {
     margin: 15px 20px;
 }
 
+/* Mantenimiento toggle */
+.sidebar-maintenance {
+    position: sticky;
+    bottom: 0;
+    padding: 14px 20px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    background: rgba(0,0,0,0.25);
+}
+
+.maintenance-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.maintenance-toggle-wrap {
+    position: relative;
+    width: 36px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+.maintenance-toggle-wrap input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+    position: absolute;
+}
+
+.toggle-slider {
+    position: absolute;
+    inset: 0;
+    background: rgba(255,255,255,0.15);
+    border-radius: 20px;
+    transition: background 0.3s;
+}
+
+.toggle-slider::before {
+    content: '';
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    left: 3px;
+    top: 3px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.3s;
+}
+
+.maintenance-toggle-wrap input:checked + .toggle-slider {
+    background: #e53e3e;
+}
+
+.maintenance-toggle-wrap input:checked + .toggle-slider::before {
+    transform: translateX(16px);
+}
+
+.maintenance-text {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12.5px;
+    color: rgba(255,255,255,0.55);
+    transition: color 0.3s;
+}
+
+.maintenance-toggle-wrap input:checked ~ .maintenance-text,
+.maintenance-label:has(input:checked) .maintenance-text {
+    color: #fc8181;
+}
+
+.maint-status {
+    margin-top: 6px;
+    font-size: 11px;
+    text-align: center;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    border-radius: 4px;
+    padding: 3px 8px;
+}
+
+.maint-on  { background: rgba(197,48,48,0.3); color: #fc8181; }
+.maint-off { background: rgba(72,187,120,0.2); color: #68d391; }
+
 /* Main Content */
 .main-content {
     margin-left: var(--sidebar-width);

@@ -1,5 +1,6 @@
 <?php
 require_once 'includes/config.php';
+if (isMaintenance()) { include 'mantenimiento.php'; exit; }
 
 // Obtener noticia por slug (o por id como fallback)
 $slug = $_GET['slug'] ?? '';

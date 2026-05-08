@@ -1,5 +1,6 @@
 <?php
 require_once 'includes/config.php';
+if (isMaintenance()) { include 'mantenimiento.php'; exit; }
 
 // Obtener término de búsqueda
 $query = $_GET['q'] ?? '';

@@ -1,5 +1,6 @@
 <?php
 require_once 'includes/config.php';
+if (isMaintenance()) { include 'mantenimiento.php'; exit; }
 
 $categoria_slug = $_GET['cat'] ?? 'regional';
 $pagina  = max(1, filter_input(INPUT_GET, 'p', FILTER_VALIDATE_INT) ?: 1);

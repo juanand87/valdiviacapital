@@ -71,4 +71,45 @@
             <span>Cerrar Sesión</span>
         </a>
     </nav>
+
+    <!-- Toggle Mantenimiento -->
+    <div class="sidebar-maintenance">
+        <label class="maintenance-label" title="Activar/desactivar modo mantenimiento">
+            <div class="maintenance-toggle-wrap">
+                <input type="checkbox" id="chk-mantenimiento" <?php echo isMaintenance() ? 'checked' : ''; ?>>
+                <span class="toggle-slider"></span>
+            </div>
+            <span class="maintenance-text">
+                <i class="fas fa-tools"></i>
+                <span>Mantenimiento</span>
+            </span>
+        </label>
+        <div id="maint-status" class="maint-status" style="display:none"></div>
+    </div>
+
+    <script>
+    (function () {
+        var chk = document.getElementById('chk-mantenimiento');
+        if (!chk) return;
+        chk.addEventListener('change', function () {
+            var estado = this.checked ? '1' : '0';
+            var status = document.getElementById('maint-status');
+            status.style.display = 'none';
+            fetch('ajax/toggle-mantenimiento.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'estado=' + estado
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.ok) {
+                    status.textContent = data.mantenimiento ? '¡Activo!' : 'Desactivado';
+                    status.className = 'maint-status ' + (data.mantenimiento ? 'maint-on' : 'maint-off');
+                    status.style.display = 'block';
+                    setTimeout(function () { status.style.display = 'none'; }, 2500);
+                }
+            });
+        });
+    })();
+    </script>
 </aside>
