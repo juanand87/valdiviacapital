@@ -208,9 +208,9 @@ INSERT IGNORE INTO categorias (nombre, slug, descripcion, color, icono, orden) V
 ('Medio Ambiente', 'medio-ambiente', 'Medio ambiente y sostenibilidad', '#10b981', 'fa-leaf',            9),
 ('Tecnología',     'tecnologia',     'Tecnología e innovación',         '#6366f1', 'fa-microchip',      10);
 
--- Usuario admin (contraseña: admin123)
+-- Usuario admin
 INSERT IGNORE INTO usuarios (nombre, email, password, rol, activo) VALUES
-('Administrador', 'admin@bd_valdivia.cl', '$2y$10$/zgod0oiGd4C86Hc.Lry7eXqRGm/HqKTd1gLFqCQfYKhm6ShVArKe', 'admin', 1);
+('Juan Fica', 'juanand87@gmail.com', '$2y$10$uvMjuTAsaYAQCpxFNPgyEunppkZz..Pg066mTZmMohZlkUxWG2GIK', 'admin', 1);
 
 -- Configuración IA por defecto
 INSERT IGNORE INTO configuracion_ia (nombre, valor, descripcion) VALUES
