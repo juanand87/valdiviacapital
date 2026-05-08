@@ -1,10 +1,9 @@
 ﻿-- ============================================================
--- VALDIVIACAPITAL - SQL INSTALACIÓN PRODUCCIÓN
+-- bd_valdivia - SQL INSTALACIÓN PRODUCCIÓN
 -- Instalación limpia y completa. Ejecutar UNA sola vez.
 -- ============================================================
 
-CREATE DATABASE IF NOT EXISTS valdiviacapital CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE valdiviacapital;
+USE bd_valdivia;
 
 -- ============================================================
 -- TABLAS BASE
@@ -211,7 +210,7 @@ INSERT IGNORE INTO categorias (nombre, slug, descripcion, color, icono, orden) V
 
 -- Usuario admin (contraseña: admin123)
 INSERT IGNORE INTO usuarios (nombre, email, password, rol, activo) VALUES
-('Administrador', 'admin@valdiviacapital.cl', '$2y$10$/zgod0oiGd4C86Hc.Lry7eXqRGm/HqKTd1gLFqCQfYKhm6ShVArKe', 'admin', 1);
+('Administrador', 'admin@bd_valdivia.cl', '$2y$10$/zgod0oiGd4C86Hc.Lry7eXqRGm/HqKTd1gLFqCQfYKhm6ShVArKe', 'admin', 1);
 
 -- Configuración IA por defecto
 INSERT IGNORE INTO configuracion_ia (nombre, valor, descripcion) VALUES
@@ -222,4 +221,5 @@ INSERT IGNORE INTO configuracion_ia (nombre, valor, descripcion) VALUES
 ('gemini_prompt_base',  'Eres un periodista profesional. A partir de la siguiente información extraída de una noticia, escribe un artículo periodístico completo, profesional y bien redactado. Mantén la objetividad y el estilo periodístico. La información es:\n\nTítulo: {titulo}\nAutor: {autor}\nCategoría: {categoria}\nContenido original: {contenido}\n\nEscribe el artículo completo con introducción, desarrollo y conclusión. Mantén un tono profesional y objetivo.', 'Prompt base para generar redacciones con IA');
 
 SELECT 'Instalación completada exitosamente.' AS resultado;
-SELECT CONCAT('Tablas creadas: ', COUNT(*)) AS tablas FROM information_schema.TABLES WHERE TABLE_SCHEMA = 'valdiviacapital';
+SELECT CONCAT('Tablas creadas: ', COUNT(*)) AS tablas FROM information_schema.TABLES WHERE TABLE_SCHEMA = 'bd_valdivia';
+
