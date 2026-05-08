@@ -425,3 +425,56 @@ a { text-decoration: none; color: inherit; transition: var(--transition); }
     .breaking-news { display: none; }
     .footer-grid { grid-template-columns: 1fr; }
 }
+
+/* ============ MODO OSCURO ============ */
+html.dark-mode {
+    --color-dark:       #e8eaed;
+    --color-gray:       #9aa0a6;
+    --color-white:      #1e1e1e;
+    --color-gray-light: #2a2a2a;
+    --color-border:     #333333;
+    --color-light:      #2a2a2a;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.4);
+    --shadow-md: 0 4px 14px rgba(0,0,0,0.5);
+    --shadow-lg: 0 8px 26px rgba(0,0,0,0.55);
+}
+html.dark-mode body            { background: #121212; color: var(--color-dark); }
+html.dark-mode .main-header    { background: #1e1e1e; border-color: #333; }
+html.dark-mode .top-header     { background: #2a2a2a; }
+html.dark-mode .search-form input { background: #2a2a2a; border-color: #444; color: #e8eaed; }
+html.dark-mode .search-form input:focus { background: #333; border-color: var(--color-primary); }
+html.dark-mode .news-card,
+html.dark-mode .hero-grid-card,
+html.dark-mode .hero-featured,
+html.dark-mode .article-full,
+html.dark-mode .widget          { background: #1e1e1e; border-color: #333; }
+html.dark-mode .trending-item   { border-bottom-color: #2e2e2e; }
+html.dark-mode .breaking-news   { background: #1e1e1e; border-color: #333; }
+html.dark-mode .ticker-text span { color: #e8eaed; }
+html.dark-mode .section-title::after { background: #333; }
+html.dark-mode .news-meta,
+html.dark-mode .hero-grid-meta  { border-top-color: #2e2e2e; }
+html.dark-mode .main-footer     { background: #0d0d0d; }
+html.dark-mode .hero-featured .hero-title { color: #e8eaed; }
+html.dark-mode .breadcrumb-bar  { background: #1e1e1e; border-color: #333; }
+html.dark-mode .breadcrumb-nav  { color: #9aa0a6; }
+html.dark-mode .comments-section { background: #1e1e1e; }
+html.dark-mode .comment         { background: #2a2a2a; }
+
+/* Botón toggle modo oscuro */
+#btn-dark-mode {
+    background: none;
+    border: 1.5px solid var(--color-border);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 13px;
+    color: var(--color-gray);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: var(--transition);
+    flex-shrink: 0;
+}
+#btn-dark-mode:hover { border-color: var(--color-primary); color: var(--color-primary); }
+html.dark-mode #btn-dark-mode { background: #2a2a2a; border-color: #555; color: #e8eaed; }

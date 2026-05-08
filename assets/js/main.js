@@ -1,16 +1,28 @@
 // ========================================
-// DIARIO LOS RÍOS - JavaScript Principal
+// VALDIVIA CAPITAL - JavaScript Principal
 // ========================================
 
 $(document).ready(function() {
     
     // Fecha actual en el header
     updateCurrentDate();
+
+    // ---- MODO OSCURO ----
+    if (localStorage.getItem('darkMode') === '1') {
+        document.documentElement.classList.add('dark-mode');
+    }
+    $('#btn-dark-mode').on('click', function () {
+        const isDark = document.documentElement.classList.toggle('dark-mode');
+        localStorage.setItem('darkMode', isDark ? '1' : '0');
+    });
     
     // Newsletter form
     $('#newsletter-form').on('submit', function(e) {
         e.preventDefault();
-        const email = $(this).find('input[type="email"]').val();
+        const $form = $(this);
+        const email = $form.find('input[type="email"]').val();
+        const $btn  = $form.find('button[type="submit"]');
+        $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
         
         $.ajax({
             url: 'ajax/newsletter.php',
@@ -18,15 +30,12 @@ $(document).ready(function() {
             data: { email: email },
             dataType: 'json',
             success: function(response) {
-                if(response.success) {
-                    alert('¡Gracias por suscribirte! Recibirás nuestras noticias diariamente.');
-                    $('#newsletter-form')[0].reset();
-                } else {
-                    alert(response.message || 'Error al procesar la suscripción');
-                }
+                const color = response.success ? '#d1fae5' : '#fee2e2';
+                const txtColor = response.success ? '#065f46' : '#991b1b';
+                $form.html('<p style="background:' + color + ';color:' + txtColor + ';padding:12px;border-radius:8px;font-size:14px;text-align:center;">' + response.message + '</p>');
             },
             error: function() {
-                alert('Error de conexión. Por favor intenta más tarde.');
+                $btn.prop('disabled', false).html('<i class="fas fa-paper-plane"></i> Suscribirme');
             }
         });
     });
