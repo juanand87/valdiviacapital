@@ -41,6 +41,10 @@ if (!$noticia) {
 // Incrementar vistas
 $db->prepare("UPDATE noticias SET vistas = vistas + 1 WHERE id = ?")->execute([$noticia['id']]);
 
+// Tiempo de lectura estimado
+$palabras = str_word_count(strip_tags($noticia['contenido']));
+$tiempoLectura = max(1, round($palabras / 200));
+
 // Noticias relacionadas
 $stmtRel = $db->prepare("
     SELECT n.*, c.color as categoria_color
@@ -242,9 +246,44 @@ $comentarios = $stmtCom->fetchAll();
             color: var(--color-gray);
             margin-bottom: 10px;
         }
+        /* Breadcrumb */
+        .breadcrumb-bar {
+            background: var(--color-light);
+            padding: 10px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .breadcrumb-nav {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: var(--color-gray);
+            flex-wrap: wrap;
+        }
+        .breadcrumb-nav a {
+            color: var(--color-primary);
+            font-weight: 500;
+        }
+        .breadcrumb-nav a:hover { text-decoration: underline; }
+        .breadcrumb-nav .sep { color: #bbb; }
+        .breadcrumb-nav .current { color: var(--color-dark); font-weight: 500; }
+        /* Barra de progreso de lectura */
+        #reading-progress {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: var(--color-primary);
+            width: 0%;
+            z-index: 10000;
+            transition: width 0.1s linear;
+        }
     </style>
 </head>
 <body>
+    <!-- Barra de progreso de lectura -->
+    <div id="reading-progress"></div>
+
     <!-- Barra superior -->
     <div class="top-header">
         <div class="container">
@@ -298,6 +337,21 @@ $comentarios = $stmtCom->fetchAll();
         </div>
     </nav>
 
+    <!-- Breadcrumb -->
+    <div class="breadcrumb-bar">
+        <div class="container">
+            <nav class="breadcrumb-nav" aria-label="Ruta de navegación">
+                <a href="index.php"><i class="fas fa-home"></i> Inicio</a>
+                <span class="sep">/</span>
+                <a href="seccion.php?cat=<?php echo clean($noticia['categoria_slug']); ?>">
+                    <?php echo clean($noticia['categoria_nombre']); ?>
+                </a>
+                <span class="sep">/</span>
+                <span class="current"><?php echo clean(truncate($noticia['titulo'], 65)); ?></span>
+            </nav>
+        </div>
+    </div>
+
     <!-- Contenido de la Noticia -->
     <div class="container">
         <article class="article-full">
@@ -316,12 +370,16 @@ $comentarios = $stmtCom->fetchAll();
                     <span><i class="far fa-user"></i> Por <?php echo clean($noticia['autor_nombre']); ?></span>
                     <span><i class="far fa-clock"></i> <?php echo formatDate($noticia['fecha_publicacion']); ?></span>
                     <span><i class="fas fa-eye"></i> <?php echo number_format($noticia['vistas']); ?> vistas</span>
+                    <span><i class="fas fa-book-open"></i> <?php echo $tiempoLectura; ?> min de lectura</span>
                 </div>
             </div>
 
             <?php if ($noticia['imagen_principal']): ?>
             <div class="article-image-main">
                 <img src="<?php echo clean($noticia['imagen_principal']); ?>" alt="<?php echo clean($noticia['titulo']); ?>">
+                <?php if (!empty($noticia['imagen_caption'])): ?>
+                <p class="image-caption"><i class="fas fa-camera"></i> <?php echo clean($noticia['imagen_caption']); ?></p>
+                <?php endif; ?>
             </div>
             <?php endif; ?>
 
@@ -349,11 +407,7 @@ $comentarios = $stmtCom->fetchAll();
                 <h3 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 20px;">Noticias Relacionadas</h3>
                 <?php foreach ($relacionadas as $relacionada): ?>
                 <a href="noticia.php?slug=<?php echo clean($relacionada['slug']); ?>" class="related-item">
-                    <?php if ($relacionada['imagen_principal']): ?>
-                        <img src="<?php echo clean($relacionada['imagen_principal']); ?>" alt="<?php echo clean($relacionada['titulo']); ?>">
-                    <?php else: ?>
-                        <img src="https://via.placeholder.com/120x80/2563eb/ffffff" alt="<?php echo clean($relacionada['titulo']); ?>">
-                    <?php endif; ?>
+                    <img src="<?php echo $relacionada['imagen_principal'] ? clean($relacionada['imagen_principal']) : 'https://picsum.photos/seed/' . $relacionada['id'] . '/120/80'; ?>" alt="<?php echo clean($relacionada['titulo']); ?>">
                     <div>
                         <h4><?php echo clean($relacionada['titulo']); ?></h4>
                         <span style="font-size: 12px; color: var(--color-gray);">
@@ -426,5 +480,14 @@ $comentarios = $stmtCom->fetchAll();
 
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="assets/js/main.js"></script>
+    <script>
+        // Barra de progreso de lectura
+        $(window).on('scroll', function () {
+            var docHeight = $(document).height() - $(window).height();
+            var scrolled = $(window).scrollTop();
+            var progress = docHeight > 0 ? (scrolled / docHeight) * 100 : 0;
+            $('#reading-progress').css('width', Math.min(100, progress) + '%');
+        });
+    </script>
 </body>
 </html>
