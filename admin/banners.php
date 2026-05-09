@@ -118,16 +118,22 @@ $posLabel = [
                 </div>
 
                 <div class="form-group">
-                    <label class="form-label">URL de la imagen *</label>
-                    <input type="url" name="imagen_url" class="form-control" required
-                           value="<?php echo $editando ? htmlspecialchars($editando['imagen_url']) : ''; ?>"
-                           placeholder="https://ejemplo.com/banner.jpg"
-                           oninput="document.getElementById('img-preview').src=this.value">
-                    <div style="margin-top:8px;height:60px;background:#f5f5f5;border-radius:6px;overflow:hidden;display:flex;align-items:center;justify-content:center;">
+                    <label class="form-label">Imagen del banner *</label>
+                    <div style="display:flex;gap:8px;margin-bottom:8px;">
+                        <input type="url" name="imagen_url" id="imagen_url" class="form-control" required
+                               value="<?php echo $editando ? htmlspecialchars($editando['imagen_url']) : ''; ?>"
+                               placeholder="https://ejemplo.com/banner.jpg o selecciona de Medios"
+                               onchange="document.getElementById('img-preview').src=this.value"
+                               oninput="document.getElementById('img-preview').src=this.value">
+                        <button type="button" onclick="abrirMediaPicker('imagen_url','image')" class="btn btn-primary" style="white-space:nowrap;padding:0 14px;" title="Seleccionar de la biblioteca de medios">
+                            <i class="fas fa-photo-video"></i>
+                        </button>
+                    </div>
+                    <div style="height:80px;background:#f5f5f5;border-radius:6px;overflow:hidden;display:flex;align-items:center;justify-content:center;">
                         <img id="img-preview"
                              src="<?php echo $editando ? htmlspecialchars($editando['imagen_url']) : ''; ?>"
                              alt="Preview"
-                             style="max-height:60px;max-width:100%;object-fit:contain;"
+                             style="max-height:80px;max-width:100%;object-fit:contain;"
                              onerror="this.style.display='none'" onload="this.style.display='block'">
                     </div>
                 </div>
@@ -279,4 +285,5 @@ $posLabel = [
     </div>
 </div>
 
+<?php include 'includes/media-picker.php'; ?>
 <?php include 'includes/footer.php'; ?>

@@ -231,13 +231,17 @@ $categorias = $db->query("SELECT * FROM categorias WHERE activo = 1 ORDER BY nom
                         <?php endif; ?>
                     </div>
                     
-                    <input type="text" name="imagen_principal" id="imagen_principal" class="form-control" 
-                           placeholder="URL de la imagen"
-                           value="<?php echo $editando ? htmlspecialchars($noticia['imagen_principal']) : ''; ?>"
-                           onchange="actualizarPreview(this.value)">
-                    
+                    <div style="display:flex;gap:8px;">
+                        <input type="text" name="imagen_principal" id="imagen_principal" class="form-control" 
+                               placeholder="URL de la imagen o selecciona de Medios"
+                               value="<?php echo $editando ? htmlspecialchars($noticia['imagen_principal']) : ''; ?>"
+                               onchange="actualizarPreview(this.value)">
+                        <button type="button" onclick="abrirMediaPicker('imagen_principal','image')" class="btn btn-primary" style="white-space:nowrap;padding:0 14px;" title="Seleccionar de la biblioteca de medios">
+                            <i class="fas fa-photo-video"></i>
+                        </button>
+                    </div>
                     <small style="color: #718096; font-size: 12px; display: block; margin-top: 8px;">
-                        Puedes usar URLs de Unsplash, Pexels, etc.
+                        Selecciona de la biblioteca de Medios o pega una URL (Unsplash, Pexels, etc.)
                     </small>
                 </div>
             </div>
@@ -420,4 +424,5 @@ fetch('ajax/vistas-chart.php?id=<?php echo (int)$noticia['id']; ?>')
 <?php endif; ?>
 </script>
 
+<?php include 'includes/media-picker.php'; ?>
 <?php include 'includes/footer.php'; ?>

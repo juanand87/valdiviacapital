@@ -65,6 +65,11 @@
             <span>Banners</span>
         </a>
         
+        <a href="medios.php" class="nav-item <?php echo basename($_SERVER['PHP_SELF']) == 'medios.php' ? 'active' : ''; ?>">
+            <i class="fas fa-photo-video"></i>
+            <span>Medios</span>
+        </a>
+        
         <div class="nav-divider"></div>
         
         <a href="../index.php" class="nav-item" target="_blank">

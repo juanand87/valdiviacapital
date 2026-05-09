@@ -34,3 +34,18 @@ CREATE TABLE IF NOT EXISTS banners (
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_posicion_activo (posicion, activo)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS medios (
+    id               INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    nombre_original  VARCHAR(255) NOT NULL,
+    nombre_archivo   VARCHAR(255) NOT NULL,
+    ruta             VARCHAR(500) NOT NULL,
+    tipo_mime        VARCHAR(100) NOT NULL,
+    tamano           INT UNSIGNED NOT NULL DEFAULT 0,
+    ancho            SMALLINT UNSIGNED NULL,
+    alto             SMALLINT UNSIGNED NULL,
+    autor_id         INT UNSIGNED NULL,
+    created_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_tipo (tipo_mime),
+    INDEX idx_fecha (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
