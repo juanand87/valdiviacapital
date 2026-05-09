@@ -1,78 +1,94 @@
 ﻿<?php
 require_once 'includes/config.php';
 require_once 'includes/maintenance.php';
+require_once 'includes/cache.php';
 if (isMaintenance()) { include 'mantenimiento.php'; exit; }
 
 $db = getDB();
 
-// Noticia destacada (hero principal)
-$hero = $db->query("
-    SELECT n.*, c.nombre AS cat_nombre, c.color AS cat_color, u.nombre AS autor_nombre
-    FROM noticias n
-    JOIN categorias c ON c.id = n.categoria_id
-    JOIN usuarios u ON u.id = n.autor_id
-    WHERE n.publicado = 1 AND n.destacado = 1
-    ORDER BY n.fecha_publicacion DESC
-    LIMIT 1
-")->fetch();
-
-// Si no hay destacada, tomar la más reciente
-if (!$hero) {
+// Noticia destacada (hero principal) — con caché de 5 minutos
+$cached = cacheGet('homepage_main');
+if ($cached) {
+    ['hero' => $hero, 'heroGrid' => $heroGrid, 'noticias' => $noticias, 'shownIds' => $shownIds] = $cached;
+} else {
     $hero = $db->query("
         SELECT n.*, c.nombre AS cat_nombre, c.color AS cat_color, u.nombre AS autor_nombre
         FROM noticias n
         JOIN categorias c ON c.id = n.categoria_id
         JOIN usuarios u ON u.id = n.autor_id
-        WHERE n.publicado = 1
+        WHERE n.publicado = 1 AND n.destacado = 1
         ORDER BY n.fecha_publicacion DESC
         LIMIT 1
     ")->fetch();
+
+    // Si no hay destacada, tomar la más reciente
+    if (!$hero) {
+        $hero = $db->query("
+            SELECT n.*, c.nombre AS cat_nombre, c.color AS cat_color, u.nombre AS autor_nombre
+            FROM noticias n
+            JOIN categorias c ON c.id = n.categoria_id
+            JOIN usuarios u ON u.id = n.autor_id
+            WHERE n.publicado = 1
+            ORDER BY n.fecha_publicacion DESC
+            LIMIT 1
+        ")->fetch();
+    }
+
+    // 3 noticias secundarias del hero (excluir la principal)
+    $heroId = $hero ? $hero['id'] : 0;
+    $stmtGrid = $db->prepare("
+        SELECT n.*, c.nombre AS cat_nombre, c.color AS cat_color
+        FROM noticias n
+        JOIN categorias c ON c.id = n.categoria_id
+        WHERE n.publicado = 1 AND n.id != :id
+        ORDER BY n.fecha_publicacion DESC
+        LIMIT 3
+    ");
+    $stmtGrid->execute([':id' => $heroId]);
+    $heroGrid = $stmtGrid->fetchAll();
+
+    // Últimas noticias (sin las del hero)
+    $heroIds = array_merge([$heroId], array_column($heroGrid, 'id'));
+    $placeholders = implode(',', array_fill(0, count($heroIds), '?'));
+    $stmtNews = $db->prepare("
+        SELECT n.*, c.nombre AS cat_nombre, c.color AS cat_color
+        FROM noticias n
+        JOIN categorias c ON c.id = n.categoria_id
+        WHERE n.publicado = 1 AND n.id NOT IN ($placeholders)
+        ORDER BY n.fecha_publicacion DESC
+        LIMIT 12
+    ");
+    $stmtNews->execute($heroIds);
+    $noticias = $stmtNews->fetchAll();
+
+    // IDs ya mostrados (para el cargar más)
+    $shownIds = array_merge($heroIds, array_column($noticias, 'id'));
+    $shownIds = array_map('intval', array_unique($shownIds));
+
+    cacheSet('homepage_main', compact('hero', 'heroGrid', 'noticias', 'shownIds'));
 }
 
-// 3 noticias secundarias del hero (excluir la principal)
-$heroId = $hero ? $hero['id'] : 0;
-$stmtGrid = $db->prepare("
-    SELECT n.*, c.nombre AS cat_nombre, c.color AS cat_color
-    FROM noticias n
-    JOIN categorias c ON c.id = n.categoria_id
-    WHERE n.publicado = 1 AND n.id != :id
-    ORDER BY n.fecha_publicacion DESC
-    LIMIT 3
-");
-$stmtGrid->execute([':id' => $heroId]);
-$heroGrid = $stmtGrid->fetchAll();
-
-// Últimas noticias (sin las del hero)
-$heroIds = array_merge([$heroId], array_column($heroGrid, 'id'));
-$placeholders = implode(',', array_fill(0, count($heroIds), '?'));
-$stmtNews = $db->prepare("
-    SELECT n.*, c.nombre AS cat_nombre, c.color AS cat_color
-    FROM noticias n
-    JOIN categorias c ON c.id = n.categoria_id
-    WHERE n.publicado = 1 AND n.id NOT IN ($placeholders)
-    ORDER BY n.fecha_publicacion DESC
-    LIMIT 12
-");
-$stmtNews->execute($heroIds);
-$noticias = $stmtNews->fetchAll();
-
-// IDs ya mostrados (para el cargar más)
-$shownIds = array_merge($heroIds, array_column($noticias, 'id'));
-$shownIds = array_map('intval', array_unique($shownIds));
-
-// Lo más leído (sidebar)
-$trending = $db->query("
-    SELECT n.id, n.titulo, n.slug, n.vistas
-    FROM noticias n
-    WHERE n.publicado = 1
-    ORDER BY n.vistas DESC
-    LIMIT 5
-")->fetchAll();
+// Lo más leído (sidebar) — caché 10 minutos (vistas cambian con más frecuencia)
+$trending = cacheGet('homepage_trending', 600);
+if ($trending === false) {
+    $trending = $db->query("
+        SELECT n.id, n.titulo, n.slug, n.vistas
+        FROM noticias n
+        WHERE n.publicado = 1
+        ORDER BY n.vistas DESC
+        LIMIT 5
+    ")->fetchAll();
+    cacheSet('homepage_trending', $trending);
+}
 
 // Ticker: últimos títulos
-$tickerNoticias = $db->query("
-    SELECT titulo FROM noticias WHERE publicado = 1 ORDER BY fecha_publicacion DESC LIMIT 8
-")->fetchAll(PDO::FETCH_COLUMN);
+$tickerNoticias = cacheGet('homepage_ticker');
+if ($tickerNoticias === false) {
+    $tickerNoticias = $db->query("
+        SELECT titulo FROM noticias WHERE publicado = 1 ORDER BY fecha_publicacion DESC LIMIT 8
+    ")->fetchAll(PDO::FETCH_COLUMN);
+    cacheSet('homepage_ticker', $tickerNoticias);
+}
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -170,9 +186,9 @@ $tickerNoticias = $db->query("
             <a href="noticia.php?slug=<?= clean($hero['slug']) ?>" class="hero-featured">
                 <div class="hero-image">
                     <?php if ($hero['imagen_principal']): ?>
-                        <img src="<?= clean($hero['imagen_principal']) ?>" alt="<?= clean($hero['titulo']) ?>">
+                        <img src="<?= clean($hero['imagen_principal']) ?>" alt="<?= clean($hero['titulo']) ?>" loading="lazy">
                     <?php else: ?>
-                        <img src="https://picsum.photos/seed/<?= $hero['id'] ?>/800/500" alt="<?= clean($hero['titulo']) ?>">
+                        <img src="https://picsum.photos/seed/<?= $hero['id'] ?>/800/500" alt="<?= clean($hero['titulo']) ?>" loading="lazy">
                     <?php endif; ?>
                     <?php if (strtotime($hero['fecha_publicacion']) > strtotime('-2 hours')): ?>
                         <span class="badge-ultima-hora"><i class="fas fa-bolt"></i> Última hora</span>
@@ -203,9 +219,9 @@ $tickerNoticias = $db->query("
                 <a href="noticia.php?slug=<?= clean($g['slug']) ?>" class="hero-grid-card">
                     <div class="hero-grid-img">
                         <?php if ($g['imagen_principal']): ?>
-                            <img src="<?= clean($g['imagen_principal']) ?>" alt="<?= clean($g['titulo']) ?>">
+                            <img src="<?= clean($g['imagen_principal']) ?>" alt="<?= clean($g['titulo']) ?>" loading="lazy">
                         <?php else: ?>
-                            <img src="https://picsum.photos/seed/<?= $g['id'] ?>grid/600/400" alt="<?= clean($g['titulo']) ?>">
+                            <img src="https://picsum.photos/seed/<?= $g['id'] ?>grid/600/400" alt="<?= clean($g['titulo']) ?>" loading="lazy">
                         <?php endif; ?>
                         <span class="category-badge" style="background:<?= clean($g['cat_color']) ?>;"><?= clean($g['cat_nombre']) ?></span>
                     </div>
@@ -241,9 +257,9 @@ $tickerNoticias = $db->query("
                                 <a href="noticia.php?slug=<?= clean($n['slug']) ?>">
                                     <div class="news-image">
                                         <?php if ($n['imagen_principal']): ?>
-                                            <img src="<?= clean($n['imagen_principal']) ?>" alt="<?= clean($n['titulo']) ?>">
+                                            <img src="<?= clean($n['imagen_principal']) ?>" alt="<?= clean($n['titulo']) ?>" loading="lazy">
                                         <?php else: ?>
-                                            <img src="https://picsum.photos/seed/<?= $n['id'] ?>news/600/400" alt="<?= clean($n['titulo']) ?>">
+                                            <img src="https://picsum.photos/seed/<?= $n['id'] ?>news/600/400" alt="<?= clean($n['titulo']) ?>" loading="lazy">
                                         <?php endif; ?>
                                         <span class="category-badge" style="background:<?= clean($n['cat_color']) ?>;"><?= clean($n['cat_nombre']) ?></span>
                                         <?php if (strtotime($n['fecha_publicacion']) > strtotime('-2 hours')): ?>

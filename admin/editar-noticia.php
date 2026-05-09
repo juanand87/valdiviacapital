@@ -260,6 +260,7 @@ $categorias = $db->query("SELECT * FROM categorias WHERE activo = 1 ORDER BY nom
                             Actualizado: <?php echo timeAgo($noticia['updated_at']); ?>
                         </div>
                     <?php endif; ?>
+                    <canvas id="chart-vistas" height="110" style="margin-top:18px;display:block;width:100%;"></canvas>
                 </div>
             </div>
             <?php endif; ?>
@@ -268,6 +269,7 @@ $categorias = $db->query("SELECT * FROM categorias WHERE activo = 1 ORDER BY nom
 </form>
 
 <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
 <!-- Modal Vista Previa -->
 <div id="modal-preview" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;overflow-y:auto;padding:30px 16px;">
@@ -381,6 +383,41 @@ function cerrarVistaPrevia() {
 document.getElementById('modal-preview').addEventListener('click', function(e) {
     if (e.target === this) cerrarVistaPrevia();
 });
+
+<?php if ($editando): ?>
+// Gráfico de vistas diarias
+fetch('ajax/vistas-chart.php?id=<?php echo (int)$noticia['id']; ?>')
+    .then(r => r.json())
+    .then(function(res) {
+        if (!res.labels) return;
+        const canvas = document.getElementById('chart-vistas');
+        if (!canvas) return;
+        new Chart(canvas, {
+            type: 'line',
+            data: {
+                labels: res.labels,
+                datasets: [{
+                    label: 'Vistas',
+                    data: res.data,
+                    borderColor: '#c8102e',
+                    backgroundColor: 'rgba(200,16,46,0.08)',
+                    borderWidth: 2,
+                    pointRadius: 3,
+                    fill: true,
+                    tension: 0.3
+                }]
+            },
+            options: {
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, ticks: { precision: 0, font: { size: 11 } }, grid: { color: '#f0f0f0' } },
+                    x: { ticks: { font: { size: 11 } }, grid: { display: false } }
+                }
+            }
+        });
+    })
+    .catch(function() {});
+<?php endif; ?>
 </script>
 
 <?php include 'includes/footer.php'; ?>

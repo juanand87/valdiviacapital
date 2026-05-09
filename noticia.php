@@ -43,6 +43,10 @@ if (!$noticia) {
 // Incrementar vistas
 $db->prepare("UPDATE noticias SET vistas = vistas + 1 WHERE id = ?")->execute([$noticia['id']]);
 
+// Registrar vista diaria para estadísticas
+$db->prepare("INSERT INTO vistas_diarias (noticia_id, fecha, vistas) VALUES (?, CURDATE(), 1)
+    ON DUPLICATE KEY UPDATE vistas = vistas + 1")->execute([$noticia['id']]);
+
 // Tiempo de lectura estimado
 $palabras = str_word_count(strip_tags($noticia['contenido']));
 $tiempoLectura = max(1, round($palabras / 200));
@@ -67,6 +71,25 @@ $stmtCom = $db->prepare("
 ");
 $stmtCom->execute([$noticia['id']]);
 $comentarios = $stmtCom->fetchAll();
+
+// Reacciones
+$stmtReac = $db->prepare("SELECT tipo, COUNT(*) as total FROM reacciones WHERE noticia_id = ? GROUP BY tipo");
+$stmtReac->execute([$noticia['id']]);
+$reaccionesTotales = ['me_gusta' => 0, 'me_encanta' => 0, 'sorpresa' => 0];
+foreach ($stmtReac->fetchAll() as $r) {
+    if (isset($reaccionesTotales[$r['tipo']])) {
+        $reaccionesTotales[$r['tipo']] = (int)$r['total'];
+    }
+}
+$ipHash = hash('sha256', $_SERVER['REMOTE_ADDR'] ?? '');
+$stmtMiReac = $db->prepare("SELECT tipo FROM reacciones WHERE noticia_id = ? AND ip_hash = ?");
+$stmtMiReac->execute([$noticia['id'], $ipHash]);
+$miReaccion = $stmtMiReac->fetchColumn();
+
+// Lo más leído (para widget)
+$masLeidas = $db->query("
+    SELECT id, titulo, slug, vistas FROM noticias WHERE publicado = 1 ORDER BY vistas DESC LIMIT 5
+")->fetchAll();
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -82,6 +105,27 @@ $comentarios = $stmtCom->fetchAll();
     <meta property="og:image" content="<?php echo clean($noticia['imagen_principal']); ?>">
     <?php endif; ?>
     <meta property="og:type" content="article">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "NewsArticle",
+      "headline": "<?php echo addslashes(clean($noticia['titulo'])); ?>",
+      "description": "<?php echo addslashes(clean(truncate(strip_tags($noticia['bajada']), 200))); ?>",
+      "datePublished": "<?php echo date('c', strtotime($noticia['fecha_publicacion'])); ?>",
+      "dateModified": "<?php echo date('c', strtotime(!empty($noticia['updated_at']) ? $noticia['updated_at'] : $noticia['fecha_publicacion'])); ?>",
+      "author": {"@type": "Person", "name": "<?php echo addslashes(clean($noticia['autor_nombre'])); ?>"},
+      "publisher": {
+        "@type": "Organization",
+        "name": "Valdivia Capital",
+        "logo": {"@type": "ImageObject", "url": "https://valdiviacapital.cl/logovc.png"}
+      }<?php if ($noticia['imagen_principal']): ?>,
+      "image": "<?php echo clean($noticia['imagen_principal']); ?>"<?php endif; ?>,
+      "mainEntityOfPage": {
+        "@type": "WebPage",
+        "@id": "<?php echo SITE_URL; ?>/noticia.php?slug=<?php echo urlencode($noticia['slug']); ?>"
+      }
+    }
+    </script>
     <link rel="stylesheet" href="assets/css/style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -207,6 +251,41 @@ $comentarios = $stmtCom->fetchAll();
         .share-btn.facebook { background: #3b5998; }
         .share-btn.twitter { background: #1da1f2; }
         .share-btn.whatsapp { background: #25d366; }
+        /* Reacciones */
+        .reactions-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin: 20px 0;
+            padding: 16px 20px;
+            background: var(--color-light);
+            border-radius: 12px;
+        }
+        .reactions-bar > span {
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--color-dark);
+            margin-right: 4px;
+        }
+        .react-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 18px;
+            border: 2px solid transparent;
+            border-radius: 30px;
+            background: white;
+            box-shadow: 0 1px 4px rgba(0,0,0,.08);
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 600;
+            transition: all .2s;
+            color: var(--color-dark);
+        }
+        .react-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,.12); }
+        .react-btn.active { border-color: var(--color-primary); background: #fff0f2; }
+        .react-count { font-size: 13px; color: var(--color-gray); }
         .related-news {
             margin-top: 50px;
         }
@@ -404,13 +483,21 @@ $comentarios = $stmtCom->fetchAll();
                 </a>
             </div>
 
+            <!-- Reacciones -->
+            <div class="reactions-bar" id="reactions-bar" data-id="<?php echo (int)$noticia['id']; ?>">
+                <span>¿Qué te pareció?</span>
+                <button class="react-btn<?php echo $miReaccion === 'me_gusta' ? ' active' : ''; ?>" data-tipo="me_gusta">👍 <span class="react-count" id="cnt-me_gusta"><?php echo $reaccionesTotales['me_gusta']; ?></span></button>
+                <button class="react-btn<?php echo $miReaccion === 'me_encanta' ? ' active' : ''; ?>" data-tipo="me_encanta">❤️ <span class="react-count" id="cnt-me_encanta"><?php echo $reaccionesTotales['me_encanta']; ?></span></button>
+                <button class="react-btn<?php echo $miReaccion === 'sorpresa' ? ' active' : ''; ?>" data-tipo="sorpresa">😮 <span class="react-count" id="cnt-sorpresa"><?php echo $reaccionesTotales['sorpresa']; ?></span></button>
+            </div>
+
             <!-- Noticias Relacionadas -->
             <?php if (!empty($relacionadas)): ?>
             <div class="related-news">
                 <h3 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 20px;">Noticias Relacionadas</h3>
                 <?php foreach ($relacionadas as $relacionada): ?>
                 <a href="noticia.php?slug=<?php echo clean($relacionada['slug']); ?>" class="related-item">
-                    <img src="<?php echo $relacionada['imagen_principal'] ? clean($relacionada['imagen_principal']) : 'https://picsum.photos/seed/' . $relacionada['id'] . '/120/80'; ?>" alt="<?php echo clean($relacionada['titulo']); ?>">
+                    <img src="<?php echo $relacionada['imagen_principal'] ? clean($relacionada['imagen_principal']) : 'https://picsum.photos/seed/' . $relacionada['id'] . '/120/80'; ?>" alt="<?php echo clean($relacionada['titulo']); ?>" loading="lazy">
                     <div>
                         <h4><?php echo clean($relacionada['titulo']); ?></h4>
                         <span style="font-size: 12px; color: var(--color-gray);">
@@ -422,6 +509,26 @@ $comentarios = $stmtCom->fetchAll();
             </div>
             <?php endif; ?>
         </article>
+
+        <!-- Widget: Lo más leído -->
+        <?php if (!empty($masLeidas)): ?>
+        <div class="widget" style="margin: 0 0 30px; padding: 25px; background: white; border-radius: var(--radius); box-shadow: var(--shadow-lg);">
+            <h3 class="widget-title" style="font-size: 1.1rem; font-weight: 700; margin-bottom: 18px; padding-bottom: 12px; border-bottom: 2px solid var(--color-primary);">
+                <i class="fas fa-fire" style="color:var(--color-primary);margin-right:6px;"></i>Lo Más Leído
+            </h3>
+            <div class="trending-list">
+                <?php foreach ($masLeidas as $i => $ml): ?>
+                <div class="trending-item" style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--color-light);">
+                    <div class="trending-number" style="min-width:28px;height:28px;background:var(--color-primary);color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;"><?= $i + 1 ?></div>
+                    <div>
+                        <h4 style="font-size:14px;line-height:1.4;margin:0 0 3px;"><a href="noticia.php?slug=<?= clean($ml['slug']) ?>" style="color:var(--color-dark);"><?= clean($ml['titulo']) ?></a></h4>
+                        <span style="font-size:12px;color:var(--color-gray);"><?= number_format($ml['vistas'], 0, ',', '.') ?> vistas</span>
+                    </div>
+                </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+        <?php endif; ?>
 
         <!-- Sección de Comentarios -->
         <?php if (!empty($comentarios)): ?>
@@ -491,6 +598,37 @@ $comentarios = $stmtCom->fetchAll();
             var progress = docHeight > 0 ? (scrolled / docHeight) * 100 : 0;
             $('#reading-progress').css('width', Math.min(100, progress) + '%');
         });
+
+        // Reacciones
+        (function () {
+            const bar = document.getElementById('reactions-bar');
+            if (!bar) return;
+            const noticiaId = bar.dataset.id;
+
+            bar.querySelectorAll('.react-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    const tipo = this.dataset.tipo;
+                    fetch('ajax/reacciones.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: 'id=' + encodeURIComponent(noticiaId) + '&tipo=' + encodeURIComponent(tipo)
+                    })
+                    .then(r => r.json())
+                    .then(function (res) {
+                        // Actualizar conteos
+                        Object.keys(res.counts).forEach(function (t) {
+                            const el = document.getElementById('cnt-' + t);
+                            if (el) el.textContent = res.counts[t];
+                        });
+                        // Actualizar clase activa
+                        bar.querySelectorAll('.react-btn').forEach(function (b) {
+                            b.classList.toggle('active', b.dataset.tipo === res.mi_reaccion);
+                        });
+                    })
+                    .catch(function () {});
+                });
+            });
+        }());
     </script>
 </body>
 </html>

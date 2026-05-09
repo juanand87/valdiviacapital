@@ -114,9 +114,9 @@ if (!empty($query)) {
                         <a href="noticia.php?slug=<?php echo clean($noticia['slug']); ?>">
                             <div class="news-image">
                                 <?php if ($noticia['imagen_principal']): ?>
-                                    <img src="<?php echo clean($noticia['imagen_principal']); ?>" alt="<?php echo clean($noticia['titulo']); ?>">
+                                    <img src="<?php echo clean($noticia['imagen_principal']); ?>" alt="<?php echo clean($noticia['titulo']); ?>" loading="lazy">
                                 <?php else: ?>
-                                    <img src="https://picsum.photos/seed/<?php echo $noticia['id']; ?>bsq/600/400" alt="<?php echo clean($noticia['titulo']); ?>">
+                                    <img src="https://picsum.photos/seed/<?php echo $noticia['id']; ?>bsq/600/400" alt="<?php echo clean($noticia['titulo']); ?>" loading="lazy">
                                 <?php endif; ?>
                                 <span class="category-badge" style="background: <?php echo $noticia['categoria_color']; ?>;">
                                     <?php echo strtoupper($noticia['categoria_nombre']); ?>
