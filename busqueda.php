@@ -1,6 +1,7 @@
 <?php
 require_once 'includes/config.php';
 require_once 'includes/maintenance.php';
+require_once 'includes/banners.php';
 if (isMaintenance()) { include 'mantenimiento.php'; exit; }
 
 // Obtener término de búsqueda
@@ -99,6 +100,7 @@ if (!empty($query)) {
 
     <!-- Resultados de Búsqueda -->
     <div class="container" style="margin: 60px auto;">
+        <?php renderBanner('leaderboard'); ?>
         <?php if (!empty($query)): ?>
             <h1 style="font-size: 2rem; font-weight: 700; margin-bottom: 15px;">
                 Resultados de búsqueda para: "<?php echo clean($query); ?>"

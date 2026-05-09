@@ -2,6 +2,7 @@
 require_once 'includes/config.php';
 require_once 'includes/maintenance.php';
 require_once 'includes/cache.php';
+require_once 'includes/banners.php';
 if (isMaintenance()) { include 'mantenimiento.php'; exit; }
 
 $db = getDB();
@@ -158,6 +159,9 @@ if ($tickerNoticias === false) {
         </div>
     </nav>
 
+    <!-- Banner Leaderboard -->
+    <?php renderBanner('leaderboard'); ?>
+
     <!-- Ticker dinámico -->
     <div class="breaking-news">
         <div class="container" style="display:flex;align-items:center;width:100%;overflow:hidden;">
@@ -241,6 +245,9 @@ if ($tickerNoticias === false) {
         </div>
     </section>
 
+    <!-- Banner Billboard -->
+    <?php renderBanner('billboard'); ?>
+
     <!-- ======== CONTENIDO PRINCIPAL + SIDEBAR ======== -->
     <div class="container">
         <div class="content-layout">
@@ -314,6 +321,16 @@ if ($tickerNoticias === false) {
                         <?php endforeach; ?>
                     </div>
                 </div>
+
+                <!-- Widget sidebar banner -->
+                <?php if (($bSide = getBanner('sidebar'))): ?>
+                <div class="widget ad-sidebar" style="padding:14px;">
+                    <span class="ad-label">Publicidad</span>
+                    <a href="ajax/banner-click.php?id=<?php echo (int)$bSide['id']; ?>" target="_blank" rel="noopener nofollow sponsored">
+                        <img src="<?php echo htmlspecialchars($bSide['imagen_url']); ?>" alt="<?php echo htmlspecialchars($bSide['titulo']); ?>" loading="lazy" style="width:100%;border-radius:6px;">
+                    </a>
+                </div>
+                <?php endif; ?>
 
                 <!-- Newsletter -->
                 <div class="widget newsletter-widget">

@@ -60,6 +60,11 @@
             <span>Newsletter</span>
         </a>
         
+        <a href="banners.php" class="nav-item <?php echo basename($_SERVER['PHP_SELF']) == 'banners.php' ? 'active' : ''; ?>">
+            <i class="fas fa-ad"></i>
+            <span>Banners</span>
+        </a>
+        
         <div class="nav-divider"></div>
         
         <a href="../index.php" class="nav-item" target="_blank">

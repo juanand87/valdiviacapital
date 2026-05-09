@@ -19,3 +19,18 @@ CREATE TABLE IF NOT EXISTS vistas_diarias (
     UNIQUE KEY uk_noticia_fecha (noticia_id, fecha),
     INDEX idx_noticia (noticia_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS banners (
+    id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    titulo      VARCHAR(100) NOT NULL,
+    imagen_url  VARCHAR(500) NOT NULL,
+    url_destino VARCHAR(500) NOT NULL,
+    posicion    ENUM('leaderboard','billboard','sidebar','in_article') NOT NULL,
+    activo      TINYINT(1) NOT NULL DEFAULT 1,
+    fecha_inicio DATE NULL,
+    fecha_fin    DATE NULL,
+    orden       TINYINT UNSIGNED NOT NULL DEFAULT 0,
+    clics       INT UNSIGNED NOT NULL DEFAULT 0,
+    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_posicion_activo (posicion, activo)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

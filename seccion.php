@@ -1,6 +1,7 @@
 <?php
 require_once 'includes/config.php';
 require_once 'includes/maintenance.php';
+require_once 'includes/banners.php';
 if (isMaintenance()) { include 'mantenimiento.php'; exit; }
 
 $categoria_slug = $_GET['cat'] ?? 'regional';
@@ -125,6 +126,7 @@ $noticias = $stmtN->fetchAll();
 
     <!-- Noticias de la Categoría -->
     <div class="container">
+        <?php renderBanner('leaderboard'); ?>
         <div class="news-grid" style="margin-bottom: 60px;">
             <?php foreach ($noticias as $noticia): ?>
             <article class="news-card">
