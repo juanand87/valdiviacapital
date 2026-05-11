@@ -2,6 +2,7 @@
 require_once 'includes/config.php';
 require_once 'includes/maintenance.php';
 require_once 'includes/banners.php';
+require_once 'includes/galerias.php';
 if (isMaintenance()) { include 'mantenimiento.php'; exit; }
 
 // Obtener noticia por slug (o por id como fallback)
@@ -497,7 +498,7 @@ $masLeidas = $db->query("
             <?php renderBanner('in_article'); ?>
 
             <div class="article-content">
-                <?php echo $noticia['contenido']; ?>
+                <?php echo parseGaleriaShortcodes($noticia['contenido'], $db); ?>
             </div>
 
             <!-- Botones de compartir -->

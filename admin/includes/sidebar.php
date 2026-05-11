@@ -74,6 +74,11 @@
             <i class="fas fa-film"></i>
             <span>Videos</span>
         </a>
+
+        <a href="galerias-video.php" class="nav-item <?php echo basename($_SERVER['PHP_SELF']) == 'galerias-video.php' ? 'active' : ''; ?>">
+            <i class="fas fa-layer-group"></i>
+            <span>Galerías Video</span>
+        </a>
         
         <div class="nav-divider"></div>
         

@@ -102,3 +102,28 @@ CREATE TABLE IF NOT EXISTS videos_comunas (
     PRIMARY KEY (video_id, comuna_id),
     INDEX idx_comuna (comuna_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Galerías de video (agrupadores)
+CREATE TABLE IF NOT EXISTS galerias_video (
+    id             INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    titulo         VARCHAR(255) NOT NULL,
+    slug           VARCHAR(255) NOT NULL,
+    descripcion    TEXT NULL,
+    imagen_portada VARCHAR(500) NULL,
+    categoria_id   INT UNSIGNED NULL,
+    activo         TINYINT(1) NOT NULL DEFAULT 1,
+    destacada      TINYINT(1) NOT NULL DEFAULT 0,
+    orden          TINYINT UNSIGNED NOT NULL DEFAULT 0,
+    created_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_slug (slug),
+    INDEX idx_activo_destacada (activo, destacada)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Videos dentro de cada galería (con orden propio)
+CREATE TABLE IF NOT EXISTS galerias_video_items (
+    galeria_id INT UNSIGNED NOT NULL,
+    video_id   INT UNSIGNED NOT NULL,
+    orden      TINYINT UNSIGNED NOT NULL DEFAULT 0,
+    PRIMARY KEY (galeria_id, video_id),
+    INDEX idx_video (video_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

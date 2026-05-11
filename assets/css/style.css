@@ -819,8 +819,55 @@ html.dark-mode .ad-in_article { background: #2a2a2a; border-color: #333; }
 
 .mm-carousel-btn:hover { background: var(--color-primary); }
 
+/* Etiqueta de galería en el heading */
+.mm-galeria-label {
+    font-size: .85rem;
+    font-weight: 500;
+    color: rgba(255,255,255,.65);
+    margin-left: 8px;
+    border-left: 2px solid rgba(255,255,255,.25);
+    padding-left: 12px;
+}
+
 /* Modo oscuro — ya es oscuro por defecto; ajustes extra si necesitas */
 html.dark-mode .multimedia-section { background: #0a0a0a; }
+
+/* ── Galería shortcode (dentro de artículo) ─────────────────────────── */
+.galeria-shortcode {
+    background: #1a1a1a;
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin: 32px 0;
+}
+
+.galeria-shortcode-titulo {
+    color: #fff;
+    font-family: 'Poppins', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    margin: 0 0 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.galeria-shortcode-titulo i {
+    color: var(--color-primary);
+}
+
+/* En shortcode el grid ocupa el 100% del ancho del artículo */
+.galeria-shortcode .mm-grid {
+    grid-template-columns: 1.4fr 1fr;
+}
+
+.galeria-shortcode .mm-featured-title,
+.galeria-shortcode .mm-small-title {
+    color: rgba(255,255,255,.9);
+}
+
+@media (max-width: 768px) {
+    .galeria-shortcode .mm-grid { grid-template-columns: 1fr; }
+}
 
 /* Responsive */
 @media (max-width: 768px) {
