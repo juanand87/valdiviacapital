@@ -1,7 +1,6 @@
 <?php
 $page_title = 'Editor de Noticia';
 require_once '../includes/config.php';
-include 'includes/header.php';
 
 $db = getDB();
 $editando = false;
@@ -72,6 +71,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Error: ' . $e->getMessage();
     }
 }
+
+include 'includes/header.php';
 
 // Obtener categorías
 $categorias = $db->query("SELECT * FROM categorias WHERE activo = 1 ORDER BY nombre")->fetchAll();
