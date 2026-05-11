@@ -69,6 +69,11 @@
             <i class="fas fa-photo-video"></i>
             <span>Medios</span>
         </a>
+
+        <a href="videos.php" class="nav-item <?php echo basename($_SERVER['PHP_SELF']) == 'videos.php' ? 'active' : ''; ?>">
+            <i class="fas fa-film"></i>
+            <span>Videos</span>
+        </a>
         
         <div class="nav-divider"></div>
         

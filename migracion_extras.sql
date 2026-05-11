@@ -79,3 +79,26 @@ CREATE TABLE IF NOT EXISTS noticias_comunas (
     PRIMARY KEY (noticia_id, comuna_id),
     INDEX idx_comuna (comuna_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Sección Multimedia: videos de YouTube y Facebook
+CREATE TABLE IF NOT EXISTS videos (
+    id           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    titulo       VARCHAR(255) NOT NULL,
+    url          VARCHAR(500) NOT NULL,
+    tipo         ENUM('youtube','facebook') NOT NULL DEFAULT 'youtube',
+    descripcion  TEXT NULL,
+    categoria_id INT UNSIGNED NULL,
+    activo       TINYINT(1) NOT NULL DEFAULT 1,
+    orden        TINYINT UNSIGNED NOT NULL DEFAULT 0,
+    created_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_activo_orden (activo, orden),
+    INDEX idx_categoria (categoria_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Relación muchos-a-muchos: videos ↔ comunas
+CREATE TABLE IF NOT EXISTS videos_comunas (
+    video_id  INT UNSIGNED NOT NULL,
+    comuna_id TINYINT UNSIGNED NOT NULL,
+    PRIMARY KEY (video_id, comuna_id),
+    INDEX idx_comuna (comuna_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

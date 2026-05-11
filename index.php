@@ -90,6 +90,16 @@ if ($tickerNoticias === false) {
     ")->fetchAll(PDO::FETCH_COLUMN);
     cacheSet('homepage_ticker', $tickerNoticias);
 }
+
+// Sección Multimedia: videos activos ordenados
+$multimediaVideos = $db->query("
+    SELECT v.*, c.nombre AS cat_nombre, c.color AS cat_color
+    FROM videos v
+    LEFT JOIN categorias c ON c.id = v.categoria_id
+    WHERE v.activo = 1
+    ORDER BY v.orden ASC, v.created_at DESC
+    LIMIT 9
+")->fetchAll();
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -259,6 +269,119 @@ if ($tickerNoticias === false) {
 
     <!-- Banner Billboard -->
     <?php renderBanner('billboard'); ?>
+
+    <!-- ======== SECCIÓN MULTIMEDIA ======== -->
+    <?php if (!empty($multimediaVideos)): ?>
+    <?php
+        function _yt_id(string $url): ?string {
+            preg_match('/(?:v=|youtu\.be\/|embed\/|shorts\/)([a-zA-Z0-9_\-]{11})/', $url, $m);
+            return $m[1] ?? null;
+        }
+        function _embed(string $url, string $tipo): string {
+            if ($tipo === 'youtube') {
+                $id = _yt_id($url);
+                return $id ? "https://www.youtube.com/embed/{$id}?rel=0&autoplay=1" : $url;
+            }
+            return "https://www.facebook.com/plugins/video.php?href=" . urlencode($url) . "&show_text=false&width=640&autoplay=true";
+        }
+        function _thumb(string $url, string $tipo): string {
+            if ($tipo === 'youtube') {
+                $id = _yt_id($url);
+                return $id ? "https://img.youtube.com/vi/{$id}/hqdefault.jpg" : '';
+            }
+            return ''; // Facebook: sin thumbnail fiable via URL
+        }
+        $mvFeatured = $multimediaVideos[0];
+        $mvSecondary = array_slice($multimediaVideos, 1, 2);
+        $mvCarousel  = array_slice($multimediaVideos, 0); // todos en el carrusel
+    ?>
+    <section class="multimedia-section">
+        <div class="container">
+            <h2 class="multimedia-heading">
+                <span class="mm-icon"><i class="fas fa-play"></i></span>
+                Multimedia
+            </h2>
+
+            <!-- Grid principal: 1 grande + 2 pequeños -->
+            <div class="mm-grid">
+
+                <!-- Video destacado -->
+                <div class="mm-featured" data-embed="<?= htmlspecialchars(_embed($mvFeatured['url'], $mvFeatured['tipo'])) ?>">
+                    <?php $ft = _thumb($mvFeatured['url'], $mvFeatured['tipo']); ?>
+                    <div class="mm-thumb">
+                        <?php if ($ft): ?>
+                            <img src="<?= htmlspecialchars($ft) ?>" alt="<?= htmlspecialchars($mvFeatured['titulo']) ?>" loading="lazy">
+                        <?php else: ?>
+                            <div class="mm-fb-thumb"><i class="fab fa-facebook"></i></div>
+                        <?php endif; ?>
+                        <div class="mm-play-btn"><i class="fas fa-play"></i></div>
+                        <?php if ($mvFeatured['cat_nombre']): ?>
+                            <span class="mm-cat-badge" style="background:<?= htmlspecialchars($mvFeatured['cat_color'] ?? 'var(--color-primary)') ?>;">
+                                <?= htmlspecialchars($mvFeatured['cat_nombre']) ?>
+                            </span>
+                        <?php endif; ?>
+                    </div>
+                    <div class="mm-iframe-wrap" style="display:none;">
+                        <iframe src="" frameborder="0" allowfullscreen allow="autoplay; encrypted-media" loading="lazy"></iframe>
+                    </div>
+                    <p class="mm-featured-title"><?= htmlspecialchars($mvFeatured['titulo']) ?></p>
+                </div>
+
+                <!-- 2 videos secundarios -->
+                <div class="mm-secondary">
+                    <?php foreach ($mvSecondary as $sv): ?>
+                    <div class="mm-small-card" data-embed="<?= htmlspecialchars(_embed($sv['url'], $sv['tipo'])) ?>">
+                        <?php $st = _thumb($sv['url'], $sv['tipo']); ?>
+                        <div class="mm-thumb">
+                            <?php if ($st): ?>
+                                <img src="<?= htmlspecialchars($st) ?>" alt="<?= htmlspecialchars($sv['titulo']) ?>" loading="lazy">
+                            <?php else: ?>
+                                <div class="mm-fb-thumb"><i class="fab fa-facebook"></i></div>
+                            <?php endif; ?>
+                            <div class="mm-play-btn"><i class="fas fa-play"></i></div>
+                        </div>
+                        <div class="mm-iframe-wrap" style="display:none;">
+                            <iframe src="" frameborder="0" allowfullscreen allow="autoplay; encrypted-media" loading="lazy"></iframe>
+                        </div>
+                        <p class="mm-small-title"><?= htmlspecialchars($sv['titulo']) ?></p>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+
+            </div><!-- /mm-grid -->
+
+            <!-- Carrusel inferior -->
+            <?php if (count($mvCarousel) > 1): ?>
+            <div class="mm-carousel-wrap">
+                <button class="mm-carousel-btn mm-prev" aria-label="Anterior"><i class="fas fa-chevron-left"></i></button>
+                <div class="mm-carousel" id="mm-carousel">
+                    <?php foreach ($mvCarousel as $cv): ?>
+                    <?php $ct = _thumb($cv['url'], $cv['tipo']); ?>
+                    <div class="mm-carousel-item" data-embed="<?= htmlspecialchars(_embed($cv['url'], $cv['tipo'])) ?>">
+                        <div class="mm-thumb">
+                            <?php if ($ct): ?>
+                                <img src="<?= htmlspecialchars($ct) ?>" alt="<?= htmlspecialchars($cv['titulo']) ?>" loading="lazy">
+                            <?php else: ?>
+                                <div class="mm-fb-thumb mm-fb-thumb--sm"><i class="fab fa-facebook"></i></div>
+                            <?php endif; ?>
+                            <div class="mm-play-btn mm-play-btn--sm"><i class="fas fa-play"></i></div>
+                            <div class="mm-carousel-overlay">
+                                <p><?= htmlspecialchars($cv['titulo']) ?></p>
+                            </div>
+                        </div>
+                        <div class="mm-iframe-wrap" style="display:none;">
+                            <iframe src="" frameborder="0" allowfullscreen allow="autoplay; encrypted-media" loading="lazy"></iframe>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+                <button class="mm-carousel-btn mm-next" aria-label="Siguiente"><i class="fas fa-chevron-right"></i></button>
+            </div>
+            <?php endif; ?>
+
+        </div>
+    </section>
+    <?php endif; ?>
 
     <!-- ======== CONTENIDO PRINCIPAL + SIDEBAR ======== -->
     <div class="container">
@@ -447,6 +570,38 @@ if ($tickerNoticias === false) {
                 });
         });
     })(jQuery);
+    </script>
+
+    <!-- ======== Multimedia: reproducir + carrusel ======== -->
+    <script>
+    (function () {
+        // Reproducir cualquier tarjeta de video al hacer clic
+        function initVideoCard(card) {
+            card.addEventListener('click', function () {
+                var embed = this.getAttribute('data-embed');
+                if (!embed) return;
+                var thumb = this.querySelector('.mm-thumb');
+                var iframeWrap = this.querySelector('.mm-iframe-wrap');
+                var iframe = iframeWrap.querySelector('iframe');
+                if (thumb) thumb.style.display = 'none';
+                iframe.src = embed;
+                iframeWrap.style.display = '';
+            });
+        }
+
+        document.querySelectorAll('.mm-featured, .mm-small-card, .mm-carousel-item').forEach(initVideoCard);
+
+        // Carrusel
+        var carousel = document.getElementById('mm-carousel');
+        if (!carousel) return;
+
+        document.querySelector('.mm-prev').addEventListener('click', function () {
+            carousel.scrollBy({ left: -220, behavior: 'smooth' });
+        });
+        document.querySelector('.mm-next').addEventListener('click', function () {
+            carousel.scrollBy({ left: 220, behavior: 'smooth' });
+        });
+    })();
     </script>
 </body>
 </html>
