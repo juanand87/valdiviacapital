@@ -43,8 +43,9 @@ $stmt = $db->prepare("
 $stmt->execute($params);
 $noticias = $stmt->fetchAll();
 
-// Cargar comunas de todas las noticias en una sola query
-$noticiaComunasMap = [];
+// Cargar comunas y categorías adicionales de todas las noticias en una sola query
+$noticiaComunasMap    = [];
+$noticiaCategoriasMap = [];
 if ($noticias) {
     $ids = implode(',', array_column($noticias, 'id'));
     $rows = $db->query("
@@ -54,6 +55,14 @@ if ($noticias) {
     ")->fetchAll();
     foreach ($rows as $r) {
         $noticiaComunasMap[$r['noticia_id']][] = $r['nombre'];
+    }
+    $catRows = $db->query("
+        SELECT nc.noticia_id, c.nombre, c.color FROM noticias_categorias nc
+        INNER JOIN categorias c ON c.id = nc.categoria_id
+        WHERE nc.noticia_id IN ($ids) ORDER BY c.nombre
+    ")->fetchAll();
+    foreach ($catRows as $r) {
+        $noticiaCategoriasMap[$r['noticia_id']][] = ['nombre' => $r['nombre'], 'color' => $r['color']];
     }
 }
 
@@ -155,9 +164,19 @@ $autores = $db->query("SELECT id, nombre FROM usuarios WHERE activo = 1 ORDER BY
                                     <?php endif; ?>
                                 </td>
                                 <td>
+                                    <?php
+                                    $catBadges = $noticiaCategoriasMap[$noticia['id']] ?? [];
+                                    if ($catBadges):
+                                        foreach ($catBadges as $cb):
+                                    ?>
+                                    <span class="badge" style="background: <?php echo htmlspecialchars($cb['color']); ?>20; color: <?php echo htmlspecialchars($cb['color']); ?>; margin: 1px;">
+                                        <?php echo htmlspecialchars($cb['nombre']); ?>
+                                    </span>
+                                    <?php endforeach; else: ?>
                                     <span class="badge" style="background: <?php echo $noticia['categoria_color']; ?>20; color: <?php echo $noticia['categoria_color']; ?>;">
                                         <?php echo htmlspecialchars($noticia['categoria_nombre']); ?>
                                     </span>
+                                    <?php endif; ?>
                                 </td>
                                 <td>
                                     <?php foreach ($noticiaComunasMap[$noticia['id']] ?? [] as $cn): ?>

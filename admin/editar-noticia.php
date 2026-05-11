@@ -26,12 +26,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $slug = clean($_POST['slug']);
     $bajada = clean($_POST['bajada']);
     $contenido = $_POST['contenido']; // No limpiar completamente porque tiene HTML
-    $categoria_id = (int)$_POST['categoria_id'];
+    // Categorías: primera seleccionada = categoria_id principal
+    $categoriasPost = array_filter(array_map('intval', $_POST['categorias'] ?? []));
+    $categoria_id = !empty($categoriasPost) ? reset($categoriasPost) : 0;
     $autor_id = $_SESSION['admin_id'];
     $destacado = isset($_POST['destacado']) ? 1 : 0;
     $publicado = isset($_POST['publicado']) ? 1 : 0;
     $imagen_principal = $_POST['imagen_principal'] ?? '';
     
+    if (!$categoria_id) {
+        $error = 'Debes seleccionar al menos una categoría.';
+    } else {
     try {
         if ($id) {
             // Actualizar
@@ -56,6 +61,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $mensaje = 'Noticia creada correctamente';
         }
         
+        // Guardar categorías adicionales (N:M)
+        $db->prepare("DELETE FROM noticias_categorias WHERE noticia_id = ?")->execute([$noticia_id]);
+        if ($categoriasPost) {
+            $stmtCat = $db->prepare("INSERT IGNORE INTO noticias_categorias (noticia_id, categoria_id) VALUES (?, ?)");
+            foreach ($categoriasPost as $ccat) {
+                $stmtCat->execute([$noticia_id, $ccat]);
+            }
+        }
+
         // Guardar comunas asociadas
         $db->prepare("DELETE FROM noticias_comunas WHERE noticia_id = ?")->execute([$noticia_id]);
         $comunasPost = array_filter(array_map('intval', $_POST['comunas'] ?? []));
@@ -72,12 +86,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } catch (PDOException $e) {
         $error = 'Error: ' . $e->getMessage();
     }
+    } // end if $categoria_id
 }
 
 include 'includes/header.php';
 
 // Obtener categorías
 $categorias = $db->query("SELECT * FROM categorias WHERE activo = 1 ORDER BY nombre")->fetchAll();
+
+// Categorías ya asignadas a esta noticia
+$categorias_seleccionadas = [];
+if ($editando) {
+    $stmtCcat = $db->prepare("SELECT categoria_id FROM noticias_categorias WHERE noticia_id = ?");
+    $stmtCcat->execute([$noticia['id']]);
+    $categorias_seleccionadas = $stmtCcat->fetchAll(PDO::FETCH_COLUMN);
+    // fallback: si aún no hay registros N:M, usar categoria_id principal
+    if (empty($categorias_seleccionadas) && $noticia['categoria_id']) {
+        $categorias_seleccionadas = [$noticia['categoria_id']];
+    }
+}
 
 // Obtener comunas y las ya asignadas a esta noticia
 $comunas = $db->query("SELECT * FROM comunas ORDER BY nombre")->fetchAll();
@@ -218,21 +245,23 @@ if ($editando) {
                 </div>
             </div>
             
-            <!-- Categoría -->
+            <!-- Categorías -->
             <div class="card" style="margin-bottom: 20px;">
                 <div class="card-header" style="background: #f7fafc;">
-                    <h3 class="card-title" style="font-size: 15px;">Categoría</h3>
+                    <h3 class="card-title" style="font-size: 15px;"><i class="fas fa-folder"></i> Categorías</h3>
                 </div>
-                <div class="card-body">
-                    <select name="categoria_id" class="form-control" required>
-                        <option value="">Seleccionar...</option>
+                <div class="card-body" style="padding: 12px 16px;">
+                    <div style="max-height:160px;overflow-y:auto;border:1px solid var(--border-color);border-radius:6px;padding:8px;">
                         <?php foreach ($categorias as $cat): ?>
-                            <option value="<?php echo $cat['id']; ?>" 
-                                    <?php echo $editando && $noticia['categoria_id'] == $cat['id'] ? 'selected' : ''; ?>>
-                                <?php echo htmlspecialchars($cat['nombre']); ?>
-                            </option>
+                        <label style="display:flex;align-items:center;gap:8px;padding:4px 2px;font-size:13px;cursor:pointer;border-bottom:1px solid #f0f0f0;">
+                            <input type="checkbox" name="categorias[]" value="<?php echo $cat['id']; ?>"
+                                <?php echo in_array($cat['id'], $categorias_seleccionadas) ? 'checked' : ''; ?>>
+                            <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:<?php echo htmlspecialchars($cat['color']); ?>;flex-shrink:0;"></span>
+                            <?php echo htmlspecialchars($cat['nombre']); ?>
+                        </label>
                         <?php endforeach; ?>
-                    </select>
+                    </div>
+                    <small style="color:var(--color-gray);display:block;margin-top:6px;">La primera marcada será la categoría principal.</small>
                 </div>
             </div>
             
@@ -426,8 +455,9 @@ function abrirVistaPrevia() {
     const titulo   = document.querySelector('[name=titulo]').value || 'Sin título';
     const bajada   = document.querySelector('[name=bajada]').value || '';
     const imagen   = document.getElementById('imagen_principal').value;
-    const catSel   = document.querySelector('[name=categoria_id]');
-    const catNombre = catSel && catSel.selectedIndex > 0 ? catSel.options[catSel.selectedIndex].text : '';
+    const catChks   = document.querySelectorAll('[name="categorias[]"]');
+    const firstCat  = Array.from(catChks).find(c => c.checked);
+    const catNombre = firstCat ? firstCat.closest('label').textContent.trim() : '';
     const contenidoHTML = quill.root.innerHTML;
     const palabras = quill.getText().trim().split(/\s+/).length;
     const tLect   = Math.max(1, Math.round(palabras / 200));

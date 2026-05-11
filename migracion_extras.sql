@@ -127,3 +127,11 @@ CREATE TABLE IF NOT EXISTS galerias_video_items (
     PRIMARY KEY (galeria_id, video_id),
     INDEX idx_video (video_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Categorias adicionales por noticia (N:M)
+CREATE TABLE IF NOT EXISTS noticias_categorias (
+    noticia_id   INT UNSIGNED NOT NULL,
+    categoria_id INT UNSIGNED NOT NULL,
+    PRIMARY KEY (noticia_id, categoria_id),
+    INDEX idx_ncat_categoria (categoria_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
