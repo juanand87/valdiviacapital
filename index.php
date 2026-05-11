@@ -392,21 +392,26 @@ if (empty($multimediaVideos)) {
                     </form>
                 </div>
 
-                <!-- Clima -->
+                <!-- Clima Regional -->
                 <div class="widget">
                     <h3 class="widget-title"><i class="fas fa-cloud-sun" style="color:var(--color-primary);margin-right:6px;"></i>Clima Regional</h3>
-                    <div class="weather-item">
-                        <div><div class="weather-city">Valdivia</div><div class="weather-desc">Parcialmente nublado</div></div>
-                        <div class="weather-temp">15°C</div>
+                    <div id="clima-body">
+                        <div class="weather-item skel-row"><div class="skel skel-text" style="width:55%"></div><div class="skel skel-temp"></div></div>
+                        <div class="weather-item skel-row"><div class="skel skel-text" style="width:45%"></div><div class="skel skel-temp"></div></div>
+                        <div class="weather-item skel-row"><div class="skel skel-text" style="width:50%"></div><div class="skel skel-temp"></div></div>
                     </div>
-                    <div class="weather-item">
-                        <div><div class="weather-city">Osorno</div><div class="weather-desc">Lluvias ligeras</div></div>
-                        <div class="weather-temp">12°C</div>
+                </div>
+
+                <!-- Indicadores Financieros -->
+                <div class="widget">
+                    <h3 class="widget-title"><i class="fas fa-chart-line" style="color:var(--color-primary);margin-right:6px;"></i>Indicadores Financieros</h3>
+                    <div id="indicadores-body">
+                        <div class="ind-item skel-row"><div class="skel skel-text" style="width:60%"></div><div class="skel skel-ind"></div></div>
+                        <div class="ind-item skel-row"><div class="skel skel-text" style="width:55%"></div><div class="skel skel-ind"></div></div>
+                        <div class="ind-item skel-row"><div class="skel skel-text" style="width:40%"></div><div class="skel skel-ind"></div></div>
+                        <div class="ind-item skel-row"><div class="skel skel-text" style="width:35%"></div><div class="skel skel-ind"></div></div>
                     </div>
-                    <div class="weather-item">
-                        <div><div class="weather-city">La Unión</div><div class="weather-desc">Despejado</div></div>
-                        <div class="weather-temp">18°C</div>
-                    </div>
+                    <div id="indicadores-fecha" class="ind-fecha"></div>
                 </div>
 
             </aside>
@@ -485,6 +490,59 @@ if (empty($multimediaVideos)) {
                 });
         });
     })(jQuery);
+    </script>
+
+    <!-- ======== Widgets dinámicos: clima e indicadores ======== -->
+    <script>
+    (function () {
+        function escHtml(s) {
+            return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        }
+
+        function renderWidgets() {
+            fetch('ajax/widgets.php')
+                .then(function(r){ return r.json(); })
+                .then(function(data) {
+
+                    // ── Clima ──────────────────────────────────────────────
+                    if (data.clima && data.clima.length) {
+                        var html = '';
+                        data.clima.forEach(function(c) {
+                            html += '<div class="weather-item">'
+                                  + '<div style="display:flex;align-items:center;gap:10px;">'
+                                  + '<i class="fas ' + escHtml(c.icono) + ' weather-wi"></i>'
+                                  + '<div><div class="weather-city">' + escHtml(c.ciudad) + '</div>'
+                                  + '<div class="weather-desc">' + escHtml(c.desc) + '</div></div>'
+                                  + '</div>'
+                                  + '<div class="weather-temp">' + escHtml(c.temp) + '°C</div>'
+                                  + '</div>';
+                        });
+                        document.getElementById('clima-body').innerHTML = html;
+                    }
+
+                    // ── Indicadores ────────────────────────────────────────
+                    if (data.indicadores && data.indicadores.items) {
+                        var html2 = '';
+                        data.indicadores.items.forEach(function(ind) {
+                            html2 += '<div class="ind-item">'
+                                   + '<div class="ind-nombre"><i class="fas ' + escHtml(ind.icono) + ' ind-icon"></i>' + escHtml(ind.nombre) + '</div>'
+                                   + '<div class="ind-valor">' + escHtml(ind.valor) + '</div>'
+                                   + '</div>';
+                        });
+                        document.getElementById('indicadores-body').innerHTML = html2;
+                        if (data.indicadores.fecha) {
+                            document.getElementById('indicadores-fecha').textContent =
+                                'Datos al ' + data.indicadores.fecha;
+                        }
+                    }
+                })
+                .catch(function(){});
+        }
+
+        renderWidgets();
+        // Actualizar automáticamente cada 30 minutos
+        setInterval(renderWidgets, 1800000);
+    })();
     </script>
 
     <!-- ======== Multimedia: reproducir + carrusel ======== -->
