@@ -43,6 +43,20 @@ $stmt = $db->prepare("
 $stmt->execute($params);
 $noticias = $stmt->fetchAll();
 
+// Cargar comunas de todas las noticias en una sola query
+$noticiaComunasMap = [];
+if ($noticias) {
+    $ids = implode(',', array_column($noticias, 'id'));
+    $rows = $db->query("
+        SELECT nc.noticia_id, c.nombre FROM noticias_comunas nc
+        INNER JOIN comunas c ON c.id = nc.comuna_id
+        WHERE nc.noticia_id IN ($ids) ORDER BY c.nombre
+    ")->fetchAll();
+    foreach ($rows as $r) {
+        $noticiaComunasMap[$r['noticia_id']][] = $r['nombre'];
+    }
+}
+
 // Obtener categorías para filtro
 $categorias = $db->query("SELECT * FROM categorias WHERE activo = 1 ORDER BY nombre")->fetchAll();
 
@@ -114,6 +128,7 @@ $autores = $db->query("SELECT id, nombre FROM usuarios WHERE activo = 1 ORDER BY
                         <th style="width: 60px;">ID</th>
                         <th>Título</th>
                         <th style="width: 140px;">Categoría</th>
+                        <th style="width: 130px;">Comunas</th>
                         <th style="width: 140px;">Autor</th>
                         <th style="width: 100px;">Vistas</th>
                         <th style="width: 100px;">Estado</th>
@@ -143,6 +158,11 @@ $autores = $db->query("SELECT id, nombre FROM usuarios WHERE activo = 1 ORDER BY
                                     <span class="badge" style="background: <?php echo $noticia['categoria_color']; ?>20; color: <?php echo $noticia['categoria_color']; ?>;">
                                         <?php echo htmlspecialchars($noticia['categoria_nombre']); ?>
                                     </span>
+                                </td>
+                                <td>
+                                    <?php foreach ($noticiaComunasMap[$noticia['id']] ?? [] as $cn): ?>
+                                    <span style="display:inline-block;background:#edf2ff;color:#3c4cad;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;margin:1px;"><?php echo htmlspecialchars($cn); ?></span>
+                                    <?php endforeach; ?>
                                 </td>
                                 <td><?php echo htmlspecialchars($noticia['autor_nombre']); ?></td>
                                 <td>

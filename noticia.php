@@ -87,6 +87,15 @@ $stmtMiReac = $db->prepare("SELECT tipo FROM reacciones WHERE noticia_id = ? AND
 $stmtMiReac->execute([$noticia['id'], $ipHash]);
 $miReaccion = $stmtMiReac->fetchColumn();
 
+// Comunas de la noticia
+$stmtComunas = $db->prepare("
+    SELECT c.nombre, c.slug FROM comunas c
+    INNER JOIN noticias_comunas nc ON c.id = nc.comuna_id
+    WHERE nc.noticia_id = ? ORDER BY c.nombre
+");
+$stmtComunas->execute([$noticia['id']]);
+$noticiaComunas = $stmtComunas->fetchAll();
+
 // Lo más leído (para widget)
 $masLeidas = $db->query("
     SELECT id, titulo, slug, vistas FROM noticias WHERE publicado = 1 ORDER BY vistas DESC LIMIT 5
@@ -442,6 +451,12 @@ $masLeidas = $db->query("
                 <span class="category-badge" style="background: <?php echo $noticia['categoria_color']; ?>; position: static; display: inline-block; margin-bottom: 15px;">
                     <?php echo strtoupper($noticia['categoria_nombre']); ?>
                 </span>
+                <?php foreach ($noticiaComunas as $com): ?>
+                <span style="display:inline-flex;align-items:center;gap:5px;background:#edf2ff;color:#3c4cad;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;margin-left:6px;margin-bottom:15px;text-transform:uppercase;letter-spacing:.4px;">
+                    <i class="fas fa-map-marker-alt" style="font-size:9px;"></i>
+                    <?php echo htmlspecialchars($com['nombre']); ?>
+                </span>
+                <?php endforeach; ?>
                 
                 <h1><?php echo clean($noticia['titulo']); ?></h1>
                 

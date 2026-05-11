@@ -49,3 +49,33 @@ CREATE TABLE IF NOT EXISTS medios (
     INDEX idx_tipo (tipo_mime),
     INDEX idx_fecha (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Las 12 comunas de la Región de Los Ríos
+CREATE TABLE IF NOT EXISTS comunas (
+    id     TINYINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(60) NOT NULL,
+    slug   VARCHAR(60) NOT NULL,
+    UNIQUE KEY uk_slug (slug)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT IGNORE INTO comunas (id, nombre, slug) VALUES
+(1,  'Valdivia',    'valdivia'),
+(2,  'Corral',      'corral'),
+(3,  'Futrono',     'futrono'),
+(4,  'La Unión',    'la-union'),
+(5,  'Lago Ranco',  'lago-ranco'),
+(6,  'Lanco',       'lanco'),
+(7,  'Los Lagos',   'los-lagos'),
+(8,  'Máfil',       'mafil'),
+(9,  'Mariquina',   'mariquina'),
+(10, 'Paillaco',    'paillaco'),
+(11, 'Panguipulli', 'panguipulli'),
+(12, 'Río Bueno',   'rio-bueno');
+
+-- Relación muchos-a-muchos: noticias ↔ comunas
+CREATE TABLE IF NOT EXISTS noticias_comunas (
+    noticia_id INT UNSIGNED NOT NULL,
+    comuna_id  TINYINT UNSIGNED NOT NULL,
+    PRIMARY KEY (noticia_id, comuna_id),
+    INDEX idx_comuna (comuna_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

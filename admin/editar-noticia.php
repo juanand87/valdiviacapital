@@ -55,6 +55,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $mensaje = 'Noticia creada correctamente';
         }
         
+        // Guardar comunas asociadas
+        $db->prepare("DELETE FROM noticias_comunas WHERE noticia_id = ?")->execute([$noticia_id]);
+        $comunasPost = array_filter(array_map('intval', $_POST['comunas'] ?? []));
+        if ($comunasPost) {
+            $stmtCom = $db->prepare("INSERT IGNORE INTO noticias_comunas (noticia_id, comuna_id) VALUES (?, ?)");
+            foreach ($comunasPost as $cid) {
+                $stmtCom->execute([$noticia_id, $cid]);
+            }
+        }
+
         // Redirigir a editar la noticia creada/actualizada
         header("Location: editar-noticia.php?id=$noticia_id&success=1");
         exit;
@@ -65,6 +75,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Obtener categorías
 $categorias = $db->query("SELECT * FROM categorias WHERE activo = 1 ORDER BY nombre")->fetchAll();
+
+// Obtener comunas y las ya asignadas a esta noticia
+$comunas = $db->query("SELECT * FROM comunas ORDER BY nombre")->fetchAll();
+$comunas_seleccionadas = [];
+if ($editando) {
+    $stmtCsel = $db->prepare("SELECT comuna_id FROM noticias_comunas WHERE noticia_id = ?");
+    $stmtCsel->execute([$noticia['id']]);
+    $comunas_seleccionadas = $stmtCsel->fetchAll(PDO::FETCH_COLUMN);
+}
 ?>
 
 <style>
@@ -214,6 +233,25 @@ $categorias = $db->query("SELECT * FROM categorias WHERE activo = 1 ORDER BY nom
                 </div>
             </div>
             
+            <!-- Comunas -->
+            <div class="card" style="margin-bottom: 20px;">
+                <div class="card-header" style="background: #f7fafc;">
+                    <h3 class="card-title" style="font-size: 15px;"><i class="fas fa-map-marker-alt"></i> Comunas</h3>
+                </div>
+                <div class="card-body" style="padding: 12px 16px;">
+                    <p style="font-size:12px;color:#718096;margin-bottom:10px;">Puedes seleccionar más de una.</p>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 10px;">
+                        <?php foreach ($comunas as $c): ?>
+                        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;padding:3px 0;">
+                            <input type="checkbox" name="comunas[]" value="<?php echo $c['id']; ?>"
+                                   <?php echo in_array($c['id'], $comunas_seleccionadas) ? 'checked' : ''; ?>>
+                            <?php echo htmlspecialchars($c['nombre']); ?>
+                        </label>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            </div>
+
             <!-- Imagen Destacada -->
             <div class="card">
                 <div class="card-header" style="background: #f7fafc;">
