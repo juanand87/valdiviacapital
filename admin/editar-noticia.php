@@ -236,7 +236,7 @@ if ($editando) {
             <!-- Comunas -->
             <div class="card" style="margin-bottom: 20px;">
                 <div class="card-header" style="background: #f7fafc;">
-                    <h3 class="card-title" style="font-size: 15px;"><i class="fas fa-map-marker-alt"></i> Comunas</h3>
+                    <h3 class="card-title" style="font-size: 15px;"><i class="fas fa-map-marker-alt"></i> Comuna relacionada</h3>
                 </div>
                 <div class="card-body" style="padding: 12px 16px;">
                     <select id="select-comunas" name="comunas[]" multiple placeholder="Escribe para buscar...">
