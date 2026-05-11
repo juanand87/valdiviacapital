@@ -239,16 +239,14 @@ if ($editando) {
                     <h3 class="card-title" style="font-size: 15px;"><i class="fas fa-map-marker-alt"></i> Comunas</h3>
                 </div>
                 <div class="card-body" style="padding: 12px 16px;">
-                    <p style="font-size:12px;color:#718096;margin-bottom:10px;">Puedes seleccionar más de una.</p>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 10px;">
+                    <select id="select-comunas" name="comunas[]" multiple placeholder="Escribe para buscar...">
                         <?php foreach ($comunas as $c): ?>
-                        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;padding:3px 0;">
-                            <input type="checkbox" name="comunas[]" value="<?php echo $c['id']; ?>"
-                                   <?php echo in_array($c['id'], $comunas_seleccionadas) ? 'checked' : ''; ?>>
+                        <option value="<?php echo $c['id']; ?>"
+                                <?php echo in_array($c['id'], $comunas_seleccionadas) ? 'selected' : ''; ?>>
                             <?php echo htmlspecialchars($c['nombre']); ?>
-                        </label>
+                        </option>
                         <?php endforeach; ?>
-                    </div>
+                    </select>
                 </div>
             </div>
 
@@ -310,8 +308,29 @@ if ($editando) {
     </div>
 </form>
 
+<link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
 <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+/* Tom Select — ajuste visual al admin */
+#select-comunas + .ts-wrapper { margin-top: 0; }
+.ts-wrapper { font-size: 13px; }
+.ts-control { border: 1px solid #e2e8f0 !important; border-radius: 8px !important; padding: 6px 8px !important; min-height: 42px; gap: 4px; }
+.ts-control input { font-size: 13px !important; }
+.ts-control .item {
+    background: #edf2ff !important; color: #3c4cad !important;
+    border: 1px solid #c3d0f8 !important; border-radius: 20px !important;
+    padding: 2px 10px 2px 8px !important; font-weight: 600; font-size: 12px;
+    display: flex; align-items: center; gap: 4px;
+}
+.ts-control .item .remove { color: #3c4cad !important; font-size: 14px !important; margin-left: 4px; opacity: .7; }
+.ts-control .item .remove:hover { opacity: 1; }
+.ts-dropdown { border: 1px solid #e2e8f0 !important; border-radius: 8px !important; box-shadow: 0 4px 16px rgba(0,0,0,.1) !important; font-size: 13px; }
+.ts-dropdown .option { padding: 9px 14px !important; }
+.ts-dropdown .option:hover, .ts-dropdown .option.active { background: #edf2ff !important; color: #3c4cad !important; }
+.ts-dropdown .highlight { background: #c3d0f8 !important; border-radius: 3px; }
+</style>
 
 <!-- Modal Vista Previa -->
 <div id="modal-preview" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;overflow-y:auto;padding:30px 16px;">
@@ -337,6 +356,18 @@ if ($editando) {
     </div>
 </div>
 <script>
+// Tom Select — tag input para comunas
+new TomSelect('#select-comunas', {
+    plugins: ['remove_button'],
+    maxOptions: 12,
+    placeholder: 'Escribe para buscar una comuna…',
+    render: {
+        item: function(data) {
+            return '<div><i class="fas fa-map-marker-alt" style="font-size:9px;margin-right:4px;opacity:.7;"></i>' + data.text + '</div>';
+        }
+    }
+});
+
 // Inicializar Quill
 var quill = new Quill('#editor', {
     theme: 'snow',
