@@ -155,11 +155,23 @@ if ($tickerNoticias === false) {
                 <a href="seccion.php?cat=deportes">Deportes</a>
                 <a href="seccion.php?cat=cultura">Cultura</a>
                 <a href="seccion.php?cat=turismo">Turismo</a>
+                <?php
+                $todasComunas = $db->query("SELECT id, nombre, slug FROM comunas ORDER BY nombre")->fetchAll();
+                ?>
+                <div class="nav-dropdown">
+                    <a href="#" class="nav-dropdown-toggle">
+                        <i class="fas fa-map-marker-alt"></i> Regi&oacute;n <i class="fas fa-chevron-down" style="font-size:10px;"></i>
+                    </a>
+                    <ul class="nav-dropdown-menu">
+                        <?php foreach ($todasComunas as $c): ?>
+                        <li><a href="comuna.php?comuna=<?php echo $c['slug']; ?>"><i class="fas fa-map-pin"></i> <?php echo htmlspecialchars($c['nombre']); ?></a></li>
+                        <?php endforeach; ?>
+                    </ul>
+                </div>
             </div>
         </div>
     </nav>
 
-    <!-- Banner Leaderboard -->
     <?php renderBanner('leaderboard'); ?>
 
     <!-- Ticker dinámico -->

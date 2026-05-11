@@ -130,6 +130,44 @@ a { text-decoration: none; color: inherit; transition: var(--transition); }
 .nav-content a:hover, .nav-content a.active { background: rgba(0,0,0,0.14); color: var(--color-white); }
 .nav-content a:hover::after, .nav-content a.active::after { width: calc(100% - 20px); }
 
+/* Dropdown Región */
+.nav-dropdown { position: relative; margin-left: auto; }
+.nav-dropdown-toggle {
+    color: rgba(255,255,255,0.93);
+    padding: 13px 20px;
+    font-weight: 500; font-size: 14px;
+    display: flex; align-items: center; gap: 5px;
+    cursor: pointer; transition: var(--transition);
+    white-space: nowrap;
+}
+.nav-dropdown:hover .nav-dropdown-toggle,
+.nav-dropdown-toggle.active { background: rgba(0,0,0,0.14); color: #fff; }
+.nav-dropdown-menu {
+    display: none;
+    position: absolute; right: 0; top: 100%;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.18);
+    min-width: 200px;
+    list-style: none;
+    padding: 6px 0;
+    z-index: 1100;
+    border-top: 3px solid var(--color-primary);
+}
+.nav-dropdown:hover .nav-dropdown-menu { display: block; }
+.nav-dropdown-menu li a {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 18px;
+    color: #2d3748 !important;
+    font-size: 14px; font-weight: 500;
+    transition: background .15s;
+    background: none !important;
+}
+.nav-dropdown-menu li a::after { display: none !important; }
+.nav-dropdown-menu li a:hover { background: #f7fafc !important; color: var(--color-primary) !important; }
+.nav-dropdown-menu li a.active { color: var(--color-primary) !important; font-weight: 700; }
+.nav-dropdown-menu li a i { color: var(--color-primary); font-size: 11px; width: 14px; }
+
 /* ============ BREAKING NEWS TICKER ============ */
 .breaking-news {
     background: var(--color-white);
