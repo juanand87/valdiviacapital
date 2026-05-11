@@ -1,6 +1,8 @@
 <?php
 $page_title = 'Editor de Noticia';
 require_once '../includes/config.php';
+require_once 'includes/auth.php';
+verificarSesion();
 
 $db = getDB();
 $editando = false;
