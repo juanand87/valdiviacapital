@@ -45,6 +45,32 @@ $stmtN = $db->prepare("
 $stmtN->execute([$comuna['id']]);
 $noticias = $stmtN->fetchAll();
 
+// Noticias de categoría Municipal (id 12) en esta comuna
+$stmtMun = $db->prepare("
+    SELECT n.*, c.nombre as categoria_nombre, c.color as categoria_color
+    FROM noticias n
+    INNER JOIN categorias c ON n.categoria_id = c.id
+    INNER JOIN noticias_comunas nc ON nc.noticia_id = n.id
+    WHERE nc.comuna_id = ? AND n.categoria_id = 12 AND n.publicado = 1
+    ORDER BY n.fecha_publicacion DESC
+    LIMIT 5
+");
+$stmtMun->execute([$comuna['id']]);
+$noticiasMunicipal = $stmtMun->fetchAll();
+
+// Noticias de categoría Gobierno (id 13) en esta comuna
+$stmtGob = $db->prepare("
+    SELECT n.*, c.nombre as categoria_nombre, c.color as categoria_color
+    FROM noticias n
+    INNER JOIN categorias c ON n.categoria_id = c.id
+    INNER JOIN noticias_comunas nc ON nc.noticia_id = n.id
+    WHERE nc.comuna_id = ? AND n.categoria_id = 13 AND n.publicado = 1
+    ORDER BY n.fecha_publicacion DESC
+    LIMIT 5
+");
+$stmtGob->execute([$comuna['id']]);
+$noticiasGobierno = $stmtGob->fetchAll();
+
 // Todas las comunas para el dropdown del nav
 $todasComunas = $db->query("SELECT * FROM comunas ORDER BY nombre")->fetchAll();
 ?>
@@ -152,65 +178,117 @@ $todasComunas = $db->query("SELECT * FROM comunas ORDER BY nombre")->fetchAll();
         </div>
     </section>
 
-    <!-- Noticias de la comuna -->
+    <!-- Noticias de la comuna con sidebar -->
     <div class="container">
         <?php renderBanner('leaderboard'); ?>
 
-        <?php if (empty($noticias)): ?>
-        <div style="text-align: center; padding: 60px 20px;">
-            <i class="fas fa-map-marker-alt" style="font-size:56px;color:#e2e8f0;display:block;margin-bottom:20px;"></i>
-            <h3>No hay noticias para <?php echo clean($comuna['nombre']); ?></h3>
-            <p style="color: var(--color-gray); margin-top: 10px;">Vuelve pronto para ver nuevo contenido</p>
-            <a href="index.php" style="display:inline-block;margin-top:20px;padding:12px 28px;background:var(--color-primary);color:#fff;border-radius:6px;font-weight:600;">Volver al inicio</a>
-        </div>
-        <?php else: ?>
-        <div class="news-grid" style="margin-bottom: 60px;">
-            <?php foreach ($noticias as $noticia): ?>
-            <article class="news-card">
-                <a href="noticia.php?slug=<?php echo clean($noticia['slug']); ?>">
-                    <div class="news-image">
-                        <?php if ($noticia['imagen_principal']): ?>
-                            <img src="<?php echo clean($noticia['imagen_principal']); ?>" alt="<?php echo clean($noticia['titulo']); ?>" loading="lazy">
-                        <?php else: ?>
-                            <img src="https://picsum.photos/seed/<?php echo $noticia['id']; ?>com/600/400" alt="<?php echo clean($noticia['titulo']); ?>" loading="lazy">
-                        <?php endif; ?>
-                        <span class="category-badge" style="background: <?php echo $noticia['categoria_color']; ?>;">
-                            <?php echo strtoupper($noticia['categoria_nombre']); ?>
-                        </span>
-                    </div>
-                    <div class="news-body">
-                        <h3 class="news-title"><?php echo clean($noticia['titulo']); ?></h3>
-                        <p class="news-excerpt">
-                            <?php echo clean(truncate(strip_tags($noticia['bajada'] ?? $noticia['contenido']), 120)); ?>
-                        </p>
-                        <div class="news-meta">
-                            <span><i class="far fa-clock"></i> <?php echo timeAgo($noticia['fecha_publicacion']); ?></span>
-                            <span><i class="fas fa-eye"></i> <?php echo number_format($noticia['vistas']); ?> vistas</span>
-                        </div>
-                    </div>
-                </a>
-            </article>
-            <?php endforeach; ?>
-        </div>
+        <div style="display: grid; grid-template-columns: 1fr 320px; gap: 28px; margin-bottom: 60px;">
+            <!-- Contenido principal -->
+            <div>
+                <?php if (empty($noticias)): ?>
+                <div style="text-align: center; padding: 60px 20px;">
+                    <i class="fas fa-map-marker-alt" style="font-size:56px;color:#e2e8f0;display:block;margin-bottom:20px;"></i>
+                    <h3>No hay noticias para <?php echo clean($comuna['nombre']); ?></h3>
+                    <p style="color: var(--color-gray); margin-top: 10px;">Vuelve pronto para ver nuevo contenido</p>
+                    <a href="index.php" style="display:inline-block;margin-top:20px;padding:12px 28px;background:var(--color-primary);color:#fff;border-radius:6px;font-weight:600;">Volver al inicio</a>
+                </div>
+                <?php else: ?>
+                <div class="news-grid">
+                    <?php foreach ($noticias as $noticia): ?>
+                    <article class="news-card">
+                        <a href="noticia.php?slug=<?php echo clean($noticia['slug']); ?>">
+                            <div class="news-image">
+                                <?php if ($noticia['imagen_principal']): ?>
+                                    <img src="<?php echo clean($noticia['imagen_principal']); ?>" alt="<?php echo clean($noticia['titulo']); ?>" loading="lazy">
+                                <?php else: ?>
+                                    <img src="https://picsum.photos/seed/<?php echo $noticia['id']; ?>com/600/400" alt="<?php echo clean($noticia['titulo']); ?>" loading="lazy">
+                                <?php endif; ?>
+                                <span class="category-badge" style="background: <?php echo $noticia['categoria_color']; ?>;">
+                                    <?php echo strtoupper($noticia['categoria_nombre']); ?>
+                                </span>
+                            </div>
+                            <div class="news-body">
+                                <h3 class="news-title"><?php echo clean($noticia['titulo']); ?></h3>
+                                <p class="news-excerpt">
+                                    <?php echo clean(truncate(strip_tags($noticia['bajada'] ?? $noticia['contenido']), 120)); ?>
+                                </p>
+                                <div class="news-meta">
+                                    <span><i class="far fa-clock"></i> <?php echo timeAgo($noticia['fecha_publicacion']); ?></span>
+                                    <span><i class="fas fa-eye"></i> <?php echo number_format($noticia['vistas']); ?> vistas</span>
+                                </div>
+                            </div>
+                        </a>
+                    </article>
+                    <?php endforeach; ?>
+                </div>
 
-        <!-- Paginación -->
-        <?php if ($total_paginas > 1): ?>
-        <nav style="display:flex;justify-content:center;gap:8px;padding:40px 0;">
-            <?php if ($pagina > 1): ?>
-                <a href="comuna.php?comuna=<?php echo $slug; ?>&p=<?php echo $pagina - 1; ?>" style="padding:8px 16px;border:2px solid var(--color-primary);border-radius:6px;color:var(--color-primary);font-weight:600;">&laquo; Anterior</a>
-            <?php endif; ?>
-            <?php for ($i = 1; $i <= $total_paginas; $i++): ?>
-                <a href="comuna.php?comuna=<?php echo $slug; ?>&p=<?php echo $i; ?>"
-                   style="padding:8px 14px;border-radius:6px;font-weight:600;<?php echo $i === $pagina ? 'background:var(--color-primary);color:#fff;' : 'border:2px solid var(--color-light);color:var(--color-dark);'; ?>">
-                    <?php echo $i; ?>
-                </a>
-            <?php endfor; ?>
-            <?php if ($pagina < $total_paginas): ?>
-                <a href="comuna.php?comuna=<?php echo $slug; ?>&p=<?php echo $pagina + 1; ?>" style="padding:8px 16px;border:2px solid var(--color-primary);border-radius:6px;color:var(--color-primary);font-weight:600;">Siguiente &raquo;</a>
-            <?php endif; ?>
-        </nav>
-        <?php endif; ?>
-        <?php endif; ?>
+                <!-- Paginación -->
+                <?php if ($total_paginas > 1): ?>
+                <nav style="display:flex;justify-content:center;gap:8px;padding:40px 0;">
+                    <?php if ($pagina > 1): ?>
+                        <a href="comuna.php?comuna=<?php echo $slug; ?>&p=<?php echo $pagina - 1; ?>" style="padding:8px 16px;border:2px solid var(--color-primary);border-radius:6px;color:var(--color-primary);font-weight:600;">&laquo; Anterior</a>
+                    <?php endif; ?>
+                    <?php for ($i = 1; $i <= $total_paginas; $i++): ?>
+                        <a href="comuna.php?comuna=<?php echo $slug; ?>&p=<?php echo $i; ?>"
+                           style="padding:8px 14px;border-radius:6px;font-weight:600;<?php echo $i === $pagina ? 'background:var(--color-primary);color:#fff;' : 'border:2px solid var(--color-light);color:var(--color-dark);'; ?>">
+                            <?php echo $i; ?>
+                        </a>
+                    <?php endfor; ?>
+                    <?php if ($pagina < $total_paginas): ?>
+                        <a href="comuna.php?comuna=<?php echo $slug; ?>&p=<?php echo $pagina + 1; ?>" style="padding:8px 16px;border:2px solid var(--color-primary);border-radius:6px;color:var(--color-primary);font-weight:600;">Siguiente &raquo;</a>
+                    <?php endif; ?>
+                </nav>
+                <?php endif; ?>
+                <?php endif; ?>
+            </div>
+
+            <!-- Sidebar derecho -->
+            <aside style="display: flex; flex-direction: column; gap: 24px;">
+                <!-- Widget Municipal -->
+                <?php if (!empty($noticiasMunicipal)): ?>
+                <div style="background: white; border-radius: 12px; padding: 18px; box-shadow: 0 2px 8px rgba(0,0,0,.08); border-left: 4px solid #e74c3c;">
+                    <h3 style="font-size: 15px; font-weight: 700; margin: 0 0 14px; color: var(--color-dark); text-transform: uppercase; letter-spacing: 0.5px;">
+                        <i class="fas fa-landmark" style="color: #e74c3c; margin-right: 6px;"></i>Municipal
+                    </h3>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <?php foreach ($noticiasMunicipal as $n): ?>
+                        <a href="noticia.php?slug=<?php echo clean($n['slug']); ?>" 
+                           style="display: block; padding: 8px 0; border-bottom: 1px solid #f0f0f0; text-decoration: none; color: var(--color-dark); font-size: 13px; line-height: 1.4; transition: color .2s;">
+                            <span style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                                <strong><?php echo clean($n['titulo']); ?></strong>
+                            </span>
+                            <div style="font-size: 11px; color: var(--color-gray); margin-top: 4px;">
+                                <i class="far fa-clock"></i> <?php echo timeAgo($n['fecha_publicacion']); ?>
+                            </div>
+                        </a>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+                <?php endif; ?>
+
+                <!-- Widget Gobierno -->
+                <?php if (!empty($noticiasGobierno)): ?>
+                <div style="background: white; border-radius: 12px; padding: 18px; box-shadow: 0 2px 8px rgba(0,0,0,.08); border-left: 4px solid #3498db;">
+                    <h3 style="font-size: 15px; font-weight: 700; margin: 0 0 14px; color: var(--color-dark); text-transform: uppercase; letter-spacing: 0.5px;">
+                        <i class="fas fa-gopuram" style="color: #3498db; margin-right: 6px;"></i>Gobierno
+                    </h3>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <?php foreach ($noticiasGobierno as $n): ?>
+                        <a href="noticia.php?slug=<?php echo clean($n['slug']); ?>" 
+                           style="display: block; padding: 8px 0; border-bottom: 1px solid #f0f0f0; text-decoration: none; color: var(--color-dark); font-size: 13px; line-height: 1.4; transition: color .2s;">
+                            <span style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                                <strong><?php echo clean($n['titulo']); ?></strong>
+                            </span>
+                            <div style="font-size: 11px; color: var(--color-gray); margin-top: 4px;">
+                                <i class="far fa-clock"></i> <?php echo timeAgo($n['fecha_publicacion']); ?>
+                            </div>
+                        </a>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+                <?php endif; ?>
+            </aside>
+        </div>
     </div>
 
     <!-- Footer -->

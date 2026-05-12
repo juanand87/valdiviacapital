@@ -1100,3 +1100,38 @@ html.dark-mode .push-toast-text strong { color: #e8eaed; }
 @media (max-width: 600px) {
     .push-toast { left: 12px; right: 12px; max-width: none; bottom: 80px; }
 }
+
+/* ============================================================
+   WIDGETS SIDEBAR COMUNA
+   Widgets de Municipal y Gobierno en comuna.php
+   ============================================================ */
+@media (max-width: 1024px) {
+    /* En tablets, el sidebar pasa debajo del contenido */
+    div[style*="grid-template-columns: 1fr 320px"] {
+        grid-template-columns: 1fr !important;
+    }
+    div[style*="grid-template-columns: 1fr 320px"] aside {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 20px !important;
+    }
+}
+@media (max-width: 768px) {
+    /* En móvil, widgets uno debajo del otro */
+    div[style*="grid-template-columns: 1fr 320px"] aside {
+        grid-template-columns: 1fr !important;
+    }
+}
+html.dark-mode div[style*="border-left: 4px solid"] {
+    background: #1e1e1e;
+    border-color: inherit;
+}
+html.dark-mode div[style*="border-left: 4px solid"] h3 {
+    color: #e8eaed;
+}
+html.dark-mode div[style*="border-left: 4px solid"] a {
+    color: #cbd5e1;
+}
+html.dark-mode div[style*="border-left: 4px solid"] a:hover {
+    color: var(--color-primary);
+}
