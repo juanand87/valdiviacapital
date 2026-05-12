@@ -375,6 +375,48 @@ a { text-decoration: none; color: inherit; transition: var(--transition); }
 .skel-temp { width: 44px; height: 28px; border-radius: 6px; }
 .skel-ind  { width: 70px; height: 16px; border-radius: 4px; }
 
+/* ============ RELATED ARTICLES ============ */
+.related-section { margin-top: 50px; padding-top: 30px; border-top: 2px solid var(--color-light); }
+.related-title { font-size: 1.3rem; font-weight: 700; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }
+.related-title i { color: var(--color-primary); }
+.related-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+@media (max-width: 900px) { .related-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 480px)  { .related-grid { grid-template-columns: 1fr 1fr; } }
+.related-card { display: flex; flex-direction: column; border-radius: 10px; overflow: hidden; border: 1px solid #f0f0f0; background: white; transition: var(--transition); text-decoration: none; color: var(--color-dark); }
+.related-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+.related-card-img { position: relative; padding-top: 62.5%; overflow: hidden; }
+.related-card-img img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s; }
+.related-card:hover .related-card-img img { transform: scale(1.06); }
+.related-card-body { padding: 10px 12px 14px; flex: 1; display: flex; flex-direction: column; gap: 6px; }
+.related-card-body h4 { font-size: 0.83rem; font-weight: 600; line-height: 1.45; flex: 1; margin: 0; }
+.related-card-date { font-size: 11px; color: var(--color-gray); }
+
+/* ============ FLOATING SHARE BAR ============ */
+.share-float { position: fixed; left: max(12px, calc((100vw - 1180px) / 2 - 68px)); top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; gap: 8px; z-index: 900; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+.share-float.visible { opacity: 1; pointer-events: auto; }
+.sfb-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--color-gray); margin-bottom: 2px; }
+.sfb { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 50%; color: white !important; font-size: 15px; border: none; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.18); transition: transform .2s, box-shadow .2s; text-decoration: none; }
+.sfb span { display: none; }
+.sfb:hover { transform: scale(1.12); box-shadow: 0 4px 16px rgba(0,0,0,.28); }
+.sfb-wa { background: #25d366; }
+.sfb-fb { background: #1877f2; }
+.sfb-x  { background: #000; }
+.sfb-copy { background: var(--color-primary); }
+@media (max-width: 1199px) {
+    .share-float { left: 0; right: 0; top: auto; bottom: 0; transform: none; width: 100%; flex-direction: row; justify-content: center; gap: 10px; padding: 10px 16px env(safe-area-inset-bottom, 10px); background: white; border-top: 1px solid #eee; box-shadow: 0 -2px 14px rgba(0,0,0,.1); }
+    .sfb-label { display: none; }
+    .sfb { width: auto; height: auto; border-radius: 24px; padding: 9px 17px; gap: 7px; font-size: 14px; }
+    .sfb span { display: inline; font-size: 13px; font-weight: 600; }
+}
+html.dark-mode .sfb-copy { background: var(--color-primary); }
+@media (max-width: 1199px) { html.dark-mode .share-float { background: #1e1e1e; border-top-color: #333; } }
+
+/* ============ INFINITE SCROLL ============ */
+#load-sentinel, #load-sentinel-bsq { height: 1px; display: block; }
+.scroll-loader { display: none; justify-content: center; align-items: center; gap: 10px; padding: 30px 20px; color: var(--color-gray); font-size: 14px; }
+.scroll-spinner { width: 22px; height: 22px; border: 3px solid var(--color-light); border-top-color: var(--color-primary); border-radius: 50%; animation: spin 0.75s linear infinite; flex-shrink: 0; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
 /* ============ FOOTER ============ */
 .main-footer { background: #222222; color: rgba(255,255,255,0.82); padding: 48px 0 0; margin-top: 56px; }
 .footer-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 36px; padding-bottom: 36px; }

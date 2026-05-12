@@ -139,7 +139,7 @@ $noticias = $stmtN->fetchAll();
     <!-- Noticias de la Categoría -->
     <div class="container">
         <?php renderBanner('leaderboard'); ?>
-        <div class="news-grid" style="margin-bottom: 60px;">
+        <div class="news-grid" id="seccion-grid" style="margin-bottom: 60px;">
             <?php foreach ($noticias as $noticia): ?>
             <article class="news-card">
                 <a href="noticia.php?slug=<?php echo clean($noticia['slug']); ?>">
@@ -176,23 +176,10 @@ $noticias = $stmtN->fetchAll();
         </div>
         <?php endif; ?>
 
-        <!-- Paginación -->
-        <?php if ($total_paginas > 1): ?>
-        <nav style="display:flex;justify-content:center;gap:8px;padding:40px 0;">
-            <?php if ($pagina > 1): ?>
-                <a href="seccion.php?cat=<?php echo $categoria_slug; ?>&p=<?php echo $pagina - 1; ?>" style="padding:8px 16px;border:2px solid var(--color-primary);border-radius:6px;color:var(--color-primary);font-weight:600;">&laquo; Anterior</a>
-            <?php endif; ?>
-            <?php for ($i = 1; $i <= $total_paginas; $i++): ?>
-                <a href="seccion.php?cat=<?php echo $categoria_slug; ?>&p=<?php echo $i; ?>"
-                   style="padding:8px 14px;border-radius:6px;font-weight:600;<?php echo $i === $pagina ? 'background:var(--color-primary);color:#fff;' : 'border:2px solid var(--color-light);color:var(--color-dark);'; ?>">
-                    <?php echo $i; ?>
-                </a>
-            <?php endfor; ?>
-            <?php if ($pagina < $total_paginas): ?>
-                <a href="seccion.php?cat=<?php echo $categoria_slug; ?>&p=<?php echo $pagina + 1; ?>" style="padding:8px 16px;border:2px solid var(--color-primary);border-radius:6px;color:var(--color-primary);font-weight:600;">Siguiente &raquo;</a>
-            <?php endif; ?>
-        </nav>
-        <?php endif; ?>
+        <div id="load-sentinel"></div>
+        <div id="scroll-loader" class="scroll-loader">
+            <div class="scroll-spinner"></div><span>Cargando más noticias...</span>
+        </div>
     </div>
 
     <!-- Footer -->
@@ -237,5 +224,44 @@ $noticias = $stmtN->fetchAll();
 
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="assets/js/main.js"></script>
+    <script>
+    (function () {
+        var page     = 1;
+        var loading  = false;
+        var hasMore  = <?php echo ($total_paginas > 1) ? 'true' : 'false'; ?>;
+        var cat      = <?php echo json_encode($categoria_slug); ?>;
+        var grid     = document.getElementById('seccion-grid');
+        var loader   = document.getElementById('scroll-loader');
+        var sentinel = document.getElementById('load-sentinel');
+        if (!hasMore || !sentinel) return;
+
+        function loadMore() {
+            if (loading || !hasMore) return;
+            loading = true; page++;
+            loader.style.display = 'flex';
+            fetch('ajax/cargar_seccion.php?cat=' + encodeURIComponent(cat) + '&p=' + page)
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.html) {
+                        var tmp = document.createElement('div');
+                        tmp.innerHTML = data.html;
+                        Array.from(tmp.children).forEach(function (el) {
+                            grid.appendChild(el);
+                            setTimeout(function () { el.classList.add('visible'); }, 30);
+                        });
+                    }
+                    hasMore = !!data.hasMore;
+                    if (!hasMore) sentinel.remove();
+                    loading = false;
+                    loader.style.display = 'none';
+                })
+                .catch(function () { loading = false; loader.style.display = 'none'; });
+        }
+
+        new IntersectionObserver(function (entries) {
+            if (entries[0].isIntersecting) loadMore();
+        }, { rootMargin: '250px' }).observe(sentinel);
+    })();
+    </script>
 </body>
 </html>

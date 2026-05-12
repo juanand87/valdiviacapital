@@ -10,11 +10,20 @@ $query = trim($query);
 
 $resultados = [];
 $total_resultados = 0;
+$per_page = 12;
+$hayMas   = false;
 
 if (!empty($query)) {
-    $db = getDB();
-    
-    // Buscar en noticias
+    $db          = getDB();
+    $search_term = "%$query%";
+
+    // Total de resultados
+    $stmtT = $db->prepare("SELECT COUNT(*) FROM noticias WHERE (titulo LIKE ? OR bajada LIKE ? OR contenido LIKE ?) AND publicado = 1");
+    $stmtT->execute([$search_term, $search_term, $search_term]);
+    $total_resultados = (int)$stmtT->fetchColumn();
+    $hayMas = $total_resultados > $per_page;
+
+    // Primera página
     $stmt = $db->prepare("
         SELECT n.*, c.nombre as categoria_nombre, c.slug as categoria_slug, c.color as categoria_color,
                u.nombre as autor_nombre
@@ -24,13 +33,10 @@ if (!empty($query)) {
         WHERE (n.titulo LIKE ? OR n.bajada LIKE ? OR n.contenido LIKE ?)
         AND n.publicado = 1
         ORDER BY n.fecha_publicacion DESC
-        LIMIT 20
+        LIMIT $per_page
     ");
-    
-    $search_term = "%$query%";
     $stmt->execute([$search_term, $search_term, $search_term]);
     $resultados = $stmt->fetchAll();
-    $total_resultados = count($resultados);
 }
 ?>
 <!DOCTYPE html>
@@ -123,7 +129,7 @@ if (!empty($query)) {
             </p>
 
             <?php if ($total_resultados > 0): ?>
-                <div class="news-grid">
+                <div class="news-grid" id="busqueda-grid">
                     <?php foreach ($resultados as $noticia): ?>
                     <article class="news-card">
                         <a href="noticia.php?slug=<?php echo clean($noticia['slug']); ?>">
@@ -150,6 +156,10 @@ if (!empty($query)) {
                         </a>
                     </article>
                     <?php endforeach; ?>
+                </div>
+                <div id="load-sentinel-bsq"></div>
+                <div id="scroll-loader-bsq" class="scroll-loader">
+                    <div class="scroll-spinner"></div><span>Cargando más resultados...</span>
                 </div>
             <?php else: ?>
                 <div style="text-align: center; padding: 80px 20px; background: white; border-radius: var(--radius); box-shadow: var(--shadow-md);">
@@ -227,5 +237,44 @@ if (!empty($query)) {
 
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="assets/js/main.js"></script>
+    <script>
+    (function () {
+        var page     = 1;
+        var loading  = false;
+        var hasMore  = <?php echo !empty($query) && $hayMas ? 'true' : 'false'; ?>;
+        var q        = <?php echo json_encode($query ?? ''); ?>;
+        var grid     = document.getElementById('busqueda-grid');
+        var loader   = document.getElementById('scroll-loader-bsq');
+        var sentinel = document.getElementById('load-sentinel-bsq');
+        if (!hasMore || !sentinel) return;
+
+        function loadMore() {
+            if (loading || !hasMore) return;
+            loading = true; page++;
+            loader.style.display = 'flex';
+            fetch('ajax/cargar_busqueda.php?q=' + encodeURIComponent(q) + '&p=' + page)
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.html) {
+                        var tmp = document.createElement('div');
+                        tmp.innerHTML = data.html;
+                        Array.from(tmp.children).forEach(function (el) {
+                            grid.appendChild(el);
+                            setTimeout(function () { el.classList.add('visible'); }, 30);
+                        });
+                    }
+                    hasMore = !!data.hasMore;
+                    if (!hasMore) sentinel.remove();
+                    loading = false;
+                    loader.style.display = 'none';
+                })
+                .catch(function () { loading = false; loader.style.display = 'none'; });
+        }
+
+        new IntersectionObserver(function (entries) {
+            if (entries[0].isIntersecting) loadMore();
+        }, { rootMargin: '250px' }).observe(sentinel);
+    })();
+    </script>
 </body>
 </html>

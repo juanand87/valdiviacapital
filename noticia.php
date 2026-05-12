@@ -53,16 +53,39 @@ $db->prepare("INSERT INTO vistas_diarias (noticia_id, fecha, vistas) VALUES (?, 
 $palabras = str_word_count(strip_tags($noticia['contenido']));
 $tiempoLectura = max(1, round($palabras / 200));
 
-// Noticias relacionadas
-$stmtRel = $db->prepare("
-    SELECT n.*, c.color as categoria_color
+// Noticias relacionadas inteligentes: score = categorías_compartidas×2 + comunas_compartidas
+$stmtMyCats = $db->prepare("SELECT categoria_id FROM noticias_categorias WHERE noticia_id = ?");
+$stmtMyCats->execute([$noticia['id']]);
+$myCatIds = $stmtMyCats->fetchAll(PDO::FETCH_COLUMN);
+if (empty($myCatIds)) $myCatIds = [$noticia['categoria_id']];
+
+$stmtMyComIds = $db->prepare("SELECT comuna_id FROM noticias_comunas WHERE noticia_id = ?");
+$stmtMyComIds->execute([$noticia['id']]);
+$myComIds = $stmtMyComIds->fetchAll(PDO::FETCH_COLUMN);
+
+$catIn     = implode(',', array_map('intval', $myCatIds));
+$hasComIds = !empty($myComIds);
+$comIn     = $hasComIds ? implode(',', array_map('intval', $myComIds)) : '0';
+
+$relSql = "
+    SELECT n.id, n.titulo, n.slug, n.imagen_principal, n.fecha_publicacion, n.bajada,
+           c.color as categoria_color, c.nombre as categoria_nombre,
+           (
+               (SELECT COUNT(*) FROM noticias_categorias nc WHERE nc.noticia_id = n.id AND nc.categoria_id IN ($catIn)) * 2
+               + " . ($hasComIds ? "(SELECT COUNT(*) FROM noticias_comunas ncom WHERE ncom.noticia_id = n.id AND ncom.comuna_id IN ($comIn))" : "0") . "
+           ) AS relevancia
     FROM noticias n
     INNER JOIN categorias c ON n.categoria_id = c.id
-    WHERE n.categoria_id = ? AND n.id != ? AND n.publicado = 1
-    ORDER BY n.fecha_publicacion DESC
-    LIMIT 3
-");
-$stmtRel->execute([$noticia['categoria_id'], $noticia['id']]);
+    WHERE n.id != ? AND n.publicado = 1
+    AND (
+        n.categoria_id IN ($catIn)
+        OR n.id IN (SELECT nc2.noticia_id FROM noticias_categorias nc2 WHERE nc2.categoria_id IN ($catIn))
+        " . ($hasComIds ? "OR n.id IN (SELECT ncom2.noticia_id FROM noticias_comunas ncom2 WHERE ncom2.comuna_id IN ($comIn))" : "") . "
+    )
+    ORDER BY relevancia DESC, n.fecha_publicacion DESC
+    LIMIT 4";
+$stmtRel = $db->prepare($relSql);
+$stmtRel->execute([$noticia['id']]);
 $relacionadas = $stmtRel->fetchAll();
 
 // Comentarios
@@ -116,6 +139,14 @@ $masLeidas = $db->query("
     <meta property="og:image" content="<?php echo clean($noticia['imagen_principal']); ?>">
     <?php endif; ?>
     <meta property="og:type" content="article">
+    <meta property="og:url" content="<?php echo htmlspecialchars(SITE_URL . '/noticia.php?slug=' . urlencode($noticia['slug'])); ?>">
+    <meta property="og:site_name" content="Valdivia Capital">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="<?php echo clean($noticia['titulo']); ?>">
+    <meta name="twitter:description" content="<?php echo clean(truncate(strip_tags($noticia['bajada']), 160)); ?>">
+    <?php if ($noticia['imagen_principal']): ?>
+    <meta name="twitter:image" content="<?php echo clean($noticia['imagen_principal']); ?>">
+    <?php endif; ?>
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -508,7 +539,7 @@ $masLeidas = $db->query("
                     <i class="fab fa-facebook-f"></i> Facebook
                 </a>
                 <a href="#" class="share-btn twitter" onclick="compartirNoticia('twitter', '<?php echo addslashes($noticia['titulo']); ?>', window.location.href); return false;">
-                    <i class="fab fa-twitter"></i> Twitter
+                    <i class="fab fa-x-twitter"></i> X
                 </a>
                 <a href="#" class="share-btn whatsapp" onclick="compartirNoticia('whatsapp', '<?php echo addslashes($noticia['titulo']); ?>', window.location.href); return false;">
                     <i class="fab fa-whatsapp"></i> WhatsApp
@@ -525,20 +556,25 @@ $masLeidas = $db->query("
 
             <!-- Noticias Relacionadas -->
             <?php if (!empty($relacionadas)): ?>
-            <div class="related-news">
-                <h3 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 20px;">Noticias Relacionadas</h3>
-                <?php foreach ($relacionadas as $relacionada): ?>
-                <a href="noticia.php?slug=<?php echo clean($relacionada['slug']); ?>" class="related-item">
-                    <img src="<?php echo $relacionada['imagen_principal'] ? clean($relacionada['imagen_principal']) : 'https://picsum.photos/seed/' . $relacionada['id'] . '/120/80'; ?>" alt="<?php echo clean($relacionada['titulo']); ?>" loading="lazy">
-                    <div>
-                        <h4><?php echo clean($relacionada['titulo']); ?></h4>
-                        <span style="font-size: 12px; color: var(--color-gray);">
-                            <i class="far fa-clock"></i> <?php echo timeAgo($relacionada['fecha_publicacion']); ?>
-                        </span>
-                    </div>
-                </a>
-                <?php endforeach; ?>
-            </div>
+            <section class="related-section">
+                <h3 class="related-title"><i class="fas fa-newspaper"></i> También te puede interesar</h3>
+                <div class="related-grid">
+                    <?php foreach ($relacionadas as $r): ?>
+                    <a href="noticia.php?slug=<?php echo clean($r['slug']); ?>" class="related-card">
+                        <div class="related-card-img">
+                            <img src="<?php echo $r['imagen_principal'] ? clean($r['imagen_principal']) : 'https://picsum.photos/seed/' . $r['id'] . 'rel/400/250'; ?>" alt="<?php echo clean($r['titulo']); ?>" loading="lazy">
+                            <span class="category-badge" style="background:<?php echo $r['categoria_color']; ?>;position:absolute;bottom:8px;left:8px;font-size:10px;">
+                                <?php echo strtoupper($r['categoria_nombre']); ?>
+                            </span>
+                        </div>
+                        <div class="related-card-body">
+                            <h4><?php echo clean($r['titulo']); ?></h4>
+                            <span class="related-card-date"><i class="far fa-clock"></i> <?php echo timeAgo($r['fecha_publicacion']); ?></span>
+                        </div>
+                    </a>
+                    <?php endforeach; ?>
+                </div>
+            </section>
             <?php endif; ?>
         </article>
 
@@ -578,6 +614,34 @@ $masLeidas = $db->query("
             <?php endforeach; ?>
         </section>
         <?php endif; ?>
+    </div>
+
+    <!-- Barra flotante de compartir -->
+    <?php
+    $shareSlug  = urlencode($noticia['slug']);
+    $shareTitle = rawurlencode($noticia['titulo']);
+    $shareUrl   = SITE_URL . '/noticia.php?slug=' . $shareSlug;
+    ?>
+    <div id="share-float" class="share-float" role="complementary" aria-label="Compartir artículo">
+        <span class="sfb-label">Compartir</span>
+        <a class="sfb sfb-wa"
+           href="https://wa.me/?text=<?php echo $shareTitle . '%20' . rawurlencode($shareUrl); ?>"
+           target="_blank" rel="noopener noreferrer" title="WhatsApp">
+            <i class="fab fa-whatsapp"></i><span>WhatsApp</span>
+        </a>
+        <a class="sfb sfb-fb"
+           href="https://www.facebook.com/sharer/sharer.php?u=<?php echo rawurlencode($shareUrl); ?>"
+           target="_blank" rel="noopener noreferrer" title="Facebook">
+            <i class="fab fa-facebook-f"></i><span>Facebook</span>
+        </a>
+        <a class="sfb sfb-x"
+           href="https://twitter.com/intent/tweet?text=<?php echo $shareTitle; ?>&url=<?php echo rawurlencode($shareUrl); ?>"
+           target="_blank" rel="noopener noreferrer" title="X / Twitter">
+            <i class="fab fa-x-twitter"></i><span>X</span>
+        </a>
+        <button class="sfb sfb-copy" id="btn-copy-link" title="Copiar enlace">
+            <i class="fas fa-link"></i><span>Copiar</span>
+        </button>
     </div>
 
     <!-- Footer -->
@@ -661,6 +725,37 @@ $masLeidas = $db->query("
                 });
             });
         }());
+    </script>
+    <script>
+    // ── Barra flotante de compartir ──────────────────────────────
+    (function () {
+        var sf = document.getElementById('share-float');
+        if (!sf) return;
+        window.addEventListener('scroll', function () {
+            sf.classList.toggle('visible', window.scrollY > 320);
+        }, { passive: true });
+        document.getElementById('btn-copy-link').addEventListener('click', function () {
+            var btn = this;
+            var canonical = <?php echo json_encode(SITE_URL . '/noticia.php?slug=' . $noticia['slug']); ?>;
+            navigator.clipboard.writeText(canonical).then(function () {
+                var icon = btn.querySelector('i');
+                var lbl  = btn.querySelector('span');
+                icon.className = 'fas fa-check';
+                if (lbl) lbl.textContent = 'Copiado!';
+                setTimeout(function () {
+                    icon.className = 'fas fa-link';
+                    if (lbl) lbl.textContent = 'Copiar';
+                }, 2200);
+            }).catch(function () {
+                // fallback para navegadores sin Clipboard API
+                var ta = document.createElement('textarea');
+                ta.value = canonical; ta.style.position = 'fixed';
+                document.body.appendChild(ta); ta.focus(); ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+            });
+        });
+    })();
     </script>
 </body>
 </html>
