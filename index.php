@@ -76,15 +76,25 @@ if ($cached) {
     cacheSet('homepage_main', compact('hero', 'heroGrid', 'noticias', 'shownIds'));
 }
 
-// Lo más leído (sidebar) — caché 10 minutos (vistas cambian con más frecuencia)
+// Trending (sidebar) — Calcula engagement score: vistas + comentarios + reacciones — caché 10 minutos
 $trending = cacheGet('homepage_trending', 600);
 if ($trending === false) {
     $trending = $db->query("
-        SELECT n.id, n.titulo, n.slug, n.vistas
+        SELECT 
+          n.id, n.titulo, n.slug, n.vistas,
+          COUNT(DISTINCT cm.id) as comentarios_recientes,
+          COUNT(DISTINCT r.id) as reacciones_recientes,
+          (n.vistas * 0.4 + COUNT(DISTINCT cm.id) * 2 + COUNT(DISTINCT r.id) * 1.5) as trending_score
         FROM noticias n
-        WHERE n.publicado = 1
-        ORDER BY n.vistas DESC
-        LIMIT 5
+        LEFT JOIN comentarios cm ON n.id = cm.noticia_id 
+          AND cm.created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)
+          AND cm.aprobado = 1
+        LEFT JOIN reacciones r ON n.id = r.noticia_id 
+          AND r.created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)
+        WHERE n.publicado = 1 AND n.fecha_publicacion > DATE_SUB(NOW(), INTERVAL 7 DAY)
+        GROUP BY n.id
+        ORDER BY trending_score DESC
+        LIMIT 7
     ")->fetchAll();
     cacheSet('homepage_trending', $trending);
 }
@@ -362,16 +372,28 @@ if (empty($multimediaVideos)) {
             <!-- Sidebar -->
             <aside class="sidebar">
 
-                <!-- Lo más leído -->
-                <div class="widget">
-                    <h3 class="widget-title"><i class="fas fa-fire" style="color:var(--color-primary);margin-right:6px;"></i>Lo Más Leído</h3>
+                <!-- Trending (Vistas + Comentarios + Reacciones) -->
+                <div class="widget trending-widget">
+                    <h3 class="widget-title"><i class="fas fa-fire" style="color: #ff6b35; margin-right: 8px;"></i>Trending Ahora</h3>
                     <div class="trending-list">
                         <?php foreach ($trending as $i => $t): ?>
                         <div class="trending-item">
-                            <div class="trending-number"><?= $i + 1 ?></div>
-                            <div class="trending-info">
-                                <h4><a href="noticia.php?slug=<?= clean($t['slug']) ?>"><?= clean($t['titulo']) ?></a></h4>
-                                <span><?= number_format($t['vistas'], 0, ',', '.') ?> vistas</span>
+                            <div class=\"trending-rank\"><?= $i + 1 ?></div>
+                            <div class="trending-content">
+                                <a href="noticia.php?slug=<?= clean($t['slug']) ?>" class="trending-title">
+                                    <?= clean(truncate($t['titulo'], 55)) ?>
+                                </a>
+                                <div class="trending-stats">
+                                    <span class="stat-views" title="Vistas en últimas 24h">
+                                        <i class="far fa-eye"></i> <?= number_format($t['vistas']) ?>
+                                    </span>
+                                    <span class="stat-comments" title="Comentarios en últimas 24h">
+                                        <i class="far fa-comment"></i> <?= (int)$t['comentarios_recientes'] ?>
+                                    </span>
+                                    <span class="stat-reactions" title="Reacciones en últimas 24h">
+                                        <i class="fas fa-fire"></i> <?= (int)$t['reacciones_recientes'] ?>
+                                    </span>
+                                </div>
                             </div>
                         </div>
                         <?php endforeach; ?>

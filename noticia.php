@@ -48,6 +48,29 @@ if (!$noticia) {
     exit;
 }
 
+// Obtener noticias TRENDING (para mostrar en sidebar)
+$trendingWidget = $db->query("
+    SELECT 
+      n.id, n.titulo, n.slug, n.vistas,
+      COUNT(DISTINCT cm.id) as comentarios_recientes,
+      COUNT(DISTINCT r.id) as reacciones_recientes,
+      (n.vistas * 0.4 + COUNT(DISTINCT cm.id) * 2 + COUNT(DISTINCT r.id) * 1.5) as trending_score
+    FROM noticias n
+    LEFT JOIN comentarios cm ON n.id = cm.noticia_id 
+      AND cm.created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)
+      AND cm.aprobado = 1
+    LEFT JOIN reacciones r ON n.id = r.noticia_id 
+      AND r.created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)
+    WHERE n.publicado = 1 
+      AND n.fecha_publicacion > DATE_SUB(NOW(), INTERVAL 7 DAY)
+      AND n.id != ?
+    GROUP BY n.id
+    ORDER BY trending_score DESC
+    LIMIT 5
+");
+$stmtTrending->execute([$noticia['id']]);
+$trendingWidget = $stmtTrending->fetchAll();
+
 // Incrementar vistas
 $db->prepare("UPDATE noticias SET vistas = vistas + 1 WHERE id = ?")->execute([$noticia['id']]);
 
@@ -673,6 +696,32 @@ $masLeidas = $db->query("
             <i class="fas fa-link"></i><span>Copiar</span>
         </button>
     </div>
+
+    <!-- Widget Trending (noticias siendo trending ahora) -->
+    <?php if (!empty($trendingWidget)): ?>
+    <section class="container" style="margin: 60px 0 40px;">
+        <h3 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 24px; color: var(--color-dark);">
+            <i class="fas fa-fire" style="color: #ff6b35; margin-right: 10px;"></i>También está siendo trending
+        </h3>
+        <div class="trending-grid">
+            <?php foreach ($trendingWidget as $t): ?>
+            <div class="trending-card">
+                <a href="noticia.php?slug=<?= clean($t['slug']) ?>" class="trending-card-link">
+                    <h4 class="trending-card-title"><?= clean(truncate($t['titulo'], 65)) ?></h4>
+                    <div class="trending-card-stats">
+                        <span class="stat-item">
+                            <i class="far fa-eye"></i> <?= number_format($t['vistas']) ?> vistas
+                        </span>
+                        <span class="stat-item">
+                            <i class="fas fa-fire"></i> <?= round($t['trending_score']) ?> pts
+                        </span>
+                    </div>
+                </a>
+            </div>
+            <?php endforeach; ?>
+        </div>
+    </section>
+    <?php endif; ?>
 
     <!-- Footer -->
     <footer class="main-footer">
