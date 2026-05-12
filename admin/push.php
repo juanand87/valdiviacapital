@@ -27,8 +27,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $subs    = $db->query("SELECT endpoint, p256dh, auth FROM push_subscriptions")->fetchAll();
             $sent = $expired = $failed = 0;
 
+            $debugLines = [];
             foreach ($subs as $sub) {
-                $code = vapid_send($sub, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT);
+                $res  = vapid_send($sub, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT);
+                $code = $res['code'];
+                $debugLines[] = 'HTTP ' . $code . (strlen($res['body']) ? ' — ' . htmlspecialchars(substr($res['body'], 0, 120)) : '');
                 if ($code >= 200 && $code < 300) {
                     $sent++;
                 } elseif ($code === 410 || $code === 404) {
@@ -42,7 +45,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $msg     = "Push enviado a <strong>{$sent}</strong> dispositivo(s). "
-                     . "Expirados eliminados: {$expired}. Fallos: {$failed}.";
+                     . "Expirados eliminados: {$expired}. Fallos: {$failed}."
+                     . (count($debugLines) ? '<br><small style="opacity:.7">Respuestas: ' . implode(' | ', $debugLines) . '</small>' : '');
             $msgType = ($sent > 0) ? 'success' : 'warning';
 
         } else {

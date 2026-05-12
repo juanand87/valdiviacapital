@@ -146,29 +146,29 @@ function vapid_jwt(string $endpoint, string $privB64u, string $subject): string
  * @param  string $pub   Clave pública VAPID (base64url)
  * @param  string $priv  Clave privada VAPID (base64url)
  * @param  string $subj  VAPID subject (mailto: o https:)
- * @return int    Código HTTP del servicio de push (201=ok, 410=expirado)
+ * @return array  ['code' => int, 'body' => string]  — code 201=ok, 410=expirado
  */
-function vapid_send(array $sub, string $pub, string $priv, string $subj): int
+function vapid_send(array $sub, string $pub, string $priv, string $subj): array
 {
     $jwt = vapid_jwt($sub['endpoint'], $priv, $subj);
 
     $ch = curl_init($sub['endpoint']);
     curl_setopt_array($ch, [
-        CURLOPT_POST           => true,
+        CURLOPT_CUSTOMREQUEST  => 'POST',  // evita que cURL añada Content-Type automático
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_TIMEOUT        => 20,
-        CURLOPT_POSTFIELDS     => '',        // sin payload
         CURLOPT_HTTPHEADER     => [
             'Authorization: vapid t=' . $jwt . ', k=' . $pub,
             'TTL: 86400',
             'Content-Length: 0',
+            'Content-Type:',   // fuerza header vacío → ningún Content-Type en la petición
         ],
         CURLOPT_SSL_VERIFYPEER => true,
     ]);
 
-    curl_exec($ch);
+    $body = (string) curl_exec($ch);
     $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
 
-    return $code;
+    return ['code' => $code, 'body' => $body];
 }
