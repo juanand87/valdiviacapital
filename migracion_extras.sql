@@ -135,3 +135,24 @@ CREATE TABLE IF NOT EXISTS noticias_categorias (
     PRIMARY KEY (noticia_id, categoria_id),
     INDEX idx_ncat_categoria (categoria_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ============================================================
+-- Push Notifications (Phase 19)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+    id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    endpoint   TEXT NOT NULL,
+    p256dh     TEXT NOT NULL,
+    auth       TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_endpoint (endpoint(255))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS push_messages (
+    id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    titulo     VARCHAR(255) NOT NULL,
+    mensaje    VARCHAR(500) NOT NULL,
+    url        VARCHAR(500) NOT NULL DEFAULT '/',
+    enviado_en DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

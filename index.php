@@ -4,6 +4,12 @@ require_once 'includes/maintenance.php';
 require_once 'includes/cache.php';
 require_once 'includes/banners.php';
 require_once 'includes/galerias.php';
+// Cargar claves VAPID si están configuradas (para el widget de push)
+if (!defined('VAPID_PUBLIC_KEY')) {
+    $__vc = __DIR__ . '/includes/vapid_config.php';
+    if (file_exists($__vc)) require_once $__vc;
+    unset($__vc);
+}
 if (isMaintenance()) { include 'mantenimiento.php'; exit; }
 
 $db = getDB();
@@ -392,9 +398,16 @@ if (empty($multimediaVideos)) {
                     </form>
                 </div>
 
+                <!-- Historial de lectura (renderizado por JS desde localStorage) -->
+                <div id="widget-historial" class="widget" style="display:none;">
+                    <h3 class="widget-title">
+                        <i class="fas fa-history" style="color:var(--color-primary);margin-right:6px;"></i>Continúa leyendo
+                    </h3>
+                    <div id="historial-list"></div>
+                </div>
+
                 <!-- Clima Regional -->
-                <div class="widget">
-                    <h3 class="widget-title"><i class="fas fa-cloud-sun" style="color:var(--color-primary);margin-right:6px;"></i>Clima Regional</h3>
+                <div class="widget">                    <h3 class="widget-title"><i class="fas fa-cloud-sun" style="color:var(--color-primary);margin-right:6px;"></i>Clima Regional</h3>
                     <div id="clima-body">
                         <div class="weather-item skel-row"><div class="skel skel-text" style="width:55%"></div><div class="skel skel-temp"></div></div>
                         <div class="weather-item skel-row"><div class="skel skel-text" style="width:45%"></div><div class="skel skel-temp"></div></div>
@@ -576,5 +589,50 @@ if (empty($multimediaVideos)) {
         });
     })();
     </script>
+    <script>
+    // ── Historial de lectura (widget "Continúa leyendo") ─────────
+    (function () {
+        var list   = document.getElementById('historial-list');
+        var widget = document.getElementById('widget-historial');
+        if (!list || !widget) return;
+
+        var hist;
+        try { hist = JSON.parse(localStorage.getItem('vc_history') || '[]'); }
+        catch (e) { return; }
+        if (!hist.length) return;
+
+        var html = '';
+        hist.slice(0, 5).forEach(function (n) {
+            var imgStyle = n.imagen
+                ? 'background-image:url("' + n.imagen.replace(/"/g, '%22') + '")'
+                : '';
+            html += '<a href="noticia.php?slug=' + encodeURIComponent(n.slug) + '" class="historial-item">'
+                + '<div class="historial-thumb"' + (imgStyle ? ' style="' + imgStyle + '"' : '') + '>'
+                + (!n.imagen ? '<i class="fas fa-newspaper" style="color:#bbb;font-size:18px;"></i>' : '')
+                + '</div>'
+                + '<div class="historial-info">'
+                + '<h4>' + n.titulo.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</h4>'
+                + '<span class="historial-cat" style="background:' + n.color + '22;color:' + n.color + '">'
+                + n.cat + '</span>'
+                + '</div>'
+                + '</a>';
+        });
+
+        list.innerHTML = html;
+        widget.style.display = '';
+    }());
+    </script>
+    <!-- Push Notifications -->
+    <div id="push-toast" class="push-toast" role="dialog" aria-live="polite">
+        <div class="push-toast-icon"><i class="fas fa-bell"></i></div>
+        <div class="push-toast-text">
+            <strong>¿Quieres recibir alertas?</strong>
+            <span>Entérate de lo último al instante</span>
+        </div>
+        <button id="push-allow" class="push-allow-btn">Activar</button>
+        <button id="push-dismiss" class="push-dismiss-btn" title="Cerrar"><i class="fas fa-times"></i></button>
+    </div>
+    <script>window.VAPID_PUBLIC_KEY = '<?php echo defined('VAPID_PUBLIC_KEY') ? addslashes(VAPID_PUBLIC_KEY) : ''; ?>';</script>
+    <script src="assets/js/push.js" defer></script>
 </body>
 </html>

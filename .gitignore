@@ -1,0 +1,51 @@
+# Archivos de configuración local
+includes/config.php
+includes/vapid_config.php
+
+# Carpetas de carga y caché
+uploads/*
+!uploads/.htaccess
+cache/*
+!cache/.htaccess
+
+# Logs
+*.log
+error_log
+debug.log
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDEs
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Backups
+*.bak
+*.backup
+*.old
+*~
+
+# Archivos temporales
+tmp/
+temp/
+*.tmp
+
+# Node modules (si se usa npm)
+node_modules/
+
+# Archivos de sistema de control de versiones
+.git/
+.gitignore
+
+# Archivos de PHP
+*.swp
+*.swo
+
+# Archivos de base de datos locales
+*.sql.gz
+backup_*.sql

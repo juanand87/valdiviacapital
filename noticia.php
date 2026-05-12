@@ -3,6 +3,12 @@ require_once 'includes/config.php';
 require_once 'includes/maintenance.php';
 require_once 'includes/banners.php';
 require_once 'includes/galerias.php';
+// Cargar claves VAPID si están configuradas
+if (!defined('VAPID_PUBLIC_KEY')) {
+    $__vc = __DIR__ . '/includes/vapid_config.php';
+    if (file_exists($__vc)) require_once $__vc;
+    unset($__vc);
+}
 if (isMaintenance()) { include 'mantenimiento.php'; exit; }
 
 // Obtener noticia por slug (o por id como fallback)
@@ -402,6 +408,29 @@ $masLeidas = $db->query("
             z-index: 10000;
             transition: width 0.1s linear;
         }
+        /* ── Botón modo lectura ── */
+        .btn-leer {
+            margin-left: auto;
+            background: none;
+            border: 1.5px solid var(--color-border, #e5e7eb);
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            padding: 3px 10px;
+            color: var(--color-gray);
+            cursor: pointer;
+            transition: all .2s;
+            line-height: 1.4;
+        }
+        .btn-leer:hover,
+        .btn-leer.active { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
+        /* ── Modo lectura ── */
+        body.modo-lectura .share-float              { display: none !important; }
+        body.modo-lectura .article-full             { max-width: 720px !important; margin-left: auto !important; margin-right: auto !important; }
+        body.modo-lectura .article-content          { font-size: 1.22rem !important; line-height: 2.05 !important; }
+        body.modo-lectura .related-section,
+        body.modo-lectura .comments-section         { display: none !important; }
     </style>
 </head>
 <body>
@@ -513,6 +542,7 @@ $masLeidas = $db->query("
                     <span><i class="far fa-clock"></i> <?php echo formatDate($noticia['fecha_publicacion']); ?></span>
                     <span><i class="fas fa-eye"></i> <?php echo number_format($noticia['vistas']); ?> vistas</span>
                     <span><i class="fas fa-book-open"></i> <?php echo $tiempoLectura; ?> min de lectura</span>
+                    <button id="btn-leer" class="btn-leer" title="Activar modo lectura (Aa)">Aa</button>
                 </div>
             </div>
 
@@ -687,8 +717,7 @@ $masLeidas = $db->query("
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="assets/js/main.js"></script>
     <script>
-        // Barra de progreso de lectura
-        $(window).on('scroll', function () {
+        // Barra de progreso de lectura        $(window).on('scroll', function () {
             var docHeight = $(document).height() - $(window).height();
             var scrolled = $(window).scrollTop();
             var progress = docHeight > 0 ? (scrolled / docHeight) * 100 : 0;
@@ -757,5 +786,47 @@ $masLeidas = $db->query("
         });
     })();
     </script>
+    <script>
+    // ── Modo lectura ─────────────────────────────────────────────
+    (function () {
+        var btn  = document.getElementById('btn-leer');
+        var MODO = 'vc_leer_modo';
+        if (!btn) return;
+
+        // Restaurar estado guardado
+        if (localStorage.getItem(MODO) === '1') {
+            document.body.classList.add('modo-lectura');
+            btn.classList.add('active');
+        }
+
+        btn.addEventListener('click', function () {
+            var active = document.body.classList.toggle('modo-lectura');
+            btn.classList.toggle('active', active);
+            localStorage.setItem(MODO, active ? '1' : '0');
+        });
+    }());
+
+    // ── Historial de lectura (localStorage) ──────────────────────
+    (function () {
+        var art = {
+            id:       <?php echo (int)$noticia['id']; ?>,
+            titulo:   <?php echo json_encode(clean($noticia['titulo'])); ?>,
+            slug:     <?php echo json_encode($noticia['slug']); ?>,
+            imagen:   <?php echo json_encode($noticia['imagen_principal'] ?: ''); ?>,
+            cat:      <?php echo json_encode($noticia['categoria_nombre']); ?>,
+            color:    <?php echo json_encode($noticia['categoria_color']); ?>,
+            leido:    Date.now()
+        };
+        try {
+            var hist = JSON.parse(localStorage.getItem('vc_history') || '[]');
+            hist = hist.filter(function (n) { return n.id !== art.id; });
+            hist.unshift(art);
+            localStorage.setItem('vc_history', JSON.stringify(hist.slice(0, 10)));
+        } catch (e) {}
+    }());
+    </script>
+    <!-- Push Notifications: VAPID public key + SW client -->
+    <script>window.VAPID_PUBLIC_KEY = '<?php echo defined('VAPID_PUBLIC_KEY') ? addslashes(VAPID_PUBLIC_KEY) : ''; ?>';</script>
+    <script src="assets/js/push.js" defer></script>
 </body>
 </html>
