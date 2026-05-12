@@ -49,12 +49,12 @@ if (!$noticia) {
 }
 
 // Obtener noticias TRENDING (para mostrar en sidebar)
-$trendingWidget = $db->query("
+$stmtTrending = $db->prepare("
     SELECT 
       n.id, n.titulo, n.slug, n.vistas,
-      COUNT(DISTINCT cm.id) as comentarios_recientes,
-      COUNT(DISTINCT r.id) as reacciones_recientes,
-      (n.vistas * 0.4 + COUNT(DISTINCT cm.id) * 2 + COUNT(DISTINCT r.id) * 1.5) as trending_score
+      COALESCE(COUNT(DISTINCT cm.id), 0) as comentarios_recientes,
+      COALESCE(COUNT(DISTINCT r.id), 0) as reacciones_recientes,
+      (n.vistas * 0.4 + COALESCE(COUNT(DISTINCT cm.id), 0) * 2 + COALESCE(COUNT(DISTINCT r.id), 0) * 1.5) as trending_score
     FROM noticias n
     LEFT JOIN comentarios cm ON n.id = cm.noticia_id 
       AND cm.created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)
@@ -710,10 +710,10 @@ $masLeidas = $db->query("
                     <h4 class="trending-card-title"><?= clean(truncate($t['titulo'], 65)) ?></h4>
                     <div class="trending-card-stats">
                         <span class="stat-item">
-                            <i class="far fa-eye"></i> <?= number_format($t['vistas']) ?> vistas
+                            <i class="far fa-eye"></i> <?= number_format((int)($t['vistas'] ?? 0)) ?> vistas
                         </span>
                         <span class="stat-item">
-                            <i class="fas fa-fire"></i> <?= round($t['trending_score']) ?> pts
+                            <i class="fas fa-fire"></i> <?= round((float)($t['trending_score'] ?? 0)) ?> pts
                         </span>
                     </div>
                 </a>

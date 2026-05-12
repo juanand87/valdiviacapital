@@ -82,9 +82,9 @@ if ($trending === false) {
     $trending = $db->query("
         SELECT 
           n.id, n.titulo, n.slug, n.vistas,
-          COUNT(DISTINCT cm.id) as comentarios_recientes,
-          COUNT(DISTINCT r.id) as reacciones_recientes,
-          (n.vistas * 0.4 + COUNT(DISTINCT cm.id) * 2 + COUNT(DISTINCT r.id) * 1.5) as trending_score
+          COALESCE(COUNT(DISTINCT cm.id), 0) as comentarios_recientes,
+          COALESCE(COUNT(DISTINCT r.id), 0) as reacciones_recientes,
+          (n.vistas * 0.4 + COALESCE(COUNT(DISTINCT cm.id), 0) * 2 + COALESCE(COUNT(DISTINCT r.id), 0) * 1.5) as trending_score
         FROM noticias n
         LEFT JOIN comentarios cm ON n.id = cm.noticia_id 
           AND cm.created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)
@@ -385,13 +385,13 @@ if (empty($multimediaVideos)) {
                                 </a>
                                 <div class="trending-stats">
                                     <span class="stat-views" title="Vistas en últimas 24h">
-                                        <i class="far fa-eye"></i> <?= number_format($t['vistas']) ?>
+                                        <i class="far fa-eye"></i> <?= number_format((int)($t['vistas'] ?? 0)) ?>
                                     </span>
                                     <span class="stat-comments" title="Comentarios en últimas 24h">
-                                        <i class="far fa-comment"></i> <?= (int)$t['comentarios_recientes'] ?>
+                                        <i class="far fa-comment"></i> <?= (int)($t['comentarios_recientes'] ?? 0) ?>
                                     </span>
                                     <span class="stat-reactions" title="Reacciones en últimas 24h">
-                                        <i class="fas fa-fire"></i> <?= (int)$t['reacciones_recientes'] ?>
+                                        <i class="fas fa-fire"></i> <?= (int)($t['reacciones_recientes'] ?? 0) ?>
                                     </span>
                                 </div>
                             </div>
