@@ -218,6 +218,7 @@ if (!empty($query)) {
                         <li><a href="seccion.php?cat=deportes">Deportes</a></li>
                         <li><a href="seccion.php?cat=cultura">Cultura</a></li>
                         <li><a href="seccion.php?cat=turismo">Turismo</a></li>
+                        <li><a href="ser-reportero.php">Ser reportero VC</a></li>
                     </ul>
                 </div>
                 <div class="footer-column">

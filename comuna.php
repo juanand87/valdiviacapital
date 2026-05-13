@@ -297,6 +297,7 @@ $todasComunas = $db->query("SELECT * FROM comunas ORDER BY nombre")->fetchAll();
         <div class="container" style="text-align:center;">
             <p style="color:#e2e8f0;font-weight:700;font-size:18px;margin-bottom:8px;">Valdivia Capital</p>
             <p style="font-size:13px;">Noticias de la Región de Los Ríos</p>
+            <p style="font-size:13px;margin-top:12px;"><a href="ser-reportero.php" style="color:#fff;text-decoration:underline;">Ser reportero VC</a></p>
             <p style="font-size:12px;margin-top:20px;opacity:.6;">&copy; <?php echo date('Y'); ?> Valdivia Capital. Todos los derechos reservados.</p>
         </div>
     </footer>

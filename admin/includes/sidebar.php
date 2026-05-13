@@ -85,6 +85,11 @@
             <span>Eventos</span>
         </a>
 
+        <a href="reporteros.php" class="nav-item <?php echo in_array(basename($_SERVER['PHP_SELF']), ['reporteros.php', 'revisar-reportero.php']) ? 'active' : ''; ?>">
+            <i class="fas fa-microphone-lines"></i>
+            <span>Reporteros VC</span>
+        </a>
+
         <a href="push.php" class="nav-item <?php echo basename($_SERVER['PHP_SELF']) == 'push.php' ? 'active' : ''; ?>">
             <i class="fas fa-bell"></i>
             <span>Push Notifications</span>
