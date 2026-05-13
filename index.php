@@ -108,6 +108,39 @@ if ($tickerNoticias === false) {
     cacheSet('homepage_ticker', $tickerNoticias);
 }
 
+$comunasPortada = cacheGet('homepage_comunas', 900);
+if ($comunasPortada === false) {
+    $comunasPortada = $db->query("
+        SELECT *
+        FROM (
+            SELECT
+                com.id AS comuna_id,
+                com.nombre AS comuna_nombre,
+                com.slug AS comuna_slug,
+                n.id,
+                n.titulo,
+                n.slug,
+                n.bajada,
+                n.imagen_principal,
+                n.fecha_publicacion,
+                n.vistas,
+                c.nombre AS cat_nombre,
+                c.color AS cat_color,
+                ROW_NUMBER() OVER (PARTITION BY com.id ORDER BY n.fecha_publicacion DESC, n.id DESC) AS rn
+            FROM comunas com
+            INNER JOIN noticias_comunas nc ON nc.comuna_id = com.id
+            INNER JOIN noticias n ON n.id = nc.noticia_id
+            INNER JOIN categorias c ON c.id = n.categoria_id
+            WHERE n.publicado = 1
+        ) ranked
+        WHERE rn = 1
+        ORDER BY fecha_publicacion DESC
+    ")->fetchAll();
+    cacheSet('homepage_comunas', $comunasPortada);
+}
+
+$comunasPortadaVisibles = 6;
+
 // Sección Multimedia: galería destacada (Opción A) o fallback a videos individuales
 $multimediaVideos = [];
 $multimediaTitulo = '';
@@ -454,6 +487,63 @@ if (empty($multimediaVideos)) {
         </div>
     </div>
 
+    <?php if (!empty($comunasPortada)): ?>
+    <section class="comunas-home-section">
+        <div class="container">
+            <div class="comunas-home-header">
+                <div>
+                    <span class="comunas-home-kicker">Cobertura local</span>
+                    <h2 class="section-title comunas-home-title"><i class="fas fa-map-marked-alt"></i> Comunas</h2>
+                    <p class="comunas-home-intro">Una noticia destacada por comuna para recorrer la regi&oacute;n desde la portada, con acceso directo a cada cobertura local.</p>
+                </div>
+            </div>
+
+            <div class="comunas-home-grid" id="comunas-home-grid">
+                <?php foreach ($comunasPortada as $index => $comunaItem): ?>
+                <article class="comuna-home-card fade-in <?php echo $index === 0 ? 'comuna-home-card-featured' : ''; ?> <?php echo $index >= $comunasPortadaVisibles ? 'is-hidden' : ''; ?>">
+                    <a href="noticia.php?slug=<?= clean($comunaItem['slug']) ?>" class="comuna-home-link">
+                        <div class="comuna-home-image">
+                            <?php if ($comunaItem['imagen_principal']): ?>
+                                <img src="<?= clean($comunaItem['imagen_principal']) ?>" alt="<?= clean($comunaItem['titulo']) ?>" loading="lazy">
+                            <?php else: ?>
+                                <img src="https://picsum.photos/seed/comuna<?= (int)$comunaItem['id'] ?>/720/480" alt="<?= clean($comunaItem['titulo']) ?>" loading="lazy">
+                            <?php endif; ?>
+                            <span class="comuna-home-badge"><?= clean($comunaItem['comuna_nombre']) ?></span>
+                        </div>
+                        <div class="comuna-home-body">
+                            <div class="comuna-home-meta-top">
+                                <span class="comuna-home-category" style="color:<?= clean($comunaItem['cat_color']) ?>;"><?= clean($comunaItem['cat_nombre']) ?></span>
+                                <span class="comuna-home-separator">|</span>
+                                <span class="comuna-home-meta-time"><?= timeAgo($comunaItem['fecha_publicacion']) ?></span>
+                            </div>
+                            <h3 class="comuna-home-title-card"><?= clean($comunaItem['titulo']) ?></h3>
+                            <?php if (!empty($comunaItem['bajada'])): ?>
+                                <p class="comuna-home-excerpt"><?= clean(truncate($comunaItem['bajada'], $index === 0 ? 180 : 120)) ?></p>
+                            <?php endif; ?>
+                            <div class="comuna-home-footer">
+                                <span class="comuna-home-views"><i class="fas fa-eye"></i> <?= number_format((int)$comunaItem['vistas'], 0, ',', '.') ?></span>
+                                <span class="comuna-home-cta">Ver comuna <i class="fas fa-arrow-right"></i></span>
+                            </div>
+                        </div>
+                    </a>
+                    <a href="comuna.php?comuna=<?= clean($comunaItem['comuna_slug']) ?>" class="comuna-home-local-link">
+                        <i class="fas fa-map-pin"></i> Ir a <?= clean($comunaItem['comuna_nombre']) ?>
+                    </a>
+                </article>
+                <?php endforeach; ?>
+            </div>
+
+            <?php if (count($comunasPortada) > $comunasPortadaVisibles): ?>
+            <div class="load-more-wrap comunas-load-more-wrap" id="comunas-load-more-wrap">
+                <button id="btn-cargar-mas-comunas" class="btn-load-more">
+                    <span class="label"><i class="fas fa-map"></i> Mostrar m&aacute;s comunas</span>
+                </button>
+            </div>
+            <?php endif; ?>
+        </div>
+    </section>
+    <?php endif; ?>
+
     <!-- Footer -->
     <footer class="main-footer">
         <div class="container">
@@ -525,6 +615,25 @@ if (empty($multimediaVideos)) {
                 .fail(function () {
                     $btn.removeClass('loading').prop('disabled', false);
                 });
+        });
+
+        $('#btn-cargar-mas-comunas').on('click', function () {
+            var $btn = $(this);
+            var $hidden = $('#comunas-home-grid .comuna-home-card.is-hidden').slice(0, 4);
+
+            if (!$hidden.length) {
+                $('#comunas-load-more-wrap').fadeOut(300);
+                return;
+            }
+
+            $hidden.removeClass('is-hidden');
+            setTimeout(function () {
+                $hidden.css({ opacity: '', transform: '' }).addClass('visible');
+            }, 30);
+
+            if (!$('#comunas-home-grid .comuna-home-card.is-hidden').length) {
+                $('#comunas-load-more-wrap').fadeOut(300);
+            }
         });
     })(jQuery);
     </script>
