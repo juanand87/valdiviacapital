@@ -139,6 +139,7 @@ $todasComunas = $db->query("SELECT * FROM comunas ORDER BY nombre")->fetchAll();
                 <a href="seccion.php?cat=deportes">Deportes</a>
                 <a href="seccion.php?cat=cultura">Cultura</a>
                 <a href="seccion.php?cat=turismo">Turismo</a>
+                <a href="eventos.php"><i class="fas fa-calendar-alt"></i> Eventos</a>
                 <div class="nav-dropdown">
                     <a href="#" class="nav-dropdown-toggle active">
                         <i class="fas fa-map-marker-alt"></i> Región <i class="fas fa-chevron-down" style="font-size:10px;margin-left:3px;"></i>

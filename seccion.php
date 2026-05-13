@@ -102,6 +102,7 @@ $noticias = $stmtN->fetchAll();
                 <a href="seccion.php?cat=deportes" <?php echo $categoria_slug === 'deportes' ? 'class="active"' : ''; ?>>Deportes</a>
                 <a href="seccion.php?cat=cultura" <?php echo $categoria_slug === 'cultura' ? 'class="active"' : ''; ?>>Cultura</a>
                 <a href="seccion.php?cat=turismo" <?php echo $categoria_slug === 'turismo' ? 'class="active"' : ''; ?>>Turismo</a>
+                <a href="eventos.php">Eventos</a>
                 <?php
                 $todasComunas = $db->query("SELECT id, nombre, slug FROM comunas ORDER BY nombre")->fetchAll();
                 ?>
@@ -205,6 +206,7 @@ $noticias = $stmtN->fetchAll();
                         <li><a href="seccion.php?cat=deportes">Deportes</a></li>
                         <li><a href="seccion.php?cat=cultura">Cultura</a></li>
                         <li><a href="seccion.php?cat=turismo">Turismo</a></li>
+                        <li><a href="eventos.php">Eventos</a></li>
                     </ul>
                 </div>
                 <div class="footer-column">

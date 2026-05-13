@@ -1393,3 +1393,267 @@ html.dark-mode .trending-card:hover .trending-card-title {
         font-size: 11px;
     }
 }
+
+/* ============================================================
+   EVENTOS
+   ============================================================ */
+.eventos-hero {
+    background: linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%);
+    color: #fff;
+    padding: 34px 0;
+    margin-bottom: 8px;
+}
+
+.eventos-hero h1 {
+    font-size: 2rem;
+    font-weight: 800;
+    margin: 0;
+}
+
+.eventos-hero p {
+    margin-top: 8px;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.eventos-filtros {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr 1fr 160px auto auto;
+    gap: 10px;
+    background: var(--color-white);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    padding: 12px;
+    margin: 14px 0 24px;
+}
+
+.eventos-filtros input,
+.eventos-filtros select {
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 14px;
+}
+
+.eventos-filtros button {
+    border: none;
+    border-radius: 8px;
+    background: var(--color-primary);
+    color: #fff;
+    font-weight: 600;
+    padding: 0 14px;
+    cursor: pointer;
+}
+
+.eventos-filtros .clear-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    padding: 0 14px;
+    border: 1px solid var(--color-border);
+    color: var(--color-gray);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.eventos-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 20px;
+    margin-bottom: 40px;
+}
+
+.evento-card {
+    background: var(--color-white);
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.evento-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.1);
+}
+
+.evento-card.destacado {
+    border-color: rgba(245, 158, 11, 0.5);
+}
+
+.evento-link {
+    color: inherit;
+    text-decoration: none;
+    display: block;
+}
+
+.evento-thumb {
+    height: 185px;
+    background-size: cover;
+    background-position: center;
+    position: relative;
+}
+
+.evento-chip {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    padding: 4px 9px;
+    border-radius: 20px;
+}
+
+.chip-destacado {
+    background: #f59e0b;
+    color: #fff;
+}
+
+.chip-cat {
+    background: rgba(0, 0, 0, 0.75);
+    color: #fff;
+    left: auto;
+    right: 10px;
+}
+
+.evento-body {
+    padding: 14px;
+}
+
+.evento-body h3 {
+    font-size: 17px;
+    line-height: 1.35;
+    margin-bottom: 8px;
+}
+
+.evento-body p {
+    color: var(--color-gray);
+    font-size: 13px;
+    line-height: 1.45;
+    margin-bottom: 12px;
+}
+
+.evento-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    font-size: 12px;
+    color: var(--color-gray);
+}
+
+.eventos-empty {
+    background: var(--color-white);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    text-align: center;
+    padding: 45px 20px;
+    margin-bottom: 40px;
+}
+
+.eventos-empty i {
+    font-size: 42px;
+    color: #94a3b8;
+    margin-bottom: 10px;
+}
+
+.evento-detalle {
+    background: var(--color-white);
+    border: 1px solid var(--color-border);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+}
+
+.evento-detalle-hero {
+    height: 320px;
+    background-size: cover;
+    background-position: center;
+    position: relative;
+}
+
+.evento-detalle-body {
+    padding: 22px;
+}
+
+.evento-detalle-body h1 {
+    font-size: 2rem;
+    margin-bottom: 10px;
+}
+
+.evento-detalle-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 14px;
+    color: var(--color-gray);
+    font-size: 14px;
+}
+
+.evento-detalle-texto {
+    font-size: 16px;
+    line-height: 1.72;
+    color: var(--color-dark);
+}
+
+.evento-detalle-extra {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid var(--color-border);
+}
+
+html.dark-mode .eventos-filtros,
+html.dark-mode .evento-card,
+html.dark-mode .evento-detalle,
+html.dark-mode .eventos-empty {
+    background: #1e1e1e;
+    border-color: #2d2d2d;
+}
+
+html.dark-mode .eventos-filtros input,
+html.dark-mode .eventos-filtros select {
+    background: #2a2a2a;
+    border-color: #3a3a3a;
+    color: #e8eaed;
+}
+
+html.dark-mode .evento-body h3,
+html.dark-mode .evento-detalle-body h1,
+html.dark-mode .evento-detalle-texto {
+    color: #e8eaed;
+}
+
+html.dark-mode .eventos-filtros .clear-btn {
+    border-color: #3a3a3a;
+    color: #cbd5e1;
+}
+
+@media (max-width: 1024px) {
+    .eventos-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .eventos-filtros {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .eventos-grid {
+        grid-template-columns: 1fr;
+        gap: 14px;
+    }
+
+    .eventos-filtros {
+        grid-template-columns: 1fr;
+    }
+
+    .evento-detalle-hero {
+        height: 230px;
+    }
+
+    .evento-detalle-body h1 {
+        font-size: 1.6rem;
+    }
+}

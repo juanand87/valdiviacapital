@@ -509,6 +509,7 @@ $masLeidas = $db->query("
                 <a href="seccion.php?cat=deportes">Deportes</a>
                 <a href="seccion.php?cat=cultura">Cultura</a>
                 <a href="seccion.php?cat=turismo">Turismo</a>
+                <a href="eventos.php"><i class="fas fa-calendar-alt"></i> Eventos</a>
                 <?php
                 $todasComunas = $db->query("SELECT id, nombre, slug FROM comunas ORDER BY nombre")->fetchAll();
                 ?>
@@ -746,6 +747,7 @@ $masLeidas = $db->query("
                         <li><a href="seccion.php?cat=deportes">Deportes</a></li>
                         <li><a href="seccion.php?cat=cultura">Cultura</a></li>
                         <li><a href="seccion.php?cat=turismo">Turismo</a></li>
+                        <li><a href="eventos.php">Eventos</a></li>
                     </ul>
                 </div>
                 <div class="footer-column">

@@ -80,6 +80,11 @@
             <span>Galerías Video</span>
         </a>
 
+        <a href="eventos.php" class="nav-item <?php echo basename($_SERVER['PHP_SELF']) == 'eventos.php' ? 'active' : ''; ?>">
+            <i class="fas fa-calendar-alt"></i>
+            <span>Eventos</span>
+        </a>
+
         <a href="push.php" class="nav-item <?php echo basename($_SERVER['PHP_SELF']) == 'push.php' ? 'active' : ''; ?>">
             <i class="fas fa-bell"></i>
             <span>Push Notifications</span>

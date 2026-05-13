@@ -156,3 +156,34 @@ CREATE TABLE IF NOT EXISTS push_messages (
     url        VARCHAR(500) NOT NULL DEFAULT '/',
     enviado_en DATETIME DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ============================================================
+-- Eventos (Phase 22)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS eventos (
+    id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    titulo        VARCHAR(255) NOT NULL,
+    slug          VARCHAR(255) NOT NULL,
+    descripcion   TEXT NULL,
+    fecha_inicio  DATETIME NOT NULL,
+    fecha_fin     DATETIME NULL,
+    lugar         VARCHAR(255) NOT NULL,
+    direccion     VARCHAR(300) NULL,
+    comuna_id     TINYINT UNSIGNED NULL,
+    categoria     VARCHAR(80) NOT NULL DEFAULT 'General',
+    imagen_url    VARCHAR(500) NULL,
+    url_externo   VARCHAR(500) NULL,
+    organizador   VARCHAR(150) NULL,
+    gratuito      TINYINT(1) NOT NULL DEFAULT 1,
+    precio        VARCHAR(100) NULL,
+    destacado     TINYINT(1) NOT NULL DEFAULT 0,
+    activo        TINYINT(1) NOT NULL DEFAULT 1,
+    autor_id      INT UNSIGNED NULL,
+    created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at    DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_evento_slug (slug),
+    INDEX idx_evento_fecha_activo (activo, fecha_inicio),
+    INDEX idx_evento_comuna (comuna_id),
+    INDEX idx_evento_categoria (categoria)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
