@@ -39,27 +39,38 @@ function getClima(): array
     foreach ($ciudades as $c) {
         $url  = 'https://api.open-meteo.com/v1/forecast'
               . "?latitude={$c['lat']}&longitude={$c['lon']}"
-              . '&current=temperature_2m,weather_code'
+              . '&current=temperature_2m,apparent_temperature,weather_code,relative_humidity_2m,wind_speed_10m'
+              . '&daily=temperature_2m_max,temperature_2m_min'
               . '&timezone=America%2FSantiago&forecast_days=1';
 
         $raw  = fetchUrl($url);
         if ($raw) {
             $d    = json_decode($raw, true);
-            $temp = isset($d['current']['temperature_2m'])
-                    ? (int) round($d['current']['temperature_2m']) : '--';
-            $code = $d['current']['weather_code'] ?? 0;
+            $cur  = $d['current'] ?? [];
+            $day  = $d['daily']   ?? [];
+            $code = $cur['weather_code'] ?? 0;
             $resultado[] = [
-                'ciudad' => $c['nombre'],
-                'temp'   => $temp,
-                'desc'   => wmoDesc($code),
-                'icono'  => wmoIcon($code),
+                'ciudad'   => $c['nombre'],
+                'temp'     => isset($cur['temperature_2m'])       ? (int) round($cur['temperature_2m'])       : '--',
+                'sensacion'=> isset($cur['apparent_temperature'])  ? (int) round($cur['apparent_temperature']) . '°' : '--',
+                'humedad'  => isset($cur['relative_humidity_2m'])  ? (int) $cur['relative_humidity_2m'] . '%'  : '--',
+                'viento'   => isset($cur['wind_speed_10m'])        ? round($cur['wind_speed_10m']) . ' km/h'   : '--',
+                'maxima'   => isset($day['temperature_2m_max'][0]) ? (int) round($day['temperature_2m_max'][0]) . '°' : '--',
+                'minima'   => isset($day['temperature_2m_min'][0]) ? (int) round($day['temperature_2m_min'][0]) . '°' : '--',
+                'desc'     => wmoDesc($code),
+                'icono'    => wmoIcon($code),
             ];
         } else {
             $resultado[] = [
-                'ciudad' => $c['nombre'],
-                'temp'   => '--',
-                'desc'   => 'Sin datos',
-                'icono'  => 'fa-cloud',
+                'ciudad'   => $c['nombre'],
+                'temp'     => '--',
+                'sensacion'=> '--',
+                'humedad'  => '--',
+                'viento'   => '--',
+                'maxima'   => '--',
+                'minima'   => '--',
+                'desc'     => 'Sin datos',
+                'icono'    => 'fa-cloud',
             ];
         }
     }

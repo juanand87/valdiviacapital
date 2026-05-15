@@ -190,9 +190,16 @@ a { text-decoration: none; color: inherit; transition: var(--transition); }
     white-space: nowrap;
 }
 .ticker-text:hover { animation-play-state: paused; }
-.ticker-text span { font-size: 13px; color: var(--color-dark); cursor: pointer; }
-.ticker-text span:hover { color: var(--color-primary); }
-.ticker-text .sep { color: var(--color-primary); font-weight: 700; cursor: default; }
+.ticker-text span,
+.ticker-text a.ticker-link       { font-size: 13px; color: var(--color-dark); cursor: pointer; text-decoration: none; }
+.ticker-text span:hover,
+.ticker-text a.ticker-link:hover { color: var(--color-primary); }
+.ticker-text .sep                { color: var(--color-primary); font-weight: 700; cursor: default; }
+/* Tipos de mensaje */
+.ticker-item-urgente             { color: #dc2626 !important; font-weight: 600; }
+.ticker-item-flash               { color: #d97706 !important; font-weight: 600; }
+.ticker-item-urgente strong,
+.ticker-item-flash   strong      { font-weight: 700; }
 @keyframes ticker {
     0%   { transform: translateX(0); }
     100% { transform: translateX(-50%); }
@@ -356,8 +363,12 @@ a { text-decoration: none; color: inherit; transition: var(--transition); }
 .weather-item:last-child { border-bottom: none; }
 .weather-city { font-weight: 600; font-size: 0.88rem; }
 .weather-desc { font-size: 12px; color: var(--color-gray); }
+.weather-minmax { font-size: 11px; color: var(--color-gray); margin-top: 2px; }
+.weather-right { text-align: right; flex-shrink: 0; }
 .weather-temp { font-size: 1.4rem; font-weight: 700; color: var(--color-primary); white-space: nowrap; }
-.weather-wi { font-size: 1.15rem; color: var(--color-primary); width: 20px; text-align: center; }
+.weather-detail { font-size: 11px; color: var(--color-gray); white-space: nowrap; margin-top: 2px; }
+.weather-di { color: var(--color-primary); font-size: 10px; margin-right: 3px; }
+.weather-wi { font-size: 1.15rem; color: var(--color-primary); width: 20px; text-align: center; flex-shrink: 0; }
 
 /* ============ INDICADORES FINANCIEROS ============ */
 .ind-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f5f5f5; }
@@ -1015,12 +1026,16 @@ html.dark-mode .article-full,
 html.dark-mode .widget          { background: #1e1e1e; border-color: #333; }
 html.dark-mode .weather-item,
 html.dark-mode .ind-item        { border-bottom-color: #2e2e2e; }
+html.dark-mode .weather-city    { color: #e8eaed; }
+html.dark-mode .weather-minmax,
+html.dark-mode .weather-detail  { color: #888; }
 html.dark-mode .ind-valor,
 html.dark-mode .ind-nombre      { color: #e8eaed; }
 html.dark-mode .skel            { background: linear-gradient(90deg, #2a2a2a 25%, #333 50%, #2a2a2a 75%); background-size: 400px 100%; }
 html.dark-mode .trending-item   { border-bottom-color: #2e2e2e; }
 html.dark-mode .breaking-news   { background: #1e1e1e; border-color: #333; }
-html.dark-mode .ticker-text span { color: #e8eaed; }
+html.dark-mode .ticker-text span,
+html.dark-mode .ticker-text a.ticker-link { color: #e8eaed; }
 html.dark-mode .section-title::after { background: #333; }
 html.dark-mode .news-meta,
 html.dark-mode .hero-grid-meta  { border-top-color: #2e2e2e; }

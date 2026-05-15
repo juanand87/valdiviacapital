@@ -90,6 +90,11 @@
             <span>Reporteros VC</span>
         </a>
 
+        <a href="ticker.php" class="nav-item <?php echo basename($_SERVER['PHP_SELF']) == 'ticker.php' ? 'active' : ''; ?>">
+            <i class="fas fa-scroll"></i>
+            <span>Ticker</span>
+        </a>
+
         <a href="push.php" class="nav-item <?php echo basename($_SERVER['PHP_SELF']) == 'push.php' ? 'active' : ''; ?>">
             <i class="fas fa-bell"></i>
             <span>Push Notifications</span>

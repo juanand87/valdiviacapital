@@ -99,13 +99,42 @@ if ($trending === false) {
     cacheSet('homepage_trending', $trending);
 }
 
-// Ticker: últimos títulos
-$tickerNoticias = cacheGet('homepage_ticker');
-if ($tickerNoticias === false) {
-    $tickerNoticias = $db->query("
-        SELECT titulo FROM noticias WHERE publicado = 1 ORDER BY fecha_publicacion DESC LIMIT 8
-    ")->fetchAll(PDO::FETCH_COLUMN);
-    cacheSet('homepage_ticker', $tickerNoticias);
+// Ticker: configuración dinámica + mensajes personalizados
+$tickerConfig = ['activo'=>'1','etiqueta'=>'Último momento','velocidad'=>'35','fuente'=>'noticias','cantidad_noticias'=>'8'];
+$tickerItems  = []; // cada item: ['texto'=>'...','url'=>'...','tipo'=>'normal']
+try {
+    $tcRows = $db->query("SELECT nombre, valor FROM ticker_config")->fetchAll();
+    foreach ($tcRows as $r) $tickerConfig[$r['nombre']] = $r['valor'];
+
+    if ($tickerConfig['activo'] != '0') {
+        $fuente = $tickerConfig['fuente'] ?? 'noticias';
+
+        // Mensajes personalizados
+        if ($fuente === 'personalizado' || $fuente === 'ambos') {
+            $rows = $db->query("SELECT mensaje, url, tipo FROM ticker_mensajes WHERE activo=1 ORDER BY orden ASC, id ASC")->fetchAll();
+            foreach ($rows as $r) {
+                $tickerItems[] = ['texto' => $r['mensaje'], 'url' => $r['url'], 'tipo' => $r['tipo']];
+            }
+        }
+
+        // Noticias recientes
+        if ($fuente === 'noticias' || $fuente === 'ambos' || empty($tickerItems)) {
+            $qty  = max(1, min(20, (int)($tickerConfig['cantidad_noticias'] ?? 8)));
+            $stmt = $db->prepare("SELECT titulo, slug FROM noticias WHERE publicado=1 ORDER BY fecha_publicacion DESC LIMIT ?");
+            $stmt->execute([$qty]);
+            foreach ($stmt->fetchAll() as $n) {
+                $tickerItems[] = ['texto' => $n['titulo'], 'url' => 'noticia.php?slug=' . rawurlencode($n['slug']), 'tipo' => 'normal'];
+            }
+        }
+    }
+} catch (\PDOException $e) {
+    // Fallback: solo últimas noticias
+    try {
+        $rows = $db->query("SELECT titulo, slug FROM noticias WHERE publicado=1 ORDER BY fecha_publicacion DESC LIMIT 8")->fetchAll();
+        foreach ($rows as $n) {
+            $tickerItems[] = ['texto' => $n['titulo'], 'url' => 'noticia.php?slug=' . rawurlencode($n['slug']), 'tipo' => 'normal'];
+        }
+    } catch (\Exception $e2) {}
 }
 
 $comunasPortada = cacheGet('homepage_comunas', 900);
@@ -247,23 +276,41 @@ if (empty($multimediaVideos)) {
     <?php renderBanner('leaderboard'); ?>
 
     <!-- Ticker dinámico -->
+    <?php if ($tickerConfig['activo'] != '0' && !empty($tickerItems)): ?>
     <div class="breaking-news">
         <div class="container" style="display:flex;align-items:center;width:100%;overflow:hidden;">
-            <span class="breaking-label"><i class="fas fa-bolt"></i> Último momento</span>
+            <span class="breaking-label"><i class="fas fa-bolt"></i> <?= clean($tickerConfig['etiqueta'] ?? 'Último momento') ?></span>
             <div class="ticker-wrap">
-                <div class="ticker-text">
-                    <?php foreach ($tickerNoticias as $t): ?>
-                        <span><?= clean($t) ?></span>
+                <div class="ticker-text" style="animation-duration:<?= (int)($tickerConfig['velocidad'] ?? 35) ?>s;">
+                    <?php foreach ($tickerItems as $item): ?>
+                        <?php
+                            $cls = $item['tipo'] === 'urgente' ? ' ticker-item-urgente' : ($item['tipo'] === 'flash' ? ' ticker-item-flash' : '');
+                            $prefix = $item['tipo'] === 'urgente' ? '<strong>URGENTE: </strong>' : ($item['tipo'] === 'flash' ? '<strong>FLASH: </strong>' : '');
+                        ?>
+                        <?php if ($item['url']): ?>
+                            <a href="<?= clean($item['url']) ?>" class="ticker-link<?= $cls ?>"><?= $prefix . clean($item['texto']) ?></a>
+                        <?php else: ?>
+                            <span class="<?= ltrim($cls) ?>"><?= $prefix . clean($item['texto']) ?></span>
+                        <?php endif; ?>
                         <span class="sep">&bull;</span>
                     <?php endforeach; ?>
-                    <?php foreach ($tickerNoticias as $t): ?>
-                        <span><?= clean($t) ?></span>
+                    <?php foreach ($tickerItems as $item): ?>
+                        <?php
+                            $cls = $item['tipo'] === 'urgente' ? ' ticker-item-urgente' : ($item['tipo'] === 'flash' ? ' ticker-item-flash' : '');
+                            $prefix = $item['tipo'] === 'urgente' ? '<strong>URGENTE: </strong>' : ($item['tipo'] === 'flash' ? '<strong>FLASH: </strong>' : '');
+                        ?>
+                        <?php if ($item['url']): ?>
+                            <a href="<?= clean($item['url']) ?>" class="ticker-link<?= $cls ?>"><?= $prefix . clean($item['texto']) ?></a>
+                        <?php else: ?>
+                            <span class="<?= ltrim($cls) ?>"><?= $prefix . clean($item['texto']) ?></span>
+                        <?php endif; ?>
                         <span class="sep">&bull;</span>
                     <?php endforeach; ?>
                 </div>
             </div>
         </div>
     </div>
+    <?php endif; ?>
 
     <!-- ======== PORTADA / HERO ======== -->
     <section class="hero-section">
@@ -656,12 +703,22 @@ if (empty($multimediaVideos)) {
                         var html = '';
                         data.clima.forEach(function(c) {
                             html += '<div class="weather-item">'
-                                  + '<div style="display:flex;align-items:center;gap:10px;">'
+                                  + '<div style="display:flex;align-items:center;gap:10px;flex:1;">'
                                   + '<i class="fas ' + escHtml(c.icono) + ' weather-wi"></i>'
-                                  + '<div><div class="weather-city">' + escHtml(c.ciudad) + '</div>'
-                                  + '<div class="weather-desc">' + escHtml(c.desc) + '</div></div>'
+                                  + '<div>'
+                                  + '<div class="weather-city">' + escHtml(c.ciudad) + '</div>'
+                                  + '<div class="weather-desc">' + escHtml(c.desc) + '</div>'
+                                  + '<div class="weather-minmax">'
+                                  + '<i class="fas fa-arrow-up" style="color:#ef4444;font-size:9px;"></i> ' + escHtml(c.maxima)
+                                  + ' &nbsp;<i class="fas fa-arrow-down" style="color:#3b82f6;font-size:9px;"></i> ' + escHtml(c.minima)
                                   + '</div>'
+                                  + '</div>'
+                                  + '</div>'
+                                  + '<div class="weather-right">'
                                   + '<div class="weather-temp">' + escHtml(c.temp) + '°C</div>'
+                                  + '<div class="weather-detail"><i class="fas fa-droplet weather-di"></i>' + escHtml(c.humedad) + '</div>'
+                                  + '<div class="weather-detail"><i class="fas fa-wind weather-di"></i>' + escHtml(c.viento) + '</div>'
+                                  + '</div>'
                                   + '</div>';
                         });
                         document.getElementById('clima-body').innerHTML = html;
