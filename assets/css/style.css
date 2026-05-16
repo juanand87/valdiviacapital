@@ -956,6 +956,46 @@ html.dark-mode .sfb-copy { background: var(--color-primary); }
     margin-bottom: 10px;
 }
 
+/* ============ BOLSA DE TRABAJO ============ */
+.bolsa-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 18px;
+}
+.bolsa-card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.bolsa-card h3 {
+    font-family: var(--font-heading);
+    font-size: 1.25rem;
+    line-height: 1.25;
+    margin: 6px 0;
+}
+.bolsa-card-destacado {
+    border-color: rgba(200, 16, 46, 0.25);
+    box-shadow: 0 16px 36px rgba(200, 16, 46, 0.14);
+}
+.bolsa-head {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+.bolsa-meta {
+    font-size: 14px;
+    color: var(--color-gray);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.bolsa-meta i {
+    width: 16px;
+    text-align: center;
+    color: var(--color-primary);
+}
+
 /* ============ RESPONSIVE ============ */
 @media (max-width: 1024px) {
     .hero-featured { grid-template-columns: 320px 1fr; }
@@ -1040,6 +1080,8 @@ html.dark-mode .section-title::after { background: #333; }
 html.dark-mode .news-meta,
 html.dark-mode .hero-grid-meta  { border-top-color: #2e2e2e; }
 html.dark-mode .main-footer     { background: #0d0d0d; }
+html.dark-mode .bolsa-card-destacado { border-color: rgba(200, 16, 46, 0.45); }
+html.dark-mode .bolsa-meta i { color: #ff6b7f; }
 html.dark-mode .comunas-home-section {
     background:
         radial-gradient(circle at top left, rgba(200, 16, 46, 0.16), transparent 28%),

@@ -256,6 +256,7 @@ if (empty($multimediaVideos)) {
                 <a href="seccion.php?cat=cultura">Cultura</a>
                 <a href="seccion.php?cat=turismo">Turismo</a>
                 <a href="eventos.php"><i class="fas fa-calendar-alt"></i> Eventos</a>
+                <a href="bolsa-trabajo.php"><i class="fas fa-briefcase"></i> Empleos</a>
                 <?php
                 $todasComunas = $db->query("SELECT id, nombre, slug FROM comunas ORDER BY nombre")->fetchAll();
                 ?>

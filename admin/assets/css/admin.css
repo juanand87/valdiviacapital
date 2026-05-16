@@ -390,6 +390,11 @@ body {
     color: white;
 }
 
+.btn-secondary {
+    background: #edf2f7;
+    color: #2d3748;
+}
+
 .btn-primary:hover {
     background: #5568d3;
     transform: translateY(-2px);

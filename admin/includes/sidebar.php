@@ -90,6 +90,11 @@
             <span>Reporteros VC</span>
         </a>
 
+        <a href="bolsa-ofertas.php" class="nav-item <?php echo in_array(basename($_SERVER['PHP_SELF']), ['bolsa-ofertas.php', 'revisar-bolsa.php', 'bolsa-config.php']) ? 'active' : ''; ?>">
+            <i class="fas fa-briefcase"></i>
+            <span>Bolsa Trabajo</span>
+        </a>
+
         <a href="ticker.php" class="nav-item <?php echo basename($_SERVER['PHP_SELF']) == 'ticker.php' ? 'active' : ''; ?>">
             <i class="fas fa-scroll"></i>
             <span>Ticker</span>
