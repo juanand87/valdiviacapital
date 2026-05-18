@@ -69,18 +69,13 @@ $ofertas = $stmt->fetchAll();
         <?php endif; ?>
 
         <?php if (isset($_GET['nueva'])): ?>
-        <div class="reportero-alert success" style="display:flex;flex-direction:column;gap:12px;">
-            <div>
-                <strong>¡Oferta creada con éxito!</strong><br>
-                <?php if ($_GET['nueva'] === 'enviada'): ?>
-                    Tu oferta fue enviada a revisión. Será publicada una vez aprobada por nuestro equipo.
-                <?php else: ?>
-                    Tu borrador fue guardado. Puedes editarlo y enviarlo a revisión cuando quieras.
-                <?php endif; ?>
-            </div>
-            <div>
-                <a href="bolsa-panel.php" class="reportero-btn primary"><i class="fas fa-list"></i> Aceptar e ir al listado</a>
-            </div>
+        <div class="reportero-alert success">
+            <strong>¡Oferta creada con éxito!</strong><br>
+            <?php if ($_GET['nueva'] === 'enviada'): ?>
+                Tu oferta fue enviada a revisión. Será publicada una vez aprobada por nuestro equipo.
+            <?php else: ?>
+                Tu borrador fue guardado. Puedes editarlo y enviarlo a revisión cuando quieras.
+            <?php endif; ?>
         </div>
         <?php endif; ?>
 
