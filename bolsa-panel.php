@@ -68,6 +68,22 @@ $ofertas = $stmt->fetchAll();
         <div class="reportero-alert success">Tu cuenta fue creada correctamente. Ya puedes publicar ofertas.</div>
         <?php endif; ?>
 
+        <?php if (isset($_GET['nueva'])): ?>
+        <div class="reportero-alert success" style="display:flex;flex-direction:column;gap:12px;">
+            <div>
+                <strong>¡Oferta creada con éxito!</strong><br>
+                <?php if ($_GET['nueva'] === 'enviada'): ?>
+                    Tu oferta fue enviada a revisión. Será publicada una vez aprobada por nuestro equipo.
+                <?php else: ?>
+                    Tu borrador fue guardado. Puedes editarlo y enviarlo a revisión cuando quieras.
+                <?php endif; ?>
+            </div>
+            <div>
+                <a href="bolsa-panel.php" class="reportero-btn primary"><i class="fas fa-list"></i> Aceptar e ir al listado</a>
+            </div>
+        </div>
+        <?php endif; ?>
+
         <div class="reportero-stats-grid">
             <div class="reportero-stat-card"><span>Total</span><strong><?php echo (int)$stats['total']; ?></strong></div>
             <div class="reportero-stat-card"><span>Borradores</span><strong><?php echo (int)$stats['borradores']; ?></strong></div>

@@ -20,6 +20,12 @@ $esEdicion = $id > 0;
 $errores = [];
 $ok = '';
 
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['ok'])) {
+    $okParam = $_GET['ok'];
+    if ($okParam === 'enviada') $ok = 'Oferta enviada a revisión correctamente.';
+    elseif ($okParam === 'guardada') $ok = 'Borrador actualizado correctamente.';
+}
+
 $form = [
     'tipo' => 'oferta',
     'titulo' => '',
@@ -99,7 +105,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $form['modalidad'], $form['jornada'], $form['descripcion'], $form['requisitos'], $form['salario_texto'], $form['email_contacto'],
                 $form['telefono_contacto'], $form['fecha_cierre'], $estadoDestino, $id, $publicador['id']
             ]);
-            $ok = $accion === 'enviar' ? 'Oferta enviada a revisión.' : 'Borrador actualizado.';
+            $msgOk = $accion === 'enviar' ? 'enviada' : 'guardada';
+            header('Location: bolsa-oferta.php?id=' . $id . '&ok=' . $msgOk);
+            exit;
         } else {
             $stmt = $db->prepare("INSERT INTO bolsa_ofertas
                 (publicador_id, tipo, titulo, slug, empresa_institucion, cargo, rubro, comuna_id, ubicacion_texto, modalidad, jornada,
@@ -110,16 +118,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $form['comuna_id'], $form['ubicacion_texto'], $form['modalidad'], $form['jornada'], $form['descripcion'], $form['requisitos'],
                 $form['salario_texto'], $form['email_contacto'], $form['telefono_contacto'], $form['fecha_cierre'], $estadoDestino
             ]);
-            $id = (int)$db->lastInsertId();
-            $esEdicion = true;
-            $ok = $accion === 'enviar' ? 'Oferta creada y enviada a revisión.' : 'Oferta guardada en borrador.';
-        }
-
-        $stmt = $db->prepare('SELECT * FROM bolsa_ofertas WHERE id = ? AND publicador_id = ? LIMIT 1');
-        $stmt->execute([$id, $publicador['id']]);
-        $row = $stmt->fetch();
-        if ($row) {
-            $form = array_merge($form, $row);
+            $idNuevo = (int)$db->lastInsertId();
+            $msgNueva = $accion === 'enviar' ? 'enviada' : 'borrador';
+            header('Location: bolsa-panel.php?nueva=' . $msgNueva);
+            exit;
         }
     }
 }
