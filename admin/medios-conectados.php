@@ -126,6 +126,15 @@ $contenido_pendiente = $stmt->fetch()['total'];
                         <p>Obtén contenido desde perfiles de Instagram</p>
                         <span class="badge"><?php echo $stats['instagram']; ?> activos</span>
                     </a>
+
+                    <a href="medios-instagram-scraping.php" class="medio-tipo-card">
+                        <div class="medio-icon" style="background: linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);">
+                            <i class="fab fa-instagram"></i>
+                        </div>
+                        <h3>Scraping Instagram</h3>
+                        <p>Lee las últimas publicaciones de perfiles públicos sin necesidad de API</p>
+                        <span class="badge" style="background:#fde8ee;color:#bc1888;">Sin API key</span>
+                    </a>
                 </div>
             </div>
         </div>
