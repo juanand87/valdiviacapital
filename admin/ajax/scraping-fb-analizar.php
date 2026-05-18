@@ -1,7 +1,10 @@
 <?php
 /**
  * AJAX: Scraping de páginas públicas de Facebook.
- * Usa m.facebook.com (versión móvil) que muestra contenido público sin login.
+ *
+ * Estrategia:
+ *   1. mbasic.facebook.com  – versión ultra-reducida, sin JS, más accesible
+ *   2. m.facebook.com       – versión móvil como fallback
  */
 
 register_shutdown_function(function () {
@@ -40,210 +43,149 @@ if (!$pagina) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Helper: descarga una URL
+// Extraer el slug/path de la URL de Facebook
+// ej: https://www.facebook.com/municipalidadvaldivia → municipalidadvaldivia
 // ─────────────────────────────────────────────────────────────────────────────
-function fbFetch($url, $extraHeaders = []) {
-    $headers = array_merge([
-        // User-Agent móvil: hace que Facebook sirva la versión m.facebook.com
-        'User-Agent: Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36',
-        'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language: es-CL,es;q=0.9',
-        'Accept-Encoding: gzip, deflate',
-        'Cache-Control: no-cache',
-        'Connection: keep-alive',
-    ], $extraHeaders);
+function fbSlug($url) {
+    $slug = preg_replace('#^https?://(www\.|m\.|mbasic\.)?facebook\.com/#i', '', $url);
+    $slug = rtrim($slug, '/');
+    $slug = preg_replace('/[?#].*/', '', $slug);
+    return $slug;
+}
 
-    if (function_exists('curl_init')) {
-        $ch = curl_init($url);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_MAXREDIRS      => 5,
-            CURLOPT_TIMEOUT        => 20,
-            CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_ENCODING       => '',
-            CURLOPT_HTTPHEADER     => $headers,
-        ]);
-        $html = curl_exec($ch);
-        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-        return ($html !== false && $code >= 200 && $code < 400) ? $html : false;
+// ─────────────────────────────────────────────────────────────────────────────
+// Descarga una URL con cURL; devuelve array con html, code, curl_error, final_url
+// ─────────────────────────────────────────────────────────────────────────────
+function fbFetch($url) {
+    if (!function_exists('curl_init')) {
+        return ['html' => false, 'code' => 0, 'curl_error' => 'cURL no disponible', 'final_url' => $url];
     }
 
-    $opts = [
-        'http' => ['method' => 'GET', 'header' => implode("\r\n", $headers), 'timeout' => 20],
-        'ssl'  => ['verify_peer' => false],
+    $cookieFile = tempnam(sys_get_temp_dir(), 'fb_cookie_');
+
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_MAXREDIRS      => 8,
+        CURLOPT_TIMEOUT        => 25,
+        CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_SSL_VERIFYHOST => false,
+        CURLOPT_ENCODING       => '',          // acepta gzip/deflate automáticamente
+        CURLOPT_COOKIEJAR      => $cookieFile,
+        CURLOPT_COOKIEFILE     => $cookieFile,
+        CURLOPT_HTTPHEADER     => [
+            // User-Agent escritorio moderno — mbasic responde igual
+            'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+            'Accept-Language: es-CL,es;q=0.9,en;q=0.8',
+            'Accept-Encoding: gzip, deflate, br',
+            'Cache-Control: no-cache',
+            'Pragma: no-cache',
+            'Upgrade-Insecure-Requests: 1',
+            'Sec-Fetch-Dest: document',
+            'Sec-Fetch-Mode: navigate',
+            'Sec-Fetch-Site: none',
+        ],
+    ]);
+
+    $html      = curl_exec($ch);
+    $code      = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $finalUrl  = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
+    $curlError = curl_error($ch);
+    curl_close($ch);
+
+    @unlink($cookieFile);
+
+    return [
+        'html'       => ($html !== false && strlen($html) > 100) ? $html : false,
+        'code'       => $code,
+        'curl_error' => $curlError,
+        'final_url'  => $finalUrl,
     ];
-    return @file_get_contents($url, false, stream_context_create($opts));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Convertir URL de página a URL móvil
-// Ej: https://www.facebook.com/municipalidadvaldivia
-//  -> https://m.facebook.com/municipalidadvaldivia
+// Detectar muro de login en el HTML
 // ─────────────────────────────────────────────────────────────────────────────
-function fbToMobileUrl($url) {
-    // Extraer el path de la URL (nombre de usuario o ID)
-    $url = preg_replace('#^https?://(www\.)?facebook\.com/#i', '', $url);
-    $url = rtrim($url, '/');
-    // Limpiar query strings o fragments
-    $url = preg_replace('/[?#].*/', '', $url);
-    return 'https://m.facebook.com/' . $url;
+function fbIsLoginWall($html, $finalUrl) {
+    if (preg_match('#facebook\.com/login#i', $finalUrl)) return true;
+    if (preg_match('#facebook\.com/checkpoint#i', $finalUrl)) return true;
+    if (stripos($html, 'id="login_form"') !== false) return true;
+    if (stripos($html, 'name="login"') !== false && stripos($html, 'name="pass"') !== false) return true;
+    if (stripos($html, 'signup_wall') !== false) return true;
+    if (stripos($html, 'You must log in') !== false) return true;
+    if (stripos($html, 'log in to continue') !== false) return true;
+    return false;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Parsear HTML
+// Parsear HTML con DOMXPath
 // ─────────────────────────────────────────────────────────────────────────────
 function fbParseHtml($html) {
     $dom = new DOMDocument();
     libxml_use_internal_errors(true);
-    $dom->loadHTML(mb_convert_encoding($html, 'HTML-ENTITIES', 'UTF-8'));
+    @$dom->loadHTML('<?xml encoding="utf-8"?>' . $html);
     libxml_clear_errors();
     return new DOMXPath($dom);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scraping principal: m.facebook.com
+// Extraer posts del HTML recibido de mbasic/m.facebook.com
 // ─────────────────────────────────────────────────────────────────────────────
-function scrapeFacebook($pageUrl) {
-    $mobileUrl = fbToMobileUrl($pageUrl);
-    $html      = fbFetch($mobileUrl);
-
-    if (!$html) {
-        return ['error' => 'No se pudo acceder a la página. Verifica que la URL sea correcta.'];
-    }
-
-    // Detectar si Facebook exige login
-    if (
-        preg_match('#/login[/?]#i', $mobileUrl) === false &&
-        (
-            stripos($html, 'log in to continue') !== false ||
-            stripos($html, 'join facebook') !== false ||
-            stripos($html, 'signup_wall') !== false ||
-            (stripos($html, 'id="loginform"') !== false && stripos($html, 'story_body') === false)
-        )
-    ) {
-        return ['error' => 'Facebook requiere inicio de sesión para ver esta página. Es posible que la página tenga restricciones o no sea pública.'];
-    }
-
+function fbExtractPosts($html, $baseUrl) {
     $xpath = fbParseHtml($html);
     $posts = [];
     $seen  = [];
 
-    // ── Estrategia 1: buscar divs con class que contenga "story_body" o "_5rgt" ─────
-    // m.facebook.com envuelve cada post en contenedores reconocibles
+    // mbasic.facebook.com estructura: cada post está en un <div> con id numérico
+    // Los posts tienen anclas del tipo /story.php?story_fbid=XXX o /permalink/XXX
+
+    // ── Estrategia A: contenedores de mbasic (div > div > article, o divs con links a story) ──
     $storyNodes = $xpath->query(
-        '//*[contains(@class,"story_body_container") or contains(@class,"_5rgt") or contains(@class,"_4kg") or contains(@class,"userContentWrapper")]'
+        '//*[contains(@class,"story_body_container")]' .
+        ' | //*[contains(@class,"userContentWrapper")]' .
+        ' | //*[contains(@class,"_5rgt _5nk5")]' .
+        ' | //article'
     );
 
     foreach ($storyNodes as $node) {
         if (count($posts) >= 2) break;
-
-        // Texto del post
-        $texto = trim(strip_tags($node->textContent));
-        $texto = preg_replace('/\s{2,}/', ' ', $texto);
-        if (strlen($texto) < 5) continue;
-
-        // URL del post: buscar primer enlace /permalink/ o /story.php o /posts/
-        $postUrl  = null;
-        $postId   = null;
-        $linkNodes = $xpath->query('.//a[contains(@href,"/permalink/") or contains(@href,"story.php") or contains(@href,"/posts/")]', $node);
-        foreach ($linkNodes as $ln) {
-            $href = $ln->getAttribute('href');
-            // Limpiar URL relativa
-            if (strpos($href, 'http') !== 0) {
-                $href = 'https://m.facebook.com' . $href;
-            }
-            // Extraer ID del post
-            if (preg_match('#story_fbid=(\d+)#', $href, $mid)) {
-                $postId  = $mid[1];
-                $postUrl = $href;
-                break;
-            }
-            if (preg_match('#/posts/(\d+)#', $href, $mid)) {
-                $postId  = $mid[1];
-                $postUrl = $href;
-                break;
-            }
-            if (preg_match('#/permalink/(\d+)#', $href, $mid)) {
-                $postId  = $mid[1];
-                $postUrl = $href;
-                break;
-            }
-        }
-
-        if (!$postId) {
-            // Generar ID por hash del texto para evitar duplicados
-            $postId = md5($texto);
-        }
-
-        if (isset($seen[$postId])) continue;
-        $seen[$postId] = true;
-
-        // Imagen del post
-        $imgUrl = null;
-        $imgNodes = $xpath->query('.//img[contains(@src,"fbcdn") or contains(@src,"fbstatic") or contains(@src,"facebook")]', $node);
-        foreach ($imgNodes as $imgN) {
-            $src = $imgN->getAttribute('src');
-            // Ignorar íconos pequeños (avatares, emojis)
-            $w = (int)$imgN->getAttribute('width');
-            $h = (int)$imgN->getAttribute('height');
-            if ($w > 0 && $w < 50) continue;
-            if ($h > 0 && $h < 50) continue;
-            if ($src && stripos($src, 'data:') === false) {
-                $imgUrl = $src;
-                break;
-            }
-        }
-
-        // Fecha
-        $fechaPost = null;
-        $timeNodes = $xpath->query('.//abbr[@data-store] | .//abbr[contains(@class,"_5ptz")] | .//time', $node);
-        foreach ($timeNodes as $tn) {
-            $ts = $tn->getAttribute('data-store');
-            if ($ts) {
-                $data = @json_decode($ts, true);
-                if (isset($data['time'])) {
-                    $fechaPost = date('Y-m-d H:i:s', (int)$data['time']);
-                    break;
-                }
-            }
-            $dt = $tn->getAttribute('datetime');
-            if ($dt) {
-                $fechaPost = date('Y-m-d H:i:s', strtotime($dt));
-                break;
-            }
-        }
-
-        // Limpiar el texto de basura típica de m.facebook.com
-        $texto = trim(preg_replace('/\b(Like|Comment|Share|Ver más|Traducir|Seguir)\b/u', '', $texto));
-        $texto = trim(preg_replace('/\s{2,}/', ' ', $texto));
-
-        $posts[] = [
-            'post_id'    => $postId,
-            'url_post'   => $postUrl ?? $mobileUrl,
-            'imagen_url' => $imgUrl,
-            'texto'      => $texto,
-            'fecha_post' => $fechaPost,
-        ];
+        list($post, $skip) = fbNodeToPost($xpath, $node, $baseUrl, $seen);
+        if ($skip) continue;
+        $seen[$post['post_id']] = true;
+        $posts[] = $post;
     }
 
-    // ── Estrategia 2: si no encontramos posts con la estrategia 1,
-    //    buscar cualquier bloque con texto largo y link a permalink ───────────
+    // ── Estrategia B (mbasic específico): buscar todos los divs hijos de #root o #m_story_permalink_view ──
     if (empty($posts)) {
-        $allLinks = $xpath->query('//a[contains(@href,"story.php") or contains(@href,"/posts/") or contains(@href,"/permalink/")]');
-        foreach ($allLinks as $link) {
+        // En mbasic los posts están dentro de div#root > div > div > div (cada hijo es un post)
+        $rootDivs = $xpath->query('//div[@id="root"]/div/div/div | //div[@id="timelineBody"]/div/div');
+        foreach ($rootDivs as $node) {
+            if (count($posts) >= 2) break;
+            list($post, $skip) = fbNodeToPost($xpath, $node, $baseUrl, $seen);
+            if ($skip) continue;
+            $seen[$post['post_id']] = true;
+            $posts[] = $post;
+        }
+    }
+
+    // ── Estrategia C: cualquier enlace a story/posts/permalink con texto padre ──
+    if (empty($posts)) {
+        $links = $xpath->query(
+            '//a[contains(@href,"story.php") or contains(@href,"/posts/") or contains(@href,"/permalink/")]'
+        );
+        foreach ($links as $link) {
             if (count($posts) >= 2) break;
             $href = $link->getAttribute('href');
             if (strpos($href, 'http') !== 0) {
-                $href = 'https://m.facebook.com' . $href;
+                $href = rtrim($baseUrl, '/') . $href;
             }
-
-            $postId = md5($href);
+            $postId = fbExtractPostId($href);
+            if (!$postId) $postId = md5($href);
             if (isset($seen[$postId])) continue;
             $seen[$postId] = true;
 
-            // Texto del padre más cercano
             $parent = $link->parentNode;
             $texto  = $parent ? trim(preg_replace('/\s+/', ' ', strip_tags($parent->textContent))) : '';
             if (strlen($texto) < 10) continue;
@@ -252,17 +194,140 @@ function scrapeFacebook($pageUrl) {
                 'post_id'    => $postId,
                 'url_post'   => $href,
                 'imagen_url' => null,
-                'texto'      => $texto,
+                'texto'      => substr($texto, 0, 600),
                 'fecha_post' => null,
             ];
         }
     }
 
-    if (empty($posts)) {
-        return ['error' => 'No se encontraron publicaciones. La página podría ser privada, no tener posts visibles sin login, o Facebook cambió su estructura.'];
+    return $posts;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Extraer ID de post desde URL
+// ─────────────────────────────────────────────────────────────────────────────
+function fbExtractPostId($href) {
+    if (preg_match('#story_fbid=(\d+)#', $href, $m)) return $m[1];
+    if (preg_match('#/posts/(\d+)#', $href, $m))      return $m[1];
+    if (preg_match('#/permalink/(\d+)#', $href, $m))  return $m[1];
+    if (preg_match('#[?&]id=(\d+)#', $href, $m))      return $m[1];
+    return null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Convertir nodo DOM en datos de post
+// Devuelve [$postData, $skip]
+// ─────────────────────────────────────────────────────────────────────────────
+function fbNodeToPost($xpath, $node, $baseUrl, $seen) {
+    $texto = trim(preg_replace('/\s{2,}/', ' ', strip_tags($node->textContent)));
+    if (strlen($texto) < 10) return [null, true];
+
+    // Buscar URL del post
+    $postUrl = null;
+    $postId  = null;
+    $linkNodes = $xpath->query(
+        './/a[contains(@href,"story.php") or contains(@href,"/posts/") or contains(@href,"/permalink/")]',
+        $node
+    );
+    foreach ($linkNodes as $ln) {
+        $href = $ln->getAttribute('href');
+        if (strpos($href, 'http') !== 0) {
+            $href = rtrim($baseUrl, '/') . '/' . ltrim($href, '/');
+        }
+        $id = fbExtractPostId($href);
+        if ($id) {
+            $postId  = $id;
+            $postUrl = $href;
+            break;
+        }
+    }
+    if (!$postId) $postId = md5($texto);
+    if (isset($seen[$postId])) return [null, true];
+
+    // Imagen
+    $imgUrl   = null;
+    $imgNodes = $xpath->query('.//img', $node);
+    foreach ($imgNodes as $imgN) {
+        $src = $imgN->getAttribute('src');
+        if (!$src || stripos($src, 'data:') === 0) continue;
+        $w = (int)$imgN->getAttribute('width');
+        $h = (int)$imgN->getAttribute('height');
+        if ($w > 0 && $w < 40) continue;
+        if ($h > 0 && $h < 40) continue;
+        $imgUrl = $src;
+        break;
     }
 
-    return ['posts' => $posts];
+    // Fecha
+    $fechaPost = null;
+    $timeNodes = $xpath->query('.//abbr[@data-store] | .//abbr[@title] | .//time', $node);
+    foreach ($timeNodes as $tn) {
+        $ts = $tn->getAttribute('data-store');
+        if ($ts) {
+            $data = @json_decode($ts, true);
+            if (isset($data['time'])) { $fechaPost = date('Y-m-d H:i:s', (int)$data['time']); break; }
+        }
+        $dt = $tn->getAttribute('datetime');
+        if ($dt) { $fechaPost = date('Y-m-d H:i:s', strtotime($dt)); break; }
+    }
+
+    // Limpiar texto
+    $texto = preg_replace('/\b(Like|Comment|Share|Me gusta|Comentar|Compartir|Ver más|Traducir|Seguir|Más)\b/u', '', $texto);
+    $texto = trim(preg_replace('/\s{2,}/', ' ', $texto));
+    if (strlen($texto) < 5) return [null, true];
+    $texto = substr($texto, 0, 800);
+
+    return [[
+        'post_id'    => $postId,
+        'url_post'   => $postUrl ?? $baseUrl,
+        'imagen_url' => $imgUrl,
+        'texto'      => $texto,
+        'fecha_post' => $fechaPost,
+    ], false];
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Orquestador: intenta mbasic → m.facebook como fallback
+// ─────────────────────────────────────────────────────────────────────────────
+function scrapeFacebook($pageUrl) {
+    $slug = fbSlug($pageUrl);
+
+    $candidatos = [
+        'https://mbasic.facebook.com/' . $slug,
+        'https://m.facebook.com/'      . $slug,
+    ];
+
+    $lastError = 'No se pudo conectar con Facebook.';
+
+    foreach ($candidatos as $url) {
+        $res = fbFetch($url);
+
+        if (!$res['html']) {
+            $lastError = sprintf(
+                'Facebook bloqueó el acceso a %s (HTTP %d%s).',
+                parse_url($url, PHP_URL_HOST),
+                $res['code'],
+                $res['curl_error'] ? ' — ' . $res['curl_error'] : ''
+            );
+            continue;
+        }
+
+        if (fbIsLoginWall($res['html'], $res['final_url'])) {
+            $lastError = 'Facebook exige inicio de sesión para ver esta página (' . parse_url($url, PHP_URL_HOST) . '). La página puede tener restricciones de privacidad.';
+            continue;
+        }
+
+        $posts = fbExtractPosts($res['html'], $url);
+
+        if (empty($posts)) {
+            $lastError = 'Se accedió a la página en ' . parse_url($url, PHP_URL_HOST) . ' pero no se encontraron publicaciones visibles. La página podría no tener posts públicos o Facebook cambió su estructura HTML.';
+            continue;
+        }
+
+        return ['posts' => $posts, 'fuente' => parse_url($url, PHP_URL_HOST)];
+    }
+
+    return ['error' => $lastError];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -277,9 +342,7 @@ if (isset($resultado['error'])) {
 
 $rawPosts = $resultado['posts'];
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Guardar en BD
-// ─────────────────────────────────────────────────────────────────────────────
 $savedPosts = [];
 foreach ($rawPosts as $post) {
     try {
@@ -315,5 +378,6 @@ $db->prepare("UPDATE fb_scraping_paginas SET ultima_revision = NOW() WHERE id = 
 
 echo json_encode([
     'posts'          => $savedPosts,
+    'fuente'         => $resultado['fuente'],
     'fecha_revision' => date('d-m-Y H:i'),
 ]);
