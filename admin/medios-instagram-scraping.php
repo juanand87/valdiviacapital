@@ -294,6 +294,9 @@ $(function () {
             } else if (!res.posts || res.posts.length === 0) {
                 html = '<div class="alert alert-warning">No se encontraron publicaciones.</div>';
             } else {
+                if (res.fuente) {
+                    html += '<p style="font-size:12px;color:#888;margin-bottom:12px;"><i class="fas fa-info-circle"></i> Datos obtenidos vía <strong>' + res.fuente + '</strong></p>';
+                }
                 res.posts.forEach(function (p) {
                     var img = p.imagen_url
                         ? '<img src="' + p.imagen_url + '" alt="post" onerror="this.style.display=\'none\'">'
