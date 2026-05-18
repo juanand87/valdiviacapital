@@ -127,13 +127,13 @@ $contenido_pendiente = $stmt->fetch()['total'];
                         <span class="badge"><?php echo $stats['instagram']; ?> activos</span>
                     </a>
 
-                    <a href="medios-instagram-scraping.php" class="medio-tipo-card">
-                        <div class="medio-icon" style="background: linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);">
-                            <i class="fab fa-instagram"></i>
+                    <a href="medios-facebook-scraping.php" class="medio-tipo-card">
+                        <div class="medio-icon" style="background:#1877f2;">
+                            <i class="fab fa-facebook"></i>
                         </div>
-                        <h3>Scraping Instagram</h3>
-                        <p>Lee las últimas publicaciones de perfiles públicos sin necesidad de API</p>
-                        <span class="badge" style="background:#fde8ee;color:#bc1888;">Sin API key</span>
+                        <h3>Scraping Facebook</h3>
+                        <p>Lee las últimas publicaciones de páginas públicas sin necesidad de API</p>
+                        <span class="badge" style="background:#e7f0ff;color:#1877f2;">Sin API key</span>
                     </a>
                 </div>
             </div>
