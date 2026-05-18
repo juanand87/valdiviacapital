@@ -71,15 +71,15 @@ function fbFetch($url) {
         CURLOPT_TIMEOUT        => 25,
         CURLOPT_SSL_VERIFYPEER => false,
         CURLOPT_SSL_VERIFYHOST => false,
-        CURLOPT_ENCODING       => '',          // acepta gzip/deflate automáticamente
+        CURLOPT_ENCODING       => 'gzip, deflate', // NO brotli: libcurl de XAMPP no lo soporta
         CURLOPT_COOKIEJAR      => $cookieFile,
         CURLOPT_COOKIEFILE     => $cookieFile,
         CURLOPT_HTTPHEADER     => [
             // User-Agent escritorio moderno — mbasic responde igual
             'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-            'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+            'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
             'Accept-Language: es-CL,es;q=0.9,en;q=0.8',
-            'Accept-Encoding: gzip, deflate, br',
+            'Accept-Encoding: gzip, deflate',
             'Cache-Control: no-cache',
             'Pragma: no-cache',
             'Upgrade-Insecure-Requests: 1',
