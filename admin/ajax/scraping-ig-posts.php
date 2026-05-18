@@ -3,10 +3,14 @@
  * AJAX: Devuelve los posts guardados de un perfil de Instagram.
  */
 require_once '../../includes/config.php';
-require_once '../../admin/includes/auth.php';
-verificarSesion();
+require_once '../includes/auth.php';
 
 header('Content-Type: application/json; charset=utf-8');
+
+if (!isset($_SESSION['admin_id'])) {
+    echo json_encode(['posts' => []]);
+    exit;
+}
 
 $db       = getDB();
 $perfilId = (int)($_GET['perfil_id'] ?? 0);

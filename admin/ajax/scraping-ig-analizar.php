@@ -1,14 +1,31 @@
 <?php
 /**
  * AJAX: Scraping de Instagram vía visores públicos de terceros.
- * Instagram no permite acceso directo sin login, así que usamos visores
- * como imginn.com y picuki.com que cachean contenido público.
  */
+// Capturar errores PHP y devolverlos como JSON
+set_exception_handler(function($e) {
+    if (!headers_sent()) header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['error' => 'Error interno: ' . $e->getMessage()]);
+    exit;
+});
+register_shutdown_function(function() {
+    $err = error_get_last();
+    if ($err && in_array($err['type'], [E_ERROR, E_PARSE, E_COMPILE_ERROR])) {
+        if (!headers_sent()) header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['error' => 'Error PHP: ' . $err['message'] . ' en línea ' . $err['line']]);
+    }
+});
+
 require_once '../../includes/config.php';
-require_once '../../admin/includes/auth.php';
-verificarSesion();
+require_once '../includes/auth.php';
 
 header('Content-Type: application/json; charset=utf-8');
+
+// Verificar sesión devolviendo JSON en vez de redirigir
+if (!isset($_SESSION['admin_id'])) {
+    echo json_encode(['error' => 'Sesión expirada. Recarga la página.']);
+    exit;
+}
 
 $db       = getDB();
 $perfilId = (int)($_POST['perfil_id'] ?? 0);
@@ -37,7 +54,7 @@ $username = $perfil['username'];
  * Descarga una URL con cURL (o file_get_contents como fallback).
  * Permite pasar headers personalizados como Referer.
  */
-function igFetch(string $url, array $extraHeaders = []): string|false {
+function igFetch(string $url, array $extraHeaders = []) {
     $defaultHeaders = [
         'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
         'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
