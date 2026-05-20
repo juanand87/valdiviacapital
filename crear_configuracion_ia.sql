@@ -11,7 +11,10 @@ CREATE TABLE IF NOT EXISTS configuracion_ia (
 -- Insertar configuraciones por defecto
 INSERT INTO configuracion_ia (nombre, valor, descripcion) VALUES
 ('gemini_api_key', '', 'API Key de Google Gemini para redacción con IA'),
+('jina_api_key', '', 'API Key opcional de Jina AI Reader (r.jina.ai)'),
 ('gemini_prompt_base', 'Eres un periodista profesional. A partir de la siguiente información extraída de una noticia, escribe un artículo periodístico completo, profesional y bien redactado. Mantén la objetividad y el estilo periodístico. La información es:\n\nTítulo: {titulo}\nAutor: {autor}\nCategoría: {categoria}\nContenido original: {contenido}\n\nEscribe el artículo completo con introducción, desarrollo y conclusión. Mantén un tono profesional y objetivo.', 'Prompt base para generar redacciones con IA. Usa {titulo}, {autor}, {categoria}, {contenido} como variables'),
 ('gemini_modelo', 'gemini-1.5-flash', 'Modelo de Gemini a utilizar (gemini-1.5-flash o gemini-1.5-pro)'),
 ('gemini_temperatura', '0.7', 'Temperatura para la generación (0.0 a 1.0). Mayor = más creativo'),
-('gemini_max_tokens', '2000', 'Máximo de tokens a generar en la respuesta');
+('gemini_max_tokens', '2000', 'Máximo de tokens a generar en la respuesta'),
+('scraping_provider_diarios', 'direct', 'Proveedor de extracción para diarios: direct | jina | gemini'),
+('scraping_provider_facebook', 'direct', 'Proveedor de extracción para Facebook: direct | jina | gemini');

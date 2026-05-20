@@ -1,8 +1,10 @@
 <?php
 $page_title = 'Scraping Facebook';
 require_once '../includes/config.php';
+require_once '../includes/scraping_ai.php';
 
 $db = getDB();
+$providerCfg = getScrapingProviderConfig($db);
 
 // Procesar formulario
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -91,6 +93,10 @@ $paginas = $stmt->fetchAll();
     <div>
         <h1><i class="fab fa-facebook"></i> Scraping Facebook</h1>
         <p>Extrae publicaciones de páginas públicas de Facebook sin necesidad de API</p>
+        <p style="margin-top:6px; color:#666; font-size:13px;">
+            Proveedor activo: <strong><?php echo htmlspecialchars($providerCfg['provider_facebook'] ?? 'direct'); ?></strong>
+            <a href="configuracion-ia.php" style="margin-left:8px;">cambiar en Configuración IA</a>
+        </p>
     </div>
     <a href="medios-conectados.php" class="btn btn-secondary">
         <i class="fas fa-arrow-left"></i> Volver
@@ -283,6 +289,7 @@ function analizarPagina(id, nombre) {
         html += '<div style="text-align:center; padding:15px; background:#fef9e7; border-radius:6px;"><div style="font-size:28px; font-weight:bold; color:#f39c12;">' + res.duplicadas + '</div><div style="color:#555; font-size:13px;">Duplicadas</div></div>';
         html += '<div style="text-align:center; padding:15px; background:#f4f4f4; border-radius:6px;"><div style="font-size:28px; font-weight:bold; color:#7f8c8d;">' + res.total_html + '</div><div style="color:#555; font-size:13px;">Encontradas</div></div>';
         html += '</div>';
+        html += '<p style="margin:0 0 14px 0; color:#666; font-size:13px;">Proveedor usado: <strong>' + escapeHtml(res.provider || 'direct') + '</strong></p>';
 
         if (res.posts && res.posts.length > 0) {
             html += '<h4 style="margin-bottom:10px;">Posts nuevos guardados:</h4><ul style="padding-left:20px; line-height:1.8;">';

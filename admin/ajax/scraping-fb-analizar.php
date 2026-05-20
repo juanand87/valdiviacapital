@@ -3,6 +3,7 @@
  * AJAX: Scraping de página de Facebook (sin API, via JSON embebido en HTML)
  */
 require_once '../../includes/config.php';
+require_once '../../includes/scraping_ai.php';
 session_start();
 
 header('Content-Type: application/json');
@@ -24,6 +25,7 @@ if ($pagina_id <= 0) {
 }
 
 $db = getDB();
+$providerCfg = getScrapingProviderConfig($db);
 
 // Obtener datos de la página
 $stmt = $db->prepare("SELECT * FROM medios_conectados WHERE id = :id AND tipo = 'facebook_scraping'");
@@ -80,12 +82,8 @@ if ($http_code !== 200) {
     exit;
 }
 
-// --- Extraer posts del JSON embebido ----------------------------------------
-preg_match_all('#"message":\{"text":"((?:[^"\\\\]|\\\\.)*)"\}#', $html, $msg_matches);
-preg_match_all('#"creation_time":(\d{10})#', $html, $time_matches);
-
-$textos     = $msg_matches[1]  ?? [];
-$timestamps = $time_matches[1] ?? [];
+// --- Extraer posts según proveedor configurado -------------------------------
+$postsExtraidos = extractFacebookPostsByProvider($providerCfg, 'https://www.facebook.com/' . $slug, $html);
 
 $guardadas  = 0;
 $duplicadas = 0;
@@ -93,20 +91,18 @@ $errores    = 0;
 $posts_info = [];
 $vistos     = [];
 
-foreach ($textos as $i => $raw) {
-    // Decodificar escapes Unicode/JSON
-    $texto = @json_decode('"' . $raw . '"');
-    if (!is_string($texto)) {
-        $texto = $raw; // fallback: usar crudo
-    }
-    $texto = trim($texto);
+foreach ($postsExtraidos as $post) {
+    $texto = trim((string)($post['texto'] ?? ''));
     if (mb_strlen($texto) < 10) continue;
 
     $hash = md5($texto);
     if (isset($vistos[$hash])) continue; // dedup en memoria
     $vistos[$hash] = true;
 
-    $timestamp = isset($timestamps[$i]) ? (int)$timestamps[$i] : time();
+    $timestamp = (int)($post['timestamp'] ?? 0);
+    if ($timestamp <= 0) {
+        $timestamp = time();
+    }
 
     // Título: primera línea (máx 200 chars)
     $lineas = explode("\n", $texto, 2);
@@ -164,7 +160,8 @@ echo json_encode([
     'guardadas'  => $guardadas,
     'duplicadas' => $duplicadas,
     'errores'    => $errores,
-    'total_html' => count($textos),
+    'total_html' => count($postsExtraidos),
+    'provider'   => $providerCfg['provider_facebook'] ?? 'direct',
     'posts'      => $posts_info,
     'pagina'     => $pagina['nombre'],
 ]);

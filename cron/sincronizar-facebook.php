@@ -15,8 +15,10 @@ if (php_sapi_name() !== 'cli' && !defined('ALLOW_WEB_CRON')) {
 define('CRON_RUN', true);
 
 require_once __DIR__ . '/../includes/config.php';
+require_once __DIR__ . '/../includes/scraping_ai.php';
 
 $db    = getDB();
+$providerCfg = getScrapingProviderConfig($db);
 $inicio = microtime(true);
 
 echo "[" . date('Y-m-d H:i:s') . "] === Inicio sincronización Facebook Scraping ===\n";
@@ -89,28 +91,25 @@ foreach ($paginas as $pagina) {
         continue;
     }
 
-    // --- Extraer posts ---
-    preg_match_all('#"message":\{"text":"((?:[^"\\\\]|\\\\.)*)"\}#', $html, $msg_matches);
-    preg_match_all('#"creation_time":(\d{10})#', $html, $time_matches);
-
-    $textos     = $msg_matches[1]  ?? [];
-    $timestamps = $time_matches[1] ?? [];
+    // --- Extraer posts según proveedor configurado ---
+    $postsExtraidos = extractFacebookPostsByProvider($providerCfg, 'https://www.facebook.com/' . $slug, $html);
 
     $guardadas  = 0;
     $duplicadas = 0;
     $vistos     = [];
 
-    foreach ($textos as $i => $raw) {
-        $texto = @json_decode('"' . $raw . '"');
-        if (!is_string($texto)) $texto = $raw;
-        $texto = trim($texto);
+    foreach ($postsExtraidos as $post) {
+        $texto = trim((string)($post['texto'] ?? ''));
         if (mb_strlen($texto) < 10) continue;
 
         $hash = md5($texto);
         if (isset($vistos[$hash])) continue;
         $vistos[$hash] = true;
 
-        $timestamp = isset($timestamps[$i]) ? (int)$timestamps[$i] : time();
+        $timestamp = (int)($post['timestamp'] ?? 0);
+        if ($timestamp <= 0) {
+            $timestamp = time();
+        }
 
         $lineas = explode("\n", $texto, 2);
         $titulo = mb_substr(trim($lineas[0]), 0, 200);
@@ -156,7 +155,7 @@ foreach ($paginas as $pagina) {
     $db->prepare("UPDATE medios_conectados SET ultima_sincronizacion = NOW() WHERE id = :id")
        ->execute([':id' => $pagina['id']]);
 
-    echo "  Encontrados: " . count($textos) . " | Guardados: $guardadas | Duplicados: $duplicadas\n";
+    echo "  Proveedor: " . ($providerCfg['provider_facebook'] ?? 'direct') . " | Encontrados: " . count($postsExtraidos) . " | Guardados: $guardadas | Duplicados: $duplicadas\n";
 
     $total_guardadas  += $guardadas;
     $total_duplicadas += $duplicadas;

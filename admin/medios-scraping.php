@@ -1,9 +1,11 @@
 <?php
 $page_title = 'Hacer Scraping';
 require_once '../includes/config.php';
+require_once '../includes/scraping_ai.php';
 include 'includes/header.php';
 
 $db = getDB();
+$providerCfgVista = getScrapingProviderConfig($db);
 $medio_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 
 // Obtener información del medio
@@ -169,9 +171,25 @@ function hacerScraping($url, $selectores, $db = null, $medio_id = null, &$diagno
                     'categoria' => '',
                     'url' => $linkNoticia
                 ];
+
+                $providerMode = $selectores['provider_diarios'] ?? 'direct';
+                $extraidoIA = null;
+                if ($providerMode !== 'direct' && !empty($selectores['provider_cfg'])) {
+                    $extraidoIA = extractDiarioArticleByProvider($db, $linkNoticia, $htmlNoticia, $selectores['provider_cfg']);
+                }
+
+                $usarExtraccionDirecta = $extraidoIA === null;
+
+                if (!$usarExtraccionDirecta) {
+                    $resultado['titulo'] = trim((string)($extraidoIA['titulo'] ?? ''));
+                    $resultado['contenido'] = trim((string)($extraidoIA['contenido'] ?? ''));
+                    $resultado['autor'] = $extraidoIA['autor'] ?? '';
+                    $resultado['categoria'] = $extraidoIA['categoria'] ?? '';
+                    $resultado['fecha'] = $extraidoIA['fecha'] ?? '';
+                }
                 
                 // Extraer título
-                if ($selectores['titulo']) {
+                if ($usarExtraccionDirecta && $selectores['titulo']) {
                     $selectorTitulo = convertirCSSaXPath($selectores['titulo']);
                     $titulos = @$xpathNoticia->query($selectorTitulo);
                     if ($titulos && $titulos->length > 0) {
@@ -198,7 +216,7 @@ function hacerScraping($url, $selectores, $db = null, $medio_id = null, &$diagno
                 }
                 
                 // Extraer contenido completo
-                if ($selectores['contenido']) {
+                if ($usarExtraccionDirecta && $selectores['contenido']) {
                     $selectorContenido = convertirCSSaXPath($selectores['contenido']);
                     $contenidos = @$xpathNoticia->query($selectorContenido);
                     if ($contenidos && $contenidos->length > 0) {
@@ -232,7 +250,7 @@ function hacerScraping($url, $selectores, $db = null, $medio_id = null, &$diagno
                 }
                 
                 // Extraer fecha
-                if ($selectores['fecha']) {
+                if ($usarExtraccionDirecta && $selectores['fecha']) {
                     $selectorFecha = convertirCSSaXPath($selectores['fecha']);
                     $fechas = @$xpathNoticia->query($selectorFecha);
                     if ($fechas && $fechas->length > 0) {
@@ -244,7 +262,7 @@ function hacerScraping($url, $selectores, $db = null, $medio_id = null, &$diagno
                 }
                 
                 // Extraer autor
-                if ($selectores['autor']) {
+                if ($usarExtraccionDirecta && $selectores['autor']) {
                     $selectorAutor = convertirCSSaXPath($selectores['autor']);
                     $autores = @$xpathNoticia->query($selectorAutor);
                     if ($autores && $autores->length > 0) {
@@ -256,7 +274,7 @@ function hacerScraping($url, $selectores, $db = null, $medio_id = null, &$diagno
                 }
                 
                 // Extraer categoría
-                if ($selectores['categoria']) {
+                if ($usarExtraccionDirecta && $selectores['categoria']) {
                     $selectorCategoria = convertirCSSaXPath($selectores['categoria']);
                     $categorias = @$xpathNoticia->query($selectorCategoria);
                     if ($categorias && $categorias->length > 0) {
@@ -413,6 +431,7 @@ if (isset($_GET['ejecutar']) && $_GET['ejecutar'] == '1') {
     $duplicadas = 0;
     
     try {
+        $providerCfg = getScrapingProviderConfig($db);
         $selectores = [
             'link' => $medio['selector_link'],
             'titulo' => $medio['selector_titulo'],
@@ -421,7 +440,9 @@ if (isset($_GET['ejecutar']) && $_GET['ejecutar'] == '1') {
             'fecha' => $medio['selector_fecha'],
             'autor' => $medio['selector_autor'],
             'categoria' => $medio['selector_categoria'],
-            'cantidad_noticias' => $medio['cantidad_noticias'] ?? 10
+            'cantidad_noticias' => $medio['cantidad_noticias'] ?? 10,
+            'provider_cfg' => $providerCfg,
+            'provider_diarios' => ($providerCfg['provider_diarios'] ?? 'direct')
         ];
         
         $diagnostico = [];
@@ -516,6 +537,11 @@ if (isset($_GET['ejecutar']) && $_GET['ejecutar'] == '1') {
                 <span style="font-weight: 600; color: #2c3e50;">
                     <?php echo $medio['cantidad_noticias'] ?? 10; ?> noticias por scraping
                 </span>
+            </div>
+            <div class="info-item">
+                <label>Proveedor de extracción:</label>
+                <span class="badge badge-info"><?php echo htmlspecialchars($providerCfgVista['provider_diarios'] ?? 'direct'); ?></span>
+                <small style="display:block; margin-top:4px; color:#7f8c8d;">Configurable en Configuración IA</small>
             </div>
         </div>
         

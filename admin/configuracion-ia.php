@@ -40,6 +40,13 @@ include 'includes/header.php';
 
 $db = getDB();
 
+// Asegurar nuevas claves de configuración para scraping híbrido
+$db->exec("INSERT IGNORE INTO configuracion_ia (nombre, valor, descripcion) VALUES
+    ('jina_api_key', '', 'API Key opcional de Jina AI Reader (r.jina.ai)'),
+    ('scraping_provider_diarios', 'direct', 'Proveedor de extracción para diarios: direct | jina | gemini'),
+    ('scraping_provider_facebook', 'direct', 'Proveedor de extracción para Facebook: direct | jina | gemini')
+");
+
 // Procesar formulario
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
@@ -99,10 +106,13 @@ $config = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         <?php 
                         $labels = [
                             'gemini_api_key' => 'API Key de Google Gemini',
+                            'jina_api_key' => 'API Key de Jina AI (opcional)',
                             'gemini_prompt_base' => 'Prompt Base',
                             'gemini_modelo' => 'Modelo',
                             'gemini_temperatura' => 'Temperatura',
-                            'gemini_max_tokens' => 'Máximo de Tokens'
+                            'gemini_max_tokens' => 'Máximo de Tokens',
+                            'scraping_provider_diarios' => 'Proveedor de Scraping para Diarios',
+                            'scraping_provider_facebook' => 'Proveedor de Scraping para Facebook'
                         ];
                         echo $labels[$item['nombre']] ?? $item['nombre'];
                         ?>
@@ -133,6 +143,22 @@ $config = $stmt->fetchAll(PDO::FETCH_ASSOC);
                             </option>
                             <option value="gemini-1.5-flash" <?php echo $item['valor'] === 'gemini-1.5-flash' ? 'selected' : ''; ?>>
                                 Gemini 1.5 Flash
+                            </option>
+                        </select>
+                    <?php elseif ($item['nombre'] === 'scraping_provider_diarios' || $item['nombre'] === 'scraping_provider_facebook'): ?>
+                        <select 
+                            id="config_<?php echo $item['nombre']; ?>" 
+                            name="config[<?php echo $item['nombre']; ?>]" 
+                            class="form-control"
+                        >
+                            <option value="direct" <?php echo $item['valor'] === 'direct' ? 'selected' : ''; ?>>
+                                Directo (HTML local / regex)
+                            </option>
+                            <option value="jina" <?php echo $item['valor'] === 'jina' ? 'selected' : ''; ?>>
+                                Jina AI Reader (r.jina.ai)
+                            </option>
+                            <option value="gemini" <?php echo $item['valor'] === 'gemini' ? 'selected' : ''; ?>>
+                                Gemini (extracción estructurada por IA)
                             </option>
                         </select>
                     <?php elseif ($item['nombre'] === 'gemini_api_key'): ?>
@@ -228,6 +254,16 @@ function testGemini() {
                 <br>• 0.0-0.3: Muy conservador y objetivo
                 <br>• 0.4-0.7: Equilibrado (recomendado para periodismo)
                 <br>• 0.8-1.0: Más creativo y variado
+            </p>
+        </div>
+
+        <div style="margin-top: 20px; padding: 15px; background: #e8f4fd; border-left: 4px solid #3498db; border-radius: 4px;">
+            <strong><i class="fas fa-random"></i> Switch de Scraping</strong>
+            <p style="margin: 8px 0 0 0;">
+                Puedes elegir proveedor distinto para <strong>Diarios</strong> y <strong>Facebook</strong>:
+                <br>• <strong>direct</strong>: más rápido, sin dependencias externas
+                <br>• <strong>jina</strong>: extrae contenido limpio vía r.jina.ai
+                <br>• <strong>gemini</strong>: extrae campos estructurados con IA
             </p>
         </div>
     </div>
