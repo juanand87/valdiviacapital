@@ -15,6 +15,7 @@ $medios_por_tipo = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
 $stats['diarios'] = $medios_por_tipo['diario_online'] ?? 0;
 $stats['facebook'] = $medios_por_tipo['facebook'] ?? 0;
 $stats['instagram'] = $medios_por_tipo['instagram'] ?? 0;
+$stats['fb_scraping'] = $medios_por_tipo['facebook_scraping'] ?? 0;
 $stats['total'] = array_sum($medios_por_tipo);
 
 // Últimas sincronizaciones
@@ -127,6 +128,15 @@ $contenido_pendiente = $stmt->fetch()['total'];
                         <span class="badge"><?php echo $stats['instagram']; ?> activos</span>
                     </a>
 
+                    <a href="medios-facebook-scraping.php" class="medio-tipo-card">
+                        <div class="medio-icon" style="background: #0866ff;">
+                            <i class="fab fa-facebook-f"></i>
+                        </div>
+                        <h3>Scraping Facebook</h3>
+                        <p>Extrae publicaciones públicas de Facebook sin API</p>
+                        <span class="badge"><?php echo $stats['fb_scraping']; ?> activos</span>
+                    </a>
+
                 </div>
             </div>
         </div>
@@ -147,10 +157,12 @@ $contenido_pendiente = $stmt->fetch()['total'];
                                 <div class="sync-icon">
                                     <?php if ($sync['tipo'] == 'diario_online'): ?>
                                         <i class="fas fa-newspaper"></i>
-                                    <?php elseif ($sync['tipo'] == 'facebook'): ?>
+                                    <?php elseif ($sync['tipo'] == 'facebook' || $sync['tipo'] == 'facebook_scraping'): ?>
                                         <i class="fab fa-facebook"></i>
-                                    <?php else: ?>
+                                    <?php elseif ($sync['tipo'] == 'instagram'): ?>
                                         <i class="fab fa-instagram"></i>
+                                    <?php else: ?>
+                                        <i class="fas fa-rss"></i>
                                     <?php endif; ?>
                                 </div>
                                 <div class="sync-info">

@@ -8,12 +8,12 @@ $db = getDB();
 // Filtro por medio
 $medio_id = isset($_GET['medio_id']) ? (int)$_GET['medio_id'] : 0;
 
-// Obtener lista de medios para el filtro
+// Obtener lista de medios para el filtro (diarios + scraping Facebook)
 $stmt = $db->query("
     SELECT id, nombre, tipo 
     FROM medios_conectados 
-    WHERE tipo = 'diario_online'
-    ORDER BY nombre
+    WHERE tipo IN ('diario_online', 'facebook_scraping')
+    ORDER BY tipo, nombre
 ");
 $medios = $stmt->fetchAll();
 
@@ -102,7 +102,10 @@ $stats = $stmt->fetch();
                     <option value="0">Todos los medios</option>
                     <?php foreach ($medios as $m): ?>
                         <option value="<?php echo $m['id']; ?>" <?php echo $medio_id == $m['id'] ? 'selected' : ''; ?>>
-                            <?php echo htmlspecialchars($m['nombre']); ?>
+                            <?php
+                            $prefix = $m['tipo'] === 'facebook_scraping' ? '[FB] ' : '';
+                            echo htmlspecialchars($prefix . $m['nombre']);
+                            ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
