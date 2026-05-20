@@ -174,7 +174,7 @@ $diarios = $stmt->fetchAll();
 $editando = null;
 if (isset($_GET['editar'])) {
     $stmt = $db->prepare("
-        SELECT m.*, d.*
+        SELECT m.id AS medio_id, m.*, d.id AS config_id, d.*
         FROM medios_conectados m
         LEFT JOIN medios_diarios_config d ON m.id = d.medio_id
         WHERE m.id = :id
@@ -280,7 +280,7 @@ if (isset($_GET['editar'])) {
                 <form method="POST">
                     <input type="hidden" name="accion" value="<?php echo $editando ? 'editar' : 'agregar'; ?>">
                     <?php if ($editando): ?>
-                        <input type="hidden" name="id" value="<?php echo $editando['id']; ?>">
+                        <input type="hidden" name="id" value="<?php echo (int)($editando['medio_id'] ?? 0); ?>">
                     <?php endif; ?>
                     
                     <div class="form-group">
