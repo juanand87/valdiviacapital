@@ -8,8 +8,8 @@ CREATE TABLE IF NOT EXISTS configuracion_ia (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Insertar configuraciones por defecto
-INSERT INTO configuracion_ia (nombre, valor, descripcion) VALUES
+-- Insertar configuraciones por defecto (idempotente)
+INSERT IGNORE INTO configuracion_ia (nombre, valor, descripcion) VALUES
 ('gemini_api_key', '', 'API Key de Google Gemini para redacción con IA'),
 ('jina_api_key', '', 'API Key opcional de Jina AI Reader (r.jina.ai)'),
 ('gemini_prompt_base', 'Eres un periodista profesional. A partir de la siguiente información extraída de una noticia, escribe un artículo periodístico completo, profesional y bien redactado. Mantén la objetividad y el estilo periodístico. La información es:\n\nTítulo: {titulo}\nAutor: {autor}\nCategoría: {categoria}\nContenido original: {contenido}\n\nEscribe el artículo completo con introducción, desarrollo y conclusión. Mantén un tono profesional y objetivo.', 'Prompt base para generar redacciones con IA. Usa {titulo}, {autor}, {categoria}, {contenido} como variables'),

@@ -24,6 +24,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         ':activo' => isset($_POST['activo']) ? 1 : 0
                     ]);
                     $medio_id = $db->lastInsertId();
+                    if (empty($medio_id)) {
+                        throw new Exception('No se pudo crear el diario principal.');
+                    }
 
                     $stmt = $db->prepare("
                         INSERT INTO medios_diarios_config (
@@ -56,13 +59,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     break;
 
                 case 'editar':
+                    $medio_id = (int)($_POST['id'] ?? 0);
+                    if ($medio_id <= 0) {
+                        throw new Exception('ID de diario inválido.');
+                    }
+
+                    $stmt = $db->prepare("SELECT id FROM medios_conectados WHERE id = :id AND tipo = 'diario_online' LIMIT 1");
+                    $stmt->execute([':id' => $medio_id]);
+                    $medioExistente = $stmt->fetch();
+                    if (!$medioExistente) {
+                        throw new Exception('No se encontró el diario a editar.');
+                    }
+
                     $stmt = $db->prepare("
                         UPDATE medios_conectados 
                         SET nombre = :nombre, url = :url, descripcion = :descripcion, activo = :activo
                         WHERE id = :id AND tipo = 'diario_online'
                     ");
                     $stmt->execute([
-                        ':id' => $_POST['id'],
+                        ':id' => $medio_id,
                         ':nombre' => $_POST['nombre'],
                         ':url' => $_POST['url'],
                         ':descripcion' => $_POST['descripcion'],
@@ -70,7 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ]);
 
                     $stmt = $db->prepare("SELECT id FROM medios_diarios_config WHERE medio_id = :medio_id LIMIT 1");
-                    $stmt->execute([':medio_id' => $_POST['id']]);
+                    $stmt->execute([':medio_id' => $medio_id]);
                     $configExiste = $stmt->fetch();
 
                     if ($configExiste) {
@@ -104,7 +119,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         ");
                     }
                     $stmt->execute([
-                        ':medio_id' => $_POST['id'],
+                        ':medio_id' => $medio_id,
                         ':selector_link' => $_POST['selector_link'] ?? '',
                         ':selector_titulo' => $_POST['selector_titulo'] ?? '',
                         ':selector_contenido' => $_POST['selector_contenido'] ?? '',
