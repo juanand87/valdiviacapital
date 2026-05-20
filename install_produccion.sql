@@ -100,7 +100,7 @@ CREATE TABLE IF NOT EXISTS noticias_tags (
 CREATE TABLE IF NOT EXISTS medios_conectados (
     id INT AUTO_INCREMENT PRIMARY KEY,
     nombre VARCHAR(255) NOT NULL,
-    tipo ENUM('diario_online', 'facebook', 'instagram') NOT NULL,
+    tipo ENUM('diario_online', 'facebook', 'instagram', 'facebook_scraping') NOT NULL,
     url VARCHAR(500) NOT NULL,
     descripcion TEXT,
     activo TINYINT(1) DEFAULT 1,
