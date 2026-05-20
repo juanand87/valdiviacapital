@@ -8,10 +8,11 @@ $db = getDB();
 // Procesar formulario
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
+        $db->beginTransaction();
+
         if (isset($_POST['accion'])) {
             switch ($_POST['accion']) {
                 case 'agregar':
-                    // Insertar medio
                     $stmt = $db->prepare("
                         INSERT INTO medios_conectados (nombre, tipo, url, descripcion, activo)
                         VALUES (:nombre, 'diario_online', :url, :descripcion, :activo)
@@ -23,8 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         ':activo' => isset($_POST['activo']) ? 1 : 0
                     ]);
                     $medio_id = $db->lastInsertId();
-                    
-                    // Insertar configuración
+
                     $stmt = $db->prepare("
                         INSERT INTO medios_diarios_config (
                             medio_id, selector_link, selector_titulo, selector_contenido, selector_imagen,
@@ -51,12 +51,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         ':frecuencia' => $_POST['frecuencia'] ?? 60,
                         ':cantidad_noticias' => $_POST['cantidad_noticias'] ?? 10
                     ]);
-                    
+
                     $mensaje_exito = "Diario agregado correctamente";
                     break;
-                    
+
                 case 'editar':
-                    // Actualizar medio
                     $stmt = $db->prepare("
                         UPDATE medios_conectados 
                         SET nombre = :nombre, url = :url, descripcion = :descripcion, activo = :activo
@@ -69,24 +68,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         ':descripcion' => $_POST['descripcion'],
                         ':activo' => isset($_POST['activo']) ? 1 : 0
                     ]);
-                    
-                    // Actualizar configuración
-                    $stmt = $db->prepare("
-                        UPDATE medios_diarios_config 
-                        SET selector_link = :selector_link,
-                            selector_titulo = :selector_titulo,
-                            selector_contenido = :selector_contenido,
-                            selector_imagen = :selector_imagen,
-                            selector_fecha = :selector_fecha,
-                            selector_autor = :selector_autor,
-                            selector_categoria = :selector_categoria,
-                            usa_api = :usa_api,
-                            api_endpoint = :api_endpoint,
-                            api_key = :api_key,
-                            frecuencia_sincronizacion = :frecuencia,
-                            cantidad_noticias = :cantidad_noticias
-                        WHERE medio_id = :medio_id
-                    ");
+
+                    $stmt = $db->prepare("SELECT id FROM medios_diarios_config WHERE medio_id = :medio_id LIMIT 1");
+                    $stmt->execute([':medio_id' => $_POST['id']]);
+                    $configExiste = $stmt->fetch();
+
+                    if ($configExiste) {
+                        $stmt = $db->prepare("
+                            UPDATE medios_diarios_config 
+                            SET selector_link = :selector_link,
+                                selector_titulo = :selector_titulo,
+                                selector_contenido = :selector_contenido,
+                                selector_imagen = :selector_imagen,
+                                selector_fecha = :selector_fecha,
+                                selector_autor = :selector_autor,
+                                selector_categoria = :selector_categoria,
+                                usa_api = :usa_api,
+                                api_endpoint = :api_endpoint,
+                                api_key = :api_key,
+                                frecuencia_sincronizacion = :frecuencia,
+                                cantidad_noticias = :cantidad_noticias
+                            WHERE medio_id = :medio_id
+                        ");
+                    } else {
+                        $stmt = $db->prepare("
+                            INSERT INTO medios_diarios_config (
+                                medio_id, selector_link, selector_titulo, selector_contenido, selector_imagen,
+                                selector_fecha, selector_autor, selector_categoria,
+                                usa_api, api_endpoint, api_key, frecuencia_sincronizacion, cantidad_noticias
+                            ) VALUES (
+                                :medio_id, :selector_link, :selector_titulo, :selector_contenido, :selector_imagen,
+                                :selector_fecha, :selector_autor, :selector_categoria,
+                                :usa_api, :api_endpoint, :api_key, :frecuencia, :cantidad_noticias
+                            )
+                        ");
+                    }
                     $stmt->execute([
                         ':medio_id' => $_POST['id'],
                         ':selector_link' => $_POST['selector_link'] ?? '',
@@ -102,10 +118,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         ':frecuencia' => $_POST['frecuencia'] ?? 60,
                         ':cantidad_noticias' => $_POST['cantidad_noticias'] ?? 10
                     ]);
-                    
+
                     $mensaje_exito = "Diario actualizado correctamente";
                     break;
-                    
+
                 case 'eliminar':
                     $stmt = $db->prepare("DELETE FROM medios_conectados WHERE id = :id AND tipo = 'diario_online'");
                     $stmt->execute([':id' => $_POST['id']]);
@@ -113,7 +129,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     break;
             }
         }
+
+        $db->commit();
     } catch (PDOException $e) {
+        if ($db->inTransaction()) {
+            $db->rollBack();
+        }
+        $mensaje_error = "Error: " . $e->getMessage();
+    } catch (Throwable $e) {
+        if ($db->inTransaction()) {
+            $db->rollBack();
+        }
         $mensaje_error = "Error: " . $e->getMessage();
     }
 }
