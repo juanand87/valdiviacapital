@@ -48,8 +48,17 @@ function limpiarTexto($texto) {
 }
 
 // Función para hacer scraping de 2 niveles
-function hacerScraping($url, $selectores, $db = null, $medio_id = null) {
+function hacerScraping($url, $selectores, $db = null, $medio_id = null, &$diagnostico = []) {
     $resultados = [];
+    $diagnostico = [
+        'links_encontrados'  => 0,
+        'links_visitados'    => 0,
+        'duplicados_bd'      => 0,
+        'duplicados_titulo'  => 0,
+        'titulo_vacio'       => 0,
+        'titulo_invalido'    => 0,
+        'guardadas'          => 0,
+    ];
     
     try {
         // Configurar contexto para obtener el HTML
@@ -105,6 +114,7 @@ function hacerScraping($url, $selectores, $db = null, $medio_id = null) {
                     $count++;
                 }
             }
+            $diagnostico['links_encontrados'] = count($links);
         }
         
         if (empty($links)) {
@@ -131,10 +141,12 @@ function hacerScraping($url, $selectores, $db = null, $medio_id = null) {
                 
                 // Verificar si esta URL ya fue scrapeada anteriormente
                 if ($db && $medio_id && urlYaEscaneada($db, $medio_id, $linkNoticia)) {
+                    $diagnostico['duplicados_bd']++;
                     continue; // Saltar esta URL, ya existe en la BD
                 }
                 
                 $urlsVistos[] = $linkNoticia;
+                $diagnostico['links_visitados']++;
                 
                 $htmlNoticia = @file_get_contents($linkNoticia, false, $context);
                 
@@ -167,11 +179,16 @@ function hacerScraping($url, $selectores, $db = null, $medio_id = null) {
                         if (strlen($tituloTexto) >= 10 && strlen($tituloTexto) <= 200) {
                             // Verificar si el título ya fue procesado
                             if (in_array($tituloTexto, $titulosVistos)) {
+                                $diagnostico['duplicados_titulo']++;
                                 continue; // Saltar esta noticia duplicada
                             }
                             $resultado['titulo'] = $tituloTexto;
                             $titulosVistos[] = $tituloTexto;
+                        } else {
+                            $diagnostico['titulo_invalido']++;
                         }
+                    } else {
+                        $diagnostico['titulo_vacio']++;
                     }
                 }
                 
@@ -252,6 +269,7 @@ function hacerScraping($url, $selectores, $db = null, $medio_id = null) {
                 
                 // Agregar resultado (ya validamos que tenga título)
                 $resultados[] = $resultado;
+                $diagnostico['guardadas']++;
                 
             } catch (Exception $e) {
                 // Continuar con el siguiente link si hay error
@@ -406,10 +424,30 @@ if (isset($_GET['ejecutar']) && $_GET['ejecutar'] == '1') {
             'cantidad_noticias' => $medio['cantidad_noticias'] ?? 10
         ];
         
-        $resultados = hacerScraping($medio['url'], $selectores, $db, $medio_id);
+        $diagnostico = [];
+        $resultados = hacerScraping($medio['url'], $selectores, $db, $medio_id, $diagnostico);
         
         if (empty($resultados)) {
-            $error = "No se encontraron noticias. Verifica los selectores CSS.";
+            $partes = [];
+            if ($diagnostico['links_encontrados'] === 0) {
+                $partes[] = "el selector de links (<strong>{$selectores['link']}</strong>) no encontró ningún enlace en la portada";
+            } else {
+                $partes[] = "se encontraron <strong>{$diagnostico['links_encontrados']}</strong> links en portada";
+                if ($diagnostico['duplicados_bd'] > 0)
+                    $partes[] = "<strong>{$diagnostico['duplicados_bd']}</strong> ya existían en BD";
+                if ($diagnostico['links_visitados'] === 0) {
+                    $partes[] = "ningún link fue visitado (todos eran duplicados en BD)";
+                } else {
+                    $partes[] = "se visitaron <strong>{$diagnostico['links_visitados']}</strong>";
+                    if ($diagnostico['titulo_vacio'] > 0)
+                        $partes[] = "en <strong>{$diagnostico['titulo_vacio']}</strong> el selector de título (<strong>{$selectores['titulo']}</strong>) no encontró nada";
+                    if ($diagnostico['titulo_invalido'] > 0)
+                        $partes[] = "en <strong>{$diagnostico['titulo_invalido']}</strong> el título tenía longitud inválida (debe tener entre 10 y 200 caracteres)";
+                    if ($diagnostico['duplicados_titulo'] > 0)
+                        $partes[] = "<strong>{$diagnostico['duplicados_titulo']}</strong> títulos duplicados descartados";
+                }
+            }
+            $error = "No se encontraron noticias. " . implode('; ', $partes) . ".";
         } else {
             // Guardar noticias en la base de datos
             foreach ($resultados as $noticia) {
@@ -443,7 +481,7 @@ if (isset($_GET['ejecutar']) && $_GET['ejecutar'] == '1') {
 </div>
 
 <?php if ($error): ?>
-    <div class="alert alert-error"><?php echo htmlspecialchars($error); ?></div>
+    <div class="alert alert-error"><?php echo $error; ?></div>
 <?php endif; ?>
 
 <?php if (isset($mensaje_exito)): ?>
