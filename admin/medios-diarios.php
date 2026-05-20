@@ -64,7 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         throw new Exception('ID de diario inválido.');
                     }
 
-                    $stmt = $db->prepare("SELECT id FROM medios_conectados WHERE id = :id AND tipo = 'diario_online' LIMIT 1");
+                    $stmt = $db->prepare("SELECT id, tipo FROM medios_conectados WHERE id = :id LIMIT 1");
                     $stmt->execute([':id' => $medio_id]);
                     $medioExistente = $stmt->fetch();
                     if (!$medioExistente) {
@@ -74,7 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $stmt = $db->prepare("
                         UPDATE medios_conectados 
                         SET nombre = :nombre, url = :url, descripcion = :descripcion, activo = :activo
-                        WHERE id = :id AND tipo = 'diario_online'
+                        WHERE id = :id
                     ");
                     $stmt->execute([
                         ':id' => $medio_id,
@@ -138,7 +138,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     break;
 
                 case 'eliminar':
-                    $stmt = $db->prepare("DELETE FROM medios_conectados WHERE id = :id AND tipo = 'diario_online'");
+                    $stmt = $db->prepare("DELETE FROM medios_conectados WHERE id = :id");
                     $stmt->execute([':id' => $_POST['id']]);
                     $mensaje_exito = "Diario eliminado correctamente";
                     break;
