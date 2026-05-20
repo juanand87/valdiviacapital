@@ -1,15 +1,14 @@
 <?php
 $page_title = 'Scraping Facebook';
 require_once '../includes/config.php';
-include 'includes/header.php';
 
 $db = getDB();
-$mensaje_exito = null;
-$mensaje_error = null;
 
 // Procesar formulario
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $accion = $_POST['accion'] ?? '';
+    $redirect_msg = '';
+    $redirect_err = '';
 
     try {
         switch ($accion) {
@@ -42,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ':url'         => $url_normalizada,
                     ':descripcion' => $desc,
                 ]);
-                $mensaje_exito = "Página \"$nombre\" agregada correctamente.";
+                $redirect_msg = urlencode("Página \"$nombre\" agregada correctamente.");
                 break;
 
             case 'toggle_activo':
@@ -50,21 +49,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $activo = (int)($_POST['activo'] ?? 0);
                 $db->prepare("UPDATE medios_conectados SET activo = :activo WHERE id = :id AND tipo = 'facebook_scraping'")
                    ->execute([':activo' => $activo, ':id' => $id]);
-                $mensaje_exito = $activo ? 'Página activada.' : 'Página desactivada.';
+                $redirect_msg = urlencode($activo ? 'Página activada.' : 'Página desactivada.');
                 break;
 
             case 'eliminar':
                 $id = (int)($_POST['id'] ?? 0);
-                // El CASCADE borra también medios_contenido_sincronizado
                 $db->prepare("DELETE FROM medios_conectados WHERE id = :id AND tipo = 'facebook_scraping'")
                    ->execute([':id' => $id]);
-                $mensaje_exito = 'Página eliminada.';
+                $redirect_msg = urlencode('Página eliminada.');
                 break;
         }
     } catch (Exception $e) {
-        $mensaje_error = $e->getMessage();
+        $redirect_err = urlencode($e->getMessage());
     }
+
+    // PRG: redirigir siempre tras POST para evitar reenvío al recargar
+    $qs = $redirect_err ? '?error=' . $redirect_err : ($redirect_msg ? '?ok=' . $redirect_msg : '');
+    header('Location: medios-facebook-scraping.php' . $qs);
+    exit;
 }
+
+// Leer mensajes de la redirección
+$mensaje_exito = isset($_GET['ok'])    ? htmlspecialchars(urldecode($_GET['ok']))    : null;
+$mensaje_error = isset($_GET['error']) ? htmlspecialchars(urldecode($_GET['error'])) : null;
+
+include 'includes/header.php';
 
 // Obtener páginas configuradas
 $stmt = $db->query("
