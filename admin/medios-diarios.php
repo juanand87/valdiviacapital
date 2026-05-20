@@ -59,7 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     break;
 
                 case 'editar':
-                    $medio_id = (int)($_POST['id'] ?? 0);
+                    $medio_id = (int)($_POST['id'] ?? ($_GET['editar'] ?? 0));
                     if ($medio_id <= 0) {
                         throw new Exception('ID de diario inválido.');
                     }
@@ -177,7 +177,7 @@ if (isset($_GET['editar'])) {
         SELECT m.*, d.*
         FROM medios_conectados m
         LEFT JOIN medios_diarios_config d ON m.id = d.medio_id
-        WHERE m.id = :id AND m.tipo = 'diario_online'
+        WHERE m.id = :id
     ");
     $stmt->execute([':id' => $_GET['editar']]);
     $editando = $stmt->fetch();
