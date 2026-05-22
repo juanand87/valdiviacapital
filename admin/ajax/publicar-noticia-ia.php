@@ -3,6 +3,7 @@
  * AJAX: Publicar noticia generada por IA en la tabla noticias
  */
 require_once '../../includes/config.php';
+require_once '../../includes/cache.php';
 session_start();
 
 header('Content-Type: application/json');
@@ -168,5 +169,7 @@ if ($noticia_id > 0) {
     $stmt = $db->prepare("UPDATE medios_contenido_sincronizado SET estado = 'publicado' WHERE id = :id");
     $stmt->execute([':id' => $noticia_id]);
 }
+
+cacheInvalidateHomepage();
 
 echo json_encode(['success' => true, 'id' => $nueva_id, 'slug' => $slug]);

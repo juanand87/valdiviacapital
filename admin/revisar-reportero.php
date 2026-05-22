@@ -2,6 +2,7 @@
 $page_title = 'Revisión Reportero VC';
 require_once '../includes/config.php';
 require_once '../includes/reporteros.php';
+require_once '../includes/cache.php';
 require_once 'includes/auth.php';
 verificarPermiso('editor');
 
@@ -107,6 +108,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 $stmtAprob = $db->prepare("UPDATE reportero_noticias SET estado = 'aprobado', noticia_publicada_id = ?, revisado_por = ?, fecha_revision = NOW(), updated_at = NOW() WHERE id = ?");
                 $stmtAprob->execute([$noticiaId, $_SESSION['admin_id'], $envio['id']]);
+
+                cacheInvalidateHomepage();
             }
 
             $db->commit();

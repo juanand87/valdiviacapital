@@ -2,6 +2,7 @@
 require_once '../includes/auth.php';
 verificarSesion();
 require_once '../../includes/config.php';
+require_once '../../includes/cache.php';
 
 header('Content-Type: application/json');
 
@@ -36,6 +37,8 @@ try {
     $stmt->execute([$id]);
     
     $db->commit();
+
+    cacheInvalidateHomepage();
     
     echo json_encode(['success' => true]);
 } catch (PDOException $e) {

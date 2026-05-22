@@ -1,6 +1,7 @@
 <?php
 $page_title = 'Editor de Noticia';
 require_once '../includes/config.php';
+require_once '../includes/cache.php';
 require_once 'includes/auth.php';
 verificarSesion();
 
@@ -79,6 +80,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmtCom->execute([$noticia_id, $cid]);
             }
         }
+
+        cacheInvalidateHomepage();
 
         // Redirigir a editar la noticia creada/actualizada
         header("Location: editar-noticia.php?id=$noticia_id&success=1");

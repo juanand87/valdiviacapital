@@ -17,3 +17,16 @@ function cacheSet(string $key, $data): void {
     $file = __DIR__ . '/../cache/' . md5($key) . '.cache';
     file_put_contents($file, serialize($data), LOCK_EX);
 }
+
+function cacheDelete(string $key): void {
+    $file = __DIR__ . '/../cache/' . md5($key) . '.cache';
+    if (file_exists($file)) {
+        @unlink($file);
+    }
+}
+
+function cacheInvalidateHomepage(): void {
+    cacheDelete('homepage_main');
+    cacheDelete('homepage_trending');
+    cacheDelete('homepage_comunas');
+}
