@@ -487,7 +487,7 @@ function generarRedaccionIA() {
         }
 
         if (!r.ok) {
-            throw new Error(data.error || ('Error HTTP ' + r.status));
+            throw new Error((data.error || ('Error HTTP ' + r.status)) + (data.debug ? (' :: ' + data.debug) : ''));
         }
 
         return data;
@@ -601,7 +601,7 @@ function publicarNoticia() {
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-check"></i> Confirmar publicación';
         if (data.error) {
-            mostrarMsgPublicar(data.error, 'error');
+            mostrarMsgPublicar(data.error + (data.debug ? ' :: ' + data.debug : ''), 'error');
         } else {
             mostrarMsgPublicar('¡Noticia publicada correctamente! <a href="noticias.php" style="color:white;font-weight:bold;">Ver en noticias →</a>', 'success');
             btn.style.display = 'none';
