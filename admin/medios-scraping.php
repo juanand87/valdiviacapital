@@ -853,6 +853,7 @@ if (isset($_GET['ejecutar']) && $_GET['ejecutar'] == '1') {
     gap: 15px;
     margin-bottom: 20px;
 }
+</style>
 
 <?php if (!empty($resultados)): ?>
 <?php
@@ -1253,6 +1254,7 @@ document.getElementById('modal-noticia').addEventListener('click', function(e) {
 </script>
 <?php endif; ?>
 
+<style>
 .info-item {
     border-left: 3px solid #3498db;
     padding-left: 12px;
