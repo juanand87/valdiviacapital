@@ -6,19 +6,57 @@ require_once '../../includes/config.php';
 require_once '../../includes/cache.php';
 session_start();
 
-header('Content-Type: application/json');
+@ini_set('display_errors', '0');
+@ini_set('log_errors', '1');
+error_reporting(E_ALL);
+ob_start();
+
+function responderJson(array $payload, int $status = 200): void {
+    if (!headers_sent()) {
+        http_response_code($status);
+        header('Content-Type: application/json; charset=UTF-8');
+    }
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+    $json = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+    if ($json === false) {
+        $json = '{"error":"No se pudo serializar la respuesta JSON."}';
+    }
+    echo $json;
+    exit;
+}
+
+register_shutdown_function(function () {
+    $error = error_get_last();
+    if ($error && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) {
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+        if (!headers_sent()) {
+            http_response_code(500);
+            header('Content-Type: application/json; charset=UTF-8');
+        }
+        echo json_encode([
+            'error' => 'Error fatal al publicar la noticia IA.',
+            'debug' => $error['message'] ?? 'error desconocido'
+        ], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+    }
+});
 
 if (!isset($_SESSION['admin_id'])) {
-    echo json_encode(['error' => 'No autorizado']);
-    exit;
+    responderJson(['error' => 'No autorizado'], 401);
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    echo json_encode(['error' => 'Método no permitido']);
-    exit;
+    responderJson(['error' => 'Método no permitido'], 405);
 }
 
-$db = getDB();
+try {
+    $db = getDB();
+} catch (PDOException $e) {
+    responderJson(['error' => 'No se pudo conectar con la base de datos', 'debug' => $e->getMessage()], 500);
+}
 
 $titulo       = trim($_POST['titulo'] ?? '');
 $contenidoMd  = trim($_POST['contenido'] ?? '');
@@ -70,23 +108,19 @@ function markdownToHTML($md) {
 $contenido = markdownToHTML($contenidoMd);
 
 if ($titulo === '') {
-    echo json_encode(['error' => 'El título es obligatorio']);
-    exit;
+    responderJson(['error' => 'El título es obligatorio'], 422);
 }
 if ($contenido === '') {
-    echo json_encode(['error' => 'El contenido no puede estar vacío']);
-    exit;
+    responderJson(['error' => 'El contenido no puede estar vacío'], 422);
 }
 if ($categoria_id <= 0) {
-    echo json_encode(['error' => 'Debes seleccionar una categoría']);
-    exit;
+    responderJson(['error' => 'Debes seleccionar una categoría'], 422);
 }
 
 $stmt = $db->prepare('SELECT id FROM categorias WHERE id = :id');
 $stmt->execute([':id' => $categoria_id]);
 if (!$stmt->fetch()) {
-    echo json_encode(['error' => 'Categoría no válida']);
-    exit;
+    responderJson(['error' => 'Categoría no válida'], 422);
 }
 
 $bajada = null;
@@ -110,20 +144,18 @@ if (!empty($_FILES['imagen']['name']) && (int)($_FILES['imagen']['error'] ?? 1) 
     $ext = strtolower(pathinfo($_FILES['imagen']['name'], PATHINFO_EXTENSION));
     $allowedExt = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
     if (!in_array($ext, $allowedExt, true)) {
-        echo json_encode(['error' => 'Formato de imagen no permitido. Usa JPG, PNG, GIF o WEBP.']);
-        exit;
+        responderJson(['error' => 'Formato de imagen no permitido. Usa JPG, PNG, GIF o WEBP.'], 422);
     }
 
     $filename = 'ia_' . uniqid('', true) . '.' . $ext;
     if (!move_uploaded_file($_FILES['imagen']['tmp_name'], $uploadDir . $filename)) {
-        echo json_encode(['error' => 'No se pudo guardar la imagen subida.']);
-        exit;
+        responderJson(['error' => 'No se pudo guardar la imagen subida.'], 500);
     }
     $imagen_principal = 'uploads/noticias/' . $filename;
 }
 
 function generarSlug($texto) {
-    $texto = mb_strtolower($texto, 'UTF-8');
+    $texto = function_exists('mb_strtolower') ? mb_strtolower($texto, 'UTF-8') : strtolower($texto);
     $from  = ['á','é','í','ó','ú','ü','ñ','à','â','ê','î','ô','û','ä','ë','ï','ö'];
     $to    = ['a','e','i','o','u','u','n','a','a','e','i','o','u','a','e','i','o'];
     $texto = str_replace($from, $to, $texto);
@@ -176,10 +208,9 @@ try {
         $stmt->execute([':id' => $noticia_id]);
     }
 } catch (PDOException $e) {
-    echo json_encode(['error' => 'Error al guardar la noticia: ' . $e->getMessage()]);
-    exit;
+    responderJson(['error' => 'Error al guardar la noticia: ' . $e->getMessage()], 500);
 }
 
 cacheInvalidateHomepage();
 
-echo json_encode(['success' => true, 'id' => $nueva_id, 'slug' => $slug]);
+responderJson(['success' => true, 'id' => $nueva_id, 'slug' => $slug], 200);

@@ -582,7 +582,21 @@ function publicarNoticia() {
         body: formData,
         credentials: 'include'
     })
-    .then(r => r.json())
+    .then(async (r) => {
+        const raw = await r.text();
+        let data;
+        try {
+            data = JSON.parse(raw);
+        } catch (e) {
+            throw new Error(raw ? ('Respuesta inválida del servidor: ' + raw.substring(0, 220)) : 'Respuesta vacía del servidor');
+        }
+
+        if (!r.ok) {
+            throw new Error(data.error || ('Error HTTP ' + r.status));
+        }
+
+        return data;
+    })
     .then(data => {
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-check"></i> Confirmar publicación';
@@ -597,10 +611,10 @@ function publicarNoticia() {
             });
         }
     })
-    .catch(() => {
+    .catch((err) => {
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-check"></i> Confirmar publicación';
-        mostrarMsgPublicar('Error de conexión. Intenta de nuevo.', 'error');
+        mostrarMsgPublicar((err && err.message) ? err.message : 'Error de conexión. Intenta de nuevo.', 'error');
     });
 }
 
