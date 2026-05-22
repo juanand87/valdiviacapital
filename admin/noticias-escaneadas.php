@@ -292,7 +292,7 @@ const noticias = <?php echo json_encode(array_values($noticias), JSON_UNESCAPED_
             
             <div id="ia-loading" style="display: none; text-align: center; padding: 50px;">
                 <div style="display: inline-block; width: 50px; height: 50px; border: 4px solid #e0e0e0; border-top-color: #8e44ad; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
-                <p style="margin-top: 20px; color: #7f8c8d; font-size: 16px;">Gemini está redactando el artículo...</p>
+                <p style="margin-top: 20px; color: #7f8c8d; font-size: 16px;">La IA está redactando el artículo...</p>
             </div>
             
             <div id="ia-resultado" style="display: none;">

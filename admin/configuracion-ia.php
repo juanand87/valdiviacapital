@@ -36,6 +36,112 @@ if (isset($_POST['action']) && $_POST['action'] === 'test_gemini') {
     exit;
 }
 
+// AJAX: test de conexión con GitHub Copilot
+if (isset($_POST['action']) && $_POST['action'] === 'test_copilot') {
+    header('Content-Type: application/json');
+    $db = getDB();
+    $config = getConfigIA($db);
+
+    if (empty($config['copilot_api_key'])) {
+        echo json_encode(['ok' => false, 'msg' => 'No hay API Key de GitHub Copilot configurada.']);
+        exit;
+    }
+
+    $apiUrl = trim((string)($config['copilot_api_url'] ?? 'https://api.githubcopilot.com/chat/completions'));
+    if ($apiUrl === '') {
+        $apiUrl = 'https://api.githubcopilot.com/chat/completions';
+    }
+
+    $modelo = trim((string)($config['copilot_modelo'] ?? 'claude-sonnet-4.6'));
+    if ($modelo === '') {
+        $modelo = 'claude-sonnet-4.6';
+    }
+
+    $payload = json_encode([
+        'model' => $modelo,
+        'messages' => [
+            ['role' => 'user', 'content' => 'Responde solo: OK']
+        ],
+        'temperature' => 0,
+        'max_tokens' => 16
+    ]);
+
+    $opts = ['http' => [
+        'method'  => 'POST',
+        'header'  => "Content-Type: application/json\r\nAuthorization: Bearer {$config['copilot_api_key']}\r\nAccept: application/json\r\n",
+        'content' => $payload,
+        'timeout' => 12,
+        'ignore_errors' => true
+    ]];
+
+    $response = @file_get_contents($apiUrl, false, stream_context_create($opts));
+    if ($response === false) {
+        echo json_encode(['ok' => false, 'msg' => 'No se pudo conectar con la API de GitHub Copilot.']);
+    } else {
+        $data = json_decode($response, true);
+        if (isset($data['error'])) {
+            $msg = is_array($data['error']) ? ($data['error']['message'] ?? 'Error desconocido') : (string)$data['error'];
+            echo json_encode(['ok' => false, 'msg' => $msg]);
+        } else {
+            echo json_encode(['ok' => true, 'msg' => 'Conexión exitosa con GitHub Copilot ✓']);
+        }
+    }
+    exit;
+}
+
+// AJAX: test de conexión con Jina (redacción)
+if (isset($_POST['action']) && $_POST['action'] === 'test_jina') {
+    header('Content-Type: application/json');
+    $db = getDB();
+    $config = getConfigIA($db);
+
+    if (empty($config['jina_api_key'])) {
+        echo json_encode(['ok' => false, 'msg' => 'No hay API Key de Jina configurada.']);
+        exit;
+    }
+
+    $apiUrl = trim((string)($config['jina_redaccion_api_url'] ?? 'https://api.jina.ai/v1/chat/completions'));
+    if ($apiUrl === '') {
+        $apiUrl = 'https://api.jina.ai/v1/chat/completions';
+    }
+
+    $modelo = trim((string)($config['jina_redaccion_modelo'] ?? 'jina-deepsearch-v1'));
+    if ($modelo === '') {
+        $modelo = 'jina-deepsearch-v1';
+    }
+
+    $payload = json_encode([
+        'model' => $modelo,
+        'messages' => [
+            ['role' => 'user', 'content' => 'Responde solo: OK']
+        ],
+        'temperature' => 0,
+        'max_tokens' => 16
+    ]);
+
+    $opts = ['http' => [
+        'method'  => 'POST',
+        'header'  => "Content-Type: application/json\r\nAuthorization: Bearer {$config['jina_api_key']}\r\nAccept: application/json\r\n",
+        'content' => $payload,
+        'timeout' => 12,
+        'ignore_errors' => true
+    ]];
+
+    $response = @file_get_contents($apiUrl, false, stream_context_create($opts));
+    if ($response === false) {
+        echo json_encode(['ok' => false, 'msg' => 'No se pudo conectar con la API de Jina.']);
+    } else {
+        $data = json_decode($response, true);
+        if (isset($data['error'])) {
+            $msg = is_array($data['error']) ? ($data['error']['message'] ?? 'Error desconocido') : (string)$data['error'];
+            echo json_encode(['ok' => false, 'msg' => $msg]);
+        } else {
+            echo json_encode(['ok' => true, 'msg' => 'Conexión exitosa con Jina ✓']);
+        }
+    }
+    exit;
+}
+
 include 'includes/header.php';
 
 $db = getDB();
@@ -43,6 +149,12 @@ $db = getDB();
 // Asegurar nuevas claves de configuración para scraping híbrido
 $db->exec("INSERT IGNORE INTO configuracion_ia (nombre, valor, descripcion) VALUES
     ('jina_api_key', '', 'API Key opcional de Jina AI Reader (r.jina.ai)'),
+    ('jina_redaccion_modelo', 'jina-deepsearch-v1', 'Modelo para redacción con Jina'),
+    ('jina_redaccion_api_url', 'https://api.jina.ai/v1/chat/completions', 'Endpoint API para redacción con Jina'),
+    ('redaccion_provider', 'gemini', 'Proveedor para redacción IA: gemini | jina | copilot'),
+    ('copilot_api_key', '', 'API Key para GitHub Copilot (chat completions)'),
+    ('copilot_modelo', 'claude-sonnet-4.6', 'Modelo para GitHub Copilot (auto o claude-sonnet-4.6)'),
+    ('copilot_api_url', 'https://api.githubcopilot.com/chat/completions', 'Endpoint API para GitHub Copilot'),
     ('scraping_provider_diarios', 'direct', 'Proveedor de extracción para diarios: direct | jina | gemini'),
     ('scraping_provider_facebook', 'direct', 'Proveedor de extracción para Facebook: direct | jina | gemini')
 ");
@@ -75,7 +187,7 @@ $config = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <div class="page-header">
     <div>
         <h1><i class="fas fa-robot"></i> Configuración de IA</h1>
-        <p>Configura la integración con Google Gemini para redacción automática</p>
+        <p>Configura la integración de redacción automática con Gemini, Jina o GitHub Copilot</p>
     </div>
     <a href="medios-conectados.php" class="btn btn-secondary">
         <i class="fas fa-arrow-left"></i> Volver
@@ -106,6 +218,12 @@ $config = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         <?php 
                         $labels = [
                             'gemini_api_key' => 'API Key de Google Gemini',
+                            'redaccion_provider' => 'Proveedor de redacción IA',
+                            'jina_redaccion_modelo' => 'Modelo de Jina (redacción)',
+                            'jina_redaccion_api_url' => 'URL API de Jina (redacción)',
+                            'copilot_api_key' => 'API Key de GitHub Copilot',
+                            'copilot_modelo' => 'Modelo de GitHub Copilot',
+                            'copilot_api_url' => 'URL API de GitHub Copilot',
                             'jina_api_key' => 'API Key de Jina AI (opcional)',
                             'gemini_prompt_base' => 'Prompt Base',
                             'gemini_modelo' => 'Modelo',
@@ -145,6 +263,48 @@ $config = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                 Gemini 1.5 Flash
                             </option>
                         </select>
+                    <?php elseif ($item['nombre'] === 'redaccion_provider'): ?>
+                        <select 
+                            id="config_<?php echo $item['nombre']; ?>" 
+                            name="config[<?php echo $item['nombre']; ?>]" 
+                            class="form-control"
+                        >
+                            <option value="gemini" <?php echo $item['valor'] === 'gemini' ? 'selected' : ''; ?>>
+                                Google Gemini
+                            </option>
+                            <option value="jina" <?php echo $item['valor'] === 'jina' ? 'selected' : ''; ?>>
+                                Jina
+                            </option>
+                            <option value="copilot" <?php echo $item['valor'] === 'copilot' ? 'selected' : ''; ?>>
+                                GitHub Copilot
+                            </option>
+                        </select>
+                    <?php elseif ($item['nombre'] === 'jina_redaccion_modelo'): ?>
+                        <select 
+                            id="config_<?php echo $item['nombre']; ?>" 
+                            name="config[<?php echo $item['nombre']; ?>]" 
+                            class="form-control"
+                        >
+                            <option value="jina-deepsearch-v1" <?php echo $item['valor'] === 'jina-deepsearch-v1' ? 'selected' : ''; ?>>
+                                Jina DeepSearch v1 (Recomendado)
+                            </option>
+                            <option value="auto" <?php echo $item['valor'] === 'auto' ? 'selected' : ''; ?>>
+                                Auto (si tu cuenta lo soporta)
+                            </option>
+                        </select>
+                    <?php elseif ($item['nombre'] === 'copilot_modelo'): ?>
+                        <select 
+                            id="config_<?php echo $item['nombre']; ?>" 
+                            name="config[<?php echo $item['nombre']; ?>]" 
+                            class="form-control"
+                        >
+                            <option value="claude-sonnet-4.6" <?php echo $item['valor'] === 'claude-sonnet-4.6' ? 'selected' : ''; ?>>
+                                Claude Sonnet 4.6 (Recomendado)
+                            </option>
+                            <option value="auto" <?php echo $item['valor'] === 'auto' ? 'selected' : ''; ?>>
+                                Auto (selección automática)
+                            </option>
+                        </select>
                     <?php elseif ($item['nombre'] === 'scraping_provider_diarios' || $item['nombre'] === 'scraping_provider_facebook'): ?>
                         <select 
                             id="config_<?php echo $item['nombre']; ?>" 
@@ -162,6 +322,14 @@ $config = $stmt->fetchAll(PDO::FETCH_ASSOC);
                             </option>
                         </select>
                     <?php elseif ($item['nombre'] === 'gemini_api_key'): ?>
+                        <input 
+                            type="password" 
+                            id="config_<?php echo $item['nombre']; ?>" 
+                            name="config[<?php echo $item['nombre']; ?>]" 
+                            class="form-control" 
+                            value="<?php echo htmlspecialchars($item['valor']); ?>"
+                        >
+                    <?php elseif ($item['nombre'] === 'copilot_api_key'): ?>
                         <input 
                             type="password" 
                             id="config_<?php echo $item['nombre']; ?>" 
@@ -189,6 +357,12 @@ $config = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 </button>
                 <button type="button" class="btn btn-secondary" id="btn-test-gemini" onclick="testGemini()">
                     <i class="fas fa-plug"></i> Probar conexión
+                </button>
+                <button type="button" class="btn btn-secondary" id="btn-test-copilot" onclick="testCopilot()">
+                    <i class="fas fa-plug"></i> Probar GitHub Copilot
+                </button>
+                <button type="button" class="btn btn-secondary" id="btn-test-jina" onclick="testJina()">
+                    <i class="fas fa-plug"></i> Probar Jina
                 </button>
                 <span id="test-gemini-result" style="font-weight:600;"></span>
             </div>
@@ -221,6 +395,60 @@ function testGemini() {
         btn.innerHTML = '<i class="fas fa-plug"></i> Probar conexión';
     });
 }
+
+function testCopilot() {
+    const btn = document.getElementById('btn-test-copilot');
+    const result = document.getElementById('test-gemini-result');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Probando...';
+    result.textContent = '';
+    result.style.color = '';
+    fetch(window.location.href, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: 'action=test_copilot'
+    })
+    .then(r => r.json())
+    .then(data => {
+        result.textContent = data.msg;
+        result.style.color = data.ok ? '#16a34a' : '#dc2626';
+    })
+    .catch(() => {
+        result.textContent = 'Error al contactar el servidor.';
+        result.style.color = '#dc2626';
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-plug"></i> Probar GitHub Copilot';
+    });
+}
+
+function testJina() {
+    const btn = document.getElementById('btn-test-jina');
+    const result = document.getElementById('test-gemini-result');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Probando...';
+    result.textContent = '';
+    result.style.color = '';
+    fetch(window.location.href, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: 'action=test_jina'
+    })
+    .then(r => r.json())
+    .then(data => {
+        result.textContent = data.msg;
+        result.style.color = data.ok ? '#16a34a' : '#dc2626';
+    })
+    .catch(() => {
+        result.textContent = 'Error al contactar el servidor.';
+        result.style.color = '#dc2626';
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-plug"></i> Probar Jina';
+    });
+}
 </script>
     </div>
 </div>
@@ -237,6 +465,15 @@ function testGemini() {
             <li>Haz clic en "Get API key" o "Crear clave de API"</li>
             <li>Copia la API Key generada</li>
             <li>Pégala en el campo "API Key" arriba</li>
+        </ol>
+
+        <h3 style="margin: 25px 0 15px;">Configuración de GitHub Copilot:</h3>
+        <ol style="line-height: 2;">
+            <li>Selecciona <strong>Proveedor de redacción IA = GitHub Copilot</strong></li>
+            <li>Agrega tu API Key en <strong>API Key de GitHub Copilot</strong></li>
+            <li>Selecciona el modelo en <strong>Modelo de GitHub Copilot</strong>: <code>claude-sonnet-4.6</code> o <code>auto</code></li>
+            <li>Si usas otro gateway, ajusta la <strong>URL API de GitHub Copilot</strong></li>
+            <li>Usa el botón <strong>Probar GitHub Copilot</strong> para validar conexión</li>
         </ol>
         
         <h3 style="margin: 25px 0 15px;">Variables disponibles en el Prompt:</h3>
