@@ -1,8 +1,12 @@
 <?php
-session_start();
 $page_title = 'Scraping Facebook';
 require_once '../includes/config.php';
 require_once '../includes/scraping_ai.php';
+
+// Iniciar sesión solo si no está activa
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 $db = getDB();
 $providerCfg = getScrapingProviderConfig($db);
