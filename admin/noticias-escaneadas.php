@@ -43,13 +43,13 @@ $stmt = $db->prepare("
 $stmt->execute($params);
 $noticias = $stmt->fetchAll();
 
-// Obtener categorÃ­as para el formulario de publicaciÃ³n
+// Obtener categorías para el formulario de publicación
 $categorias = $db->query("SELECT id, nombre FROM categorias ORDER BY nombre")->fetchAll();
 
 
 // Obtener comunas para selección tipo tag
 $comunas = $db->query("SELECT id, nombre FROM comunas ORDER BY nombre")->fetchAll();
-// Obtener estadÃ­sticas
+// Obtener estadísticas
 $stmt = $db->prepare("
     SELECT 
         COUNT(*) as total,
@@ -66,14 +66,14 @@ $stats = $stmt->fetch();
 <div class="page-header">
     <div>
         <h1><i class="fas fa-newspaper"></i> Noticias Escaneadas</h1>
-        <p>Noticias extraÃ­das mediante scraping de medios conectados</p>
+        <p>Noticias extraídas mediante scraping de medios conectados</p>
     </div>
     <a href="medios-conectados.php" class="btn btn-secondary">
         <i class="fas fa-arrow-left"></i> Volver
     </a>
 </div>
 
-<!-- EstadÃ­sticas -->
+<!-- Estadísticas -->
 <div class="stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
     <div class="stat-card" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
         <div style="color: #7f8c8d; font-size: 14px; margin-bottom: 5px;">Total</div>
@@ -133,7 +133,7 @@ $stats = $stmt->fetch();
         <?php if (empty($noticias)): ?>
             <div style="text-align: center; padding: 40px; color: #7f8c8d;">
                 <i class="fas fa-inbox" style="font-size: 48px; margin-bottom: 15px; opacity: 0.5;"></i>
-                <p style="margin: 0;">No hay noticias escaneadas aÃºn</p>
+                <p style="margin: 0;">No hay noticias escaneadas aún</p>
             </div>
         <?php else: ?>
             <div style="display: grid; gap: 15px;">
@@ -211,7 +211,7 @@ $stats = $stmt->fetch();
                                 class="btn btn-sm"
                                 style="background: #8e44ad; color: white;"
                                 onclick="redactarIA(<?php echo $noticia['id']; ?>)">
-                                <i class="fas fa-robot"></i> RedacciÃ³n IA
+                                <i class="fas fa-robot"></i> Redacción IA
                             </button>
                             <a href="<?php echo htmlspecialchars($noticia['url_original']); ?>" 
                                target="_blank" 
@@ -231,7 +231,7 @@ $stats = $stmt->fetch();
 const noticias = <?php echo json_encode(array_values($noticias), JSON_UNESCAPED_UNICODE); ?>;
 </script>
 
-<!-- Modal Ver Noticia / RedacciÃ³n IA -->
+<!-- Modal Ver Noticia / Redacción IA -->
 <div id="modal-noticia" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; overflow-y:auto;">
     <div style="background:white; max-width:850px; margin:40px auto; border-radius:12px; overflow:hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
         
@@ -251,7 +251,7 @@ const noticias = <?php echo json_encode(array_values($noticias), JSON_UNESCAPED_
             </button>
             <button id="tab-ia" onclick="mostrarTab('ia')" 
                 style="padding: 15px 25px; border: none; background: transparent; border-bottom: 3px solid transparent; cursor: pointer; font-size: 15px; color: #7f8c8d;">
-                <i class="fas fa-robot"></i> RedacciÃ³n IA
+                <i class="fas fa-robot"></i> Redacción IA
             </button>
         </div>
         
@@ -277,30 +277,30 @@ const noticias = <?php echo json_encode(array_values($noticias), JSON_UNESCAPED_
             </div>
         </div>
         
-        <!-- Tab: RedacciÃ³n IA -->
+        <!-- Tab: Redacción IA -->
         <div id="panel-ia" style="padding: 25px; display: none;">
             <div id="ia-sin-generar">
                 <div style="text-align: center; padding: 30px; background: #f8f9fa; border-radius: 8px; margin-bottom: 20px;">
                     <i class="fas fa-robot" style="font-size: 48px; color: #8e44ad; margin-bottom: 15px;"></i>
-                    <p style="color: #555; font-size: 16px; margin: 0;">La IA redactarÃ¡ un artÃ­culo periodÃ­stico profesional basado en la informaciÃ³n de la noticia original.</p>
+                    <p style="color: #555; font-size: 16px; margin: 0;">La IA redactará un artículo periodístico profesional basado en la información de la noticia original.</p>
                 </div>
                 <div style="text-align: center;">
                     <button id="btn-generar" onclick="generarRedaccionIA()" 
                         class="btn btn-primary"
                         style="background: #8e44ad; padding: 12px 30px; font-size: 16px;">
-                        <i class="fas fa-magic"></i> Generar RedacciÃ³n con IA
+                        <i class="fas fa-magic"></i> Generar Redacción con IA
                     </button>
                 </div>
             </div>
             
             <div id="ia-loading" style="display: none; text-align: center; padding: 50px;">
                 <div style="display: inline-block; width: 50px; height: 50px; border: 4px solid #e0e0e0; border-top-color: #8e44ad; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
-                <p style="margin-top: 20px; color: #7f8c8d; font-size: 16px;">La IA estÃ¡ redactando el artÃ­culo...</p>
+                <p style="margin-top: 20px; color: #7f8c8d; font-size: 16px;">La IA está redactando el artículo...</p>
             </div>
             
             <div id="ia-resultado" style="display: none;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <h3 style="margin: 0; color: #27ae60;"><i class="fas fa-check-circle"></i> RedacciÃ³n completada</h3>
+                    <h3 style="margin: 0; color: #27ae60;"><i class="fas fa-check-circle"></i> Redacción completada</h3>
                     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                         <button onclick="copiarRedaccion()" class="btn btn-sm btn-secondary">
                             <i class="fas fa-copy"></i> Copiar
@@ -314,16 +314,16 @@ const noticias = <?php echo json_encode(array_values($noticias), JSON_UNESCAPED_
                     </div>
                 </div>
 
-                <!-- Campo tÃ­tulo generado por IA -->
+                <!-- Campo título generado por IA -->
                 <div style="margin-bottom: 15px;">
-                    <label style="font-size: 13px; font-weight: 600; color: #555; margin-bottom: 6px; display: block;">TÃ­tulo del artÃ­culo</label>
+                    <label style="font-size: 13px; font-weight: 600; color: #555; margin-bottom: 6px; display: block;">Título del artículo</label>
                     <input type="text" id="ia-titulo-value"
                         style="width: 100%; padding: 10px 14px; border: 2px solid #8e44ad; border-radius: 6px; font-size: 15px; font-weight: 600; box-sizing: border-box;">
                 </div>
 
                 <div id="ia-texto" style="line-height: 1.9; color: #2d3748; font-size: 15px; background: #f9f9f9; padding: 20px; border-radius: 8px; border-left: 4px solid #8e44ad; white-space: pre-wrap;"></div>
 
-                <!-- Formulario de publicaciÃ³n -->
+                <!-- Formulario de publicación -->
                 <div id="form-publicar" style="display: none; margin-top: 20px; padding: 20px; background: #f0fff4; border: 2px solid #27ae60; border-radius: 8px;">
                     <h4 style="margin: 0 0 15px 0; color: #27ae60;"><i class="fas fa-paper-plane"></i> Publicar en el sitio</h4>
 
@@ -358,7 +358,7 @@ const noticias = <?php echo json_encode(array_values($noticias), JSON_UNESCAPED_
 
                     <div style="display: flex; gap: 10px;">
                         <button onclick="publicarNoticia()" class="btn btn-primary" style="background: #27ae60;" id="btn-publicar-final">
-                            <i class="fas fa-check"></i> Confirmar publicaciÃ³n
+                            <i class="fas fa-check"></i> Confirmar publicación
                         </button>
                         <button onclick="document.getElementById('form-publicar').style.display='none'" class="btn btn-secondary">
                             Cancelar
@@ -374,7 +374,7 @@ const noticias = <?php echo json_encode(array_values($noticias), JSON_UNESCAPED_
                 </div>
                 <div style="text-align: center; margin-top: 15px;">
                     <a href="configuracion-ia.php" class="btn btn-primary">
-                        <i class="fas fa-cog"></i> Ir a ConfiguraciÃ³n IA
+                        <i class="fas fa-cog"></i> Ir a Configuración IA
                     </a>
                     <button onclick="generarRedaccionIA()" class="btn btn-secondary" style="margin-left: 10px;">
                         <i class="fas fa-redo"></i> Reintentar
@@ -458,7 +458,7 @@ function cerrarModal() {
     const btnFinal = document.getElementById('btn-publicar-final');
     btnFinal.style.display = '';
     btnFinal.disabled = false;
-    btnFinal.innerHTML = '<i class="fas fa-check"></i> Confirmar publicaciÃ³n';
+    btnFinal.innerHTML = '<i class="fas fa-check"></i> Confirmar publicación';
 }
 
 function generarRedaccionIA() {
@@ -484,7 +484,7 @@ function generarRedaccionIA() {
             document.getElementById('ia-error-msg').textContent = data.error;
             document.getElementById('ia-error').style.display = 'block';
         } else {
-            // Poblar tÃ­tulo: usar el generado por IA o el original
+            // Poblar título: usar el generado por IA o el original
             const tituloIA = data.titulo || noticiaActual.titulo;
             document.getElementById('ia-titulo-value').value = tituloIA;
             document.getElementById('ia-texto').textContent = data.texto;
@@ -494,7 +494,7 @@ function generarRedaccionIA() {
     })
     .catch(() => {
         document.getElementById('ia-loading').style.display = 'none';
-        document.getElementById('ia-error-msg').textContent = 'Error de conexiÃ³n. Intenta de nuevo.';
+        document.getElementById('ia-error-msg').textContent = 'Error de conexión. Intenta de nuevo.';
         document.getElementById('ia-error').style.display = 'block';
     });
 }
@@ -604,6 +604,8 @@ document.getElementById('modal-noticia').addEventListener('click', function(e) {
 </script>
 
 <?php include 'includes/footer.php'; ?>
+
+
 
 
 
