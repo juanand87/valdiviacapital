@@ -4,8 +4,8 @@ require_once '../../includes/config.php';
 require_once '../../includes/gemini.php';
 session_start();
 
-// Evitar que warnings/notices rompan el JSON de salida
 @ini_set('display_errors', '0');
+@ini_set('log_errors', '1');
 error_reporting(E_ALL);
 ob_start();
 
@@ -17,9 +17,30 @@ function responderJson(array $payload, int $status = 200): void {
     while (ob_get_level() > 0) {
         ob_end_clean();
     }
-    echo json_encode($payload, JSON_UNESCAPED_UNICODE);
+    $json = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+    if ($json === false) {
+        $json = '{"error":"No se pudo serializar la respuesta JSON."}';
+    }
+    echo $json;
     exit;
 }
+
+register_shutdown_function(function () {
+    $error = error_get_last();
+    if ($error && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) {
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+        if (!headers_sent()) {
+            http_response_code(500);
+            header('Content-Type: application/json; charset=UTF-8');
+        }
+        echo json_encode([
+            'error' => 'Error fatal al generar la redacción IA.',
+            'debug' => $error['message'] ?? 'error desconocido'
+        ], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+    }
+});
 
 try {
     if (!isset($_SESSION['admin_id'])) {
@@ -30,7 +51,6 @@ try {
         responderJson(['error' => 'Método no permitido'], 405);
     }
 
-    // Soportar tanto form-data como JSON
     $input = $_POST;
     $contentType = strtolower((string)($_SERVER['CONTENT_TYPE'] ?? ''));
     if (empty($input) && strpos($contentType, 'application/json') !== false) {
@@ -46,7 +66,6 @@ try {
     }
 
     $db = getDB();
-
     $stmt = $db->prepare('SELECT * FROM medios_contenido_sincronizado WHERE id = :id');
     $stmt->execute([':id' => $noticia_id]);
     $noticia = $stmt->fetch();

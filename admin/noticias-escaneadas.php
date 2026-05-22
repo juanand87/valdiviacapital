@@ -495,7 +495,7 @@ function generarRedaccionIA() {
         document.getElementById('ia-loading').style.display = 'none';
 
         if (data.error) {
-            document.getElementById('ia-error-msg').textContent = data.error;
+            document.getElementById('ia-error-msg').textContent = data.error + (data.debug ? ' :: ' + data.debug : '');
             document.getElementById('ia-error').style.display = 'block';
         } else {
             // Poblar título: usar el generado por IA o el original
@@ -618,6 +618,7 @@ document.getElementById('modal-noticia').addEventListener('click', function(e) {
 </script>
 
 <?php include 'includes/footer.php'; ?>
+
 
 
 
