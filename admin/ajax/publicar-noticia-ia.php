@@ -18,14 +18,35 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-$titulo      = trim($_POST['titulo']      ?? '');
-$contenido   = trim($_POST['contenido']   ?? '');
-$categoria_id = (int)($_POST['categoria_id'] ?? 0);
-$noticia_id  = (int)($_POST['noticia_id'] ?? 0);
+// Soportar tanto form data como JSON
+$input = $_POST;
+if (empty($input) && $_SERVER['CONTENT_TYPE'] === 'application/json') {
+    $input = json_decode(file_get_contents('php://input'), true) ?? [];
+}
+
+$titulo      = trim($input['titulo']      ?? '');
+$contenido   = trim($input['contenido']   ?? '');
+$categoria_id = (int)($input['category_id'] ?? $input['categoria_id'] ?? 0);
+$noticia_id  = (int)($input['noticia_id'] ?? $input['medios_contenido_id'] ?? 0);
 $autor_id    = (int)$_SESSION['admin_id'];
-$comunas_json = trim($_POST['comunas'] ?? '[]');
-$comunas_ids = json_decode($comunas_json, true) ?? [];
-$comunas_ids = array_map('intval', $comunas_ids);
+
+// Manejar comunas: puede venir como array directo o como JSON string
+$comunas_ids = [];
+if (isset($input['comunas_ids'])) {
+    // Caso 1: Array directo desde JSON fetch
+    if (is_array($input['comunas_ids'])) {
+        $comunas_ids = array_map('intval', $input['comunas_ids']);
+    } else {
+        // Caso 2: String JSON desde form data
+        $comunas_ids = json_decode($input['comunas_ids'], true) ?? [];
+        $comunas_ids = array_map('intval', $comunas_ids);
+    }
+} else if (isset($input['comunas'])) {
+    // Caso 3: Parámetro antiguo 'comunas'
+    $comunas_json = trim($input['comunas'] ?? '[]');
+    $comunas_ids = json_decode($comunas_json, true) ?? [];
+    $comunas_ids = array_map('intval', $comunas_ids);
+}
 
 // Convertir Markdown a HTML limpio
 function markdownToHTML($md) {

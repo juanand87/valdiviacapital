@@ -412,7 +412,7 @@ function guardarNoticiaScrapeada($db, $medio_id, $noticia) {
         )
     ");
     
-    return $stmt->execute([
+    $result = $stmt->execute([
         ':medio_id' => $medio_id,
         ':titulo' => $noticia['titulo'],
         ':contenido' => $noticia['contenido'],
@@ -423,6 +423,13 @@ function guardarNoticiaScrapeada($db, $medio_id, $noticia) {
         ':categoria' => $noticia['categoria'] ?? null,
         ':hash_contenido' => $hash
     ]);
+    
+    // Si se insertó, retornar el ID de la noticia
+    if ($result) {
+        return $db->lastInsertId();
+    }
+    
+    return false;
 }
 
 // Ejecutar scraping si se solicitó
@@ -471,13 +478,20 @@ if (isset($_GET['ejecutar']) && $_GET['ejecutar'] == '1') {
             $error = "No se encontraron noticias. " . implode('; ', $partes) . ".";
         } else {
             // Guardar noticias en la base de datos
+            $resultados_con_ids = [];
             foreach ($resultados as $noticia) {
-                if (guardarNoticiaScrapeada($db, $medio_id, $noticia)) {
+                $noticia_id = guardarNoticiaScrapeada($db, $medio_id, $noticia);
+                if ($noticia_id) {
                     $guardadas++;
+                    $noticia['id'] = $noticia_id; // Agregar ID a la noticia
+                    $resultados_con_ids[] = $noticia;
                 } else {
                     $duplicadas++;
                 }
             }
+            
+            // Reemplazar resultados con los que tienen IDs
+            $resultados = $resultados_con_ids;
             
             // Actualizar última sincronización
             $stmt = $db->prepare("UPDATE medios_conectados SET ultima_sincronizacion = NOW() WHERE id = :id");
@@ -765,6 +779,21 @@ if (isset($_GET['ejecutar']) && $_GET['ejecutar'] == '1') {
                             <?php else: ?>
                                 <p class="noticia-texto" style="color: #95a5a6; font-style: italic;">Sin contenido</p>
                             <?php endif; ?>
+                            
+                            <!-- Botones de acción -->
+                            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e0e0e0; display: flex; gap: 8px; flex-wrap: wrap;">
+                                <button 
+                                    class="btn btn-sm"
+                                    style="background: #8e44ad; color: white;"
+                                    onclick="redactarIAMedios(<?php echo isset($noticia['id']) ? $noticia['id'] : 0; ?>)">
+                                    <i class="fas fa-robot"></i> Redacción IA
+                                </button>
+                                <a href="<?php echo htmlspecialchars($noticia['url']); ?>" 
+                                   target="_blank" 
+                                   class="btn btn-sm btn-secondary">
+                                    <i class="fas fa-external-link-alt"></i> Abrir Original
+                                </a>
+                            </div>
                         </div>
                     </div>
                 <?php endforeach; ?>
@@ -914,5 +943,409 @@ if (isset($_GET['ejecutar']) && $_GET['ejecutar'] == '1') {
     background: #95a5a6;
 }
 </style>
+
+<!-- Datos de noticias para JavaScript -->
+<script>
+const noticiasScrapeo = <?php echo json_encode(array_values($resultados), JSON_UNESCAPED_UNICODE); ?>;
+</script>
+
+<!-- Cargar categorías y comunas para el formulario -->
+<script>
+const categoriasDisponibles = <?php 
+    $categorias = $db->query("SELECT id, nombre FROM categorias ORDER BY nombre")->fetchAll();
+    echo json_encode($categorias, JSON_UNESCAPED_UNICODE);
+?>;
+
+const comunasDisponibles = <?php 
+    $comunas = $db->query("SELECT id, nombre FROM comunas ORDER BY nombre")->fetchAll();
+    echo json_encode($comunas, JSON_UNESCAPED_UNICODE);
+?>;
+</script>
+
+<!-- Modal Ver Noticia / Redacción IA -->
+<div id="modal-noticia-scrapeo" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; overflow-y:auto;">
+    <div style="background:white; max-width:850px; margin:40px auto; border-radius:12px; overflow:hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
+        
+        <!-- Header del modal -->
+        <div style="background: linear-gradient(135deg, #667eea, #764ba2); padding: 20px 25px; display: flex; justify-content: space-between; align-items: center;">
+            <h2 style="color: white; margin: 0; font-size: 20px;">
+                <i class="fas fa-newspaper"></i> <span id="modal-scrapeo-titulo-cabecera">Noticia</span>
+            </h2>
+            <button onclick="cerrarModalScrapeo()" style="background: rgba(255,255,255,0.2); border: none; color: white; width: 35px; height: 35px; border-radius: 50%; cursor: pointer; font-size: 18px;">&times;</button>
+        </div>
+        
+        <!-- Tabs -->
+        <div style="display: flex; border-bottom: 2px solid #e0e0e0; background: #f8f9fa;">
+            <button id="tab-noticia-scrapeo" onclick="mostrarTabScrapeo('noticia')" 
+                style="padding: 15px 25px; border: none; background: white; border-bottom: 3px solid #667eea; cursor: pointer; font-weight: 600; color: #667eea; font-size: 15px;">
+                <i class="fas fa-file-alt"></i> Noticia Original
+            </button>
+            <button id="tab-ia-scrapeo" onclick="mostrarTabScrapeo('ia')" 
+                style="padding: 15px 25px; border: none; background: transparent; border-bottom: 3px solid transparent; cursor: pointer; font-size: 15px; color: #7f8c8d;">
+                <i class="fas fa-robot"></i> Redacción IA
+            </button>
+        </div>
+        
+        <!-- Tab: Noticia Original -->
+        <div id="panel-noticia-scrapeo" style="padding: 25px;">
+            <div id="modal-scrapeo-imagen" style="margin-bottom: 20px;"></div>
+            
+            <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px;">
+                <div id="modal-scrapeo-medio" style="font-size: 13px; color: #7f8c8d;"></div>
+                <div id="modal-scrapeo-autor" style="font-size: 13px; color: #7f8c8d;"></div>
+                <div id="modal-scrapeo-categoria" style="font-size: 13px; color: #7f8c8d;"></div>
+                <div id="modal-scrapeo-fecha" style="font-size: 13px; color: #7f8c8d;"></div>
+            </div>
+            
+            <h1 id="modal-scrapeo-titulo" style="font-size: 24px; margin-bottom: 20px; color: #1a202c; line-height: 1.4;"></h1>
+            
+            <div id="modal-scrapeo-contenido" style="line-height: 1.8; color: #2d3748; font-size: 15px; white-space: pre-wrap;"></div>
+            
+            <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
+                <a id="modal-scrapeo-url" href="#" target="_blank" class="btn btn-secondary btn-sm">
+                    <i class="fas fa-external-link-alt"></i> Ver noticia original
+                </a>
+            </div>
+        </div>
+        
+        <!-- Tab: Redacción IA -->
+        <div id="panel-ia-scrapeo" style="padding: 25px; display: none;">
+            <div id="ia-sin-generar-scrapeo">
+                <div style="text-align: center; padding: 30px; background: #f8f9fa; border-radius: 8px; margin-bottom: 20px;">
+                    <i class="fas fa-robot" style="font-size: 48px; color: #8e44ad; margin-bottom: 15px;"></i>
+                    <p style="color: #555; font-size: 16px; margin: 0;">La IA redactará un artículo periodístico profesional basado en la información de la noticia original.</p>
+                </div>
+                <div style="text-align: center;">
+                    <button id="btn-generar-scrapeo" onclick="generarRedaccionIAScrapeo()" 
+                        class="btn btn-primary"
+                        style="background: #8e44ad; padding: 12px 30px; font-size: 16px;">
+                        <i class="fas fa-magic"></i> Generar Redacción con IA
+                    </button>
+                </div>
+            </div>
+            
+            <div id="ia-loading-scrapeo" style="display: none; text-align: center; padding: 50px;">
+                <div style="display: inline-block; width: 50px; height: 50px; border: 4px solid #e0e0e0; border-top-color: #8e44ad; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+                <p style="margin-top: 20px; color: #7f8c8d; font-size: 16px;">La IA está redactando el artículo...</p>
+            </div>
+            
+            <div id="ia-resultado-scrapeo" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h3 style="margin: 0; color: #27ae60;"><i class="fas fa-check-circle"></i> Redacción completada</h3>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button onclick="copiarRedaccionScrapeo()" class="btn btn-sm btn-secondary">
+                            <i class="fas fa-copy"></i> Copiar
+                        </button>
+                        <button onclick="generarRedaccionIAScrapeo()" class="btn btn-sm" style="background: #8e44ad; color: white;">
+                            <i class="fas fa-redo"></i> Regenerar
+                        </button>
+                        <button onclick="mostrarFormPublicarScrapeo()" class="btn btn-sm" style="background: #27ae60; color: white;">
+                            <i class="fas fa-paper-plane"></i> Publicar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Campo título generado por IA -->
+                <div style="margin-bottom: 15px;">
+                    <label style="font-size: 13px; font-weight: 600; color: #555; margin-bottom: 6px; display: block;">Título del artículo</label>
+                    <input type="text" id="ia-titulo-value-scrapeo"
+                        style="width: 100%; padding: 10px 14px; border: 2px solid #8e44ad; border-radius: 6px; font-size: 15px; font-weight: 600; box-sizing: border-box;">
+                </div>
+
+                <div id="ia-texto-scrapeo" style="line-height: 1.9; color: #2d3748; font-size: 15px; background: #f9f9f9; padding: 20px; border-radius: 8px; border-left: 4px solid #8e44ad; white-space: pre-wrap;"></div>
+
+                <!-- Formulario de publicación -->
+                <div id="form-publicar-scrapeo" style="display: none; margin-top: 20px; padding: 20px; background: #f0fff4; border: 2px solid #27ae60; border-radius: 8px;">
+                    <h4 style="margin: 0 0 15px 0; color: #27ae60;"><i class="fas fa-paper-plane"></i> Publicar en el sitio</h4>
+
+                    <div class="form-group">
+                        <label style="font-weight: 600;">Categoría <span style="color:red">*</span></label>
+                        <select id="pub-categoria-scrapeo" class="form-control">
+                            <option value="">-- Seleccionar categoría --</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label style="font-weight: 600;">Comunas <span style="color:red">*</span></label>
+                        <div id="pub-comunas-container-scrapeo" style="border: 1px solid #ddd; border-radius: 6px; padding: 10px; background: white; min-height: 40px; max-height: 200px; overflow-y: auto;">
+                            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px;"></div>
+                        </div>
+                        <div style="margin-top: 8px; font-size: 12px; color: #666;">
+                            <strong>Seleccionadas:</strong> <span id="comunas-selected-scrapeo">Ninguna</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 20px; display: flex; gap: 10px;">
+                        <button onclick="publicarRedaccionScrapeo()" class="btn btn-primary" style="background: #27ae60;">
+                            <i class="fas fa-check"></i> Confirmar publicación
+                        </button>
+                        <button onclick="mostrarFormPublicarScrapeo(false)" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancelar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+</style>
+
+<script>
+let noticia_id_actual_scrapeo = 0;
+
+function redactarIAMedios(noticia_id) {
+    noticia_id_actual_scrapeo = noticia_id;
+    const noticia = noticiasScrapeo.find(n => n.id == noticia_id);
+    
+    if (!noticia) {
+        alert('Noticia no encontrada');
+        return;
+    }
+    
+    // Mostrar modal
+    document.getElementById('modal-noticia-scrapeo').style.display = 'block';
+    
+    // Llenar datos de la noticia
+    document.getElementById('modal-scrapeo-titulo-cabecera').textContent = noticia.titulo.substring(0, 50);
+    document.getElementById('modal-scrapeo-titulo').textContent = noticia.titulo;
+    document.getElementById('modal-scrapeo-contenido').textContent = noticia.contenido || 'Sin contenido';
+    document.getElementById('modal-scrapeo-url').href = noticia.url;
+    document.getElementById('modal-scrapeo-url').textContent = noticia.url;
+    
+    // Meta información
+    const metaElements = [];
+    if (noticia.medio_nombre) metaElements.push(`<strong><i class="fas fa-newspaper"></i> ${htmlEscape(noticia.medio_nombre)}</strong>`);
+    if (noticia.autor) metaElements.push(`<strong><i class="fas fa-user"></i> ${htmlEscape(noticia.autor)}</strong>`);
+    if (noticia.categoria) metaElements.push(`<strong><i class="fas fa-folder"></i> ${htmlEscape(noticia.categoria)}</strong>`);
+    if (noticia.fecha) metaElements.push(`<strong><i class="fas fa-calendar"></i> ${htmlEscape(noticia.fecha)}</strong>`);
+    
+    document.getElementById('modal-scrapeo-medio').innerHTML = metaElements.join(' | ') || '<span style="color: #95a5a6;">Sin información</span>';
+    
+    // Imagen
+    const imagenContainer = document.getElementById('modal-scrapeo-imagen');
+    if (noticia.imagen) {
+        imagenContainer.innerHTML = '<img src="' + htmlEscape(noticia.imagen) + '" alt="Imagen" style="max-width: 100%; max-height: 300px; border-radius: 8px;" onerror="this.style.display=\'none\'">';
+    } else {
+        imagenContainer.innerHTML = '';
+    }
+    
+    // Limpiar pestaña de IA
+    document.getElementById('ia-sin-generar-scrapeo').style.display = 'block';
+    document.getElementById('ia-loading-scrapeo').style.display = 'none';
+    document.getElementById('ia-resultado-scrapeo').style.display = 'none';
+    document.getElementById('form-publicar-scrapeo').style.display = 'none';
+    
+    // Mostrar primera pestaña
+    mostrarTabScrapeo('noticia');
+}
+
+function cerrarModalScrapeo() {
+    document.getElementById('modal-noticia-scrapeo').style.display = 'none';
+}
+
+function mostrarTabScrapeo(tab) {
+    const noticiaPanelVisible = document.getElementById('panel-noticia-scrapeo').style.display !== 'none';
+    const iaPanelVisible = document.getElementById('panel-ia-scrapeo').style.display !== 'none';
+    
+    if (tab === 'noticia') {
+        document.getElementById('panel-noticia-scrapeo').style.display = 'block';
+        document.getElementById('panel-ia-scrapeo').style.display = 'none';
+        document.getElementById('tab-noticia-scrapeo').style.borderBottomColor = '#667eea';
+        document.getElementById('tab-noticia-scrapeo').style.color = '#667eea';
+        document.getElementById('tab-ia-scrapeo').style.borderBottomColor = 'transparent';
+        document.getElementById('tab-ia-scrapeo').style.color = '#7f8c8d';
+    } else if (tab === 'ia') {
+        document.getElementById('panel-noticia-scrapeo').style.display = 'none';
+        document.getElementById('panel-ia-scrapeo').style.display = 'block';
+        document.getElementById('tab-noticia-scrapeo').style.borderBottomColor = 'transparent';
+        document.getElementById('tab-noticia-scrapeo').style.color = '#7f8c8d';
+        document.getElementById('tab-ia-scrapeo').style.borderBottomColor = '#667eea';
+        document.getElementById('tab-ia-scrapeo').style.color = '#667eea';
+    }
+}
+
+function generarRedaccionIAScrapeo() {
+    if (!noticia_id_actual_scrapeo) return;
+    
+    const noticia = noticiasScrapeo.find(n => n.id == noticia_id_actual_scrapeo);
+    if (!noticia) return;
+    
+    document.getElementById('ia-sin-generar-scrapeo').style.display = 'none';
+    document.getElementById('ia-loading-scrapeo').style.display = 'block';
+    document.getElementById('ia-resultado-scrapeo').style.display = 'none';
+    
+    // Llamar AJAX a redactar-ia.php
+    fetch('ajax/redactar-ia.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            noticia_id: noticia_id_actual_scrapeo,
+            titulo: noticia.titulo,
+            contenido: noticia.contenido
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('ia-loading-scrapeo').style.display = 'none';
+        
+        if (data.success) {
+            document.getElementById('ia-titulo-value-scrapeo').value = data.titulo;
+            document.getElementById('ia-texto-scrapeo').textContent = data.contenido;
+            document.getElementById('ia-resultado-scrapeo').style.display = 'block';
+        } else {
+            alert('Error al generar redacción: ' + (data.error || 'Error desconocido'));
+            document.getElementById('ia-sin-generar-scrapeo').style.display = 'block';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        document.getElementById('ia-loading-scrapeo').style.display = 'none';
+        document.getElementById('ia-sin-generar-scrapeo').style.display = 'block';
+        alert('Error al generar redacción');
+    });
+}
+
+function copiarRedaccionScrapeo() {
+    const titulo = document.getElementById('ia-titulo-value-scrapeo').value;
+    const contenido = document.getElementById('ia-texto-scrapeo').textContent;
+    const texto = titulo + '\n\n' + contenido;
+    
+    navigator.clipboard.writeText(texto).then(() => {
+        alert('Redacción copiada al portapapeles');
+    });
+}
+
+function mostrarFormPublicarScrapeo(mostrar = true) {
+    if (mostrar) {
+        document.getElementById('form-publicar-scrapeo').style.display = 'block';
+        cargarCategoriasYComunasScrapeo();
+    } else {
+        document.getElementById('form-publicar-scrapeo').style.display = 'none';
+    }
+}
+
+function cargarCategoriasYComunasScrapeo() {
+    // Categorías
+    const selectCategoria = document.getElementById('pub-categoria-scrapeo');
+    selectCategoria.innerHTML = '<option value="">-- Seleccionar categoría --</option>';
+    categoriasDisponibles.forEach(cat => {
+        const option = document.createElement('option');
+        option.value = cat.id;
+        option.textContent = cat.nombre;
+        selectCategoria.appendChild(option);
+    });
+    
+    // Comunas
+    const comunasContainer = document.querySelector('#pub-comunas-container-scrapeo > div');
+    comunasContainer.innerHTML = '';
+    comunasDisponibles.forEach(com => {
+        const label = document.createElement('label');
+        label.style.cssText = 'display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 6px; border-radius: 4px; transition: background 0.2s;';
+        label.innerHTML = `
+            <input type="checkbox" value="${com.id}" class="pub-comuna-checkbox-scrapeo" data-nombre="${htmlEscape(com.nombre)}" style="cursor: pointer;">
+            <span style="font-size: 14px;">${htmlEscape(com.nombre)}</span>
+        `;
+        label.addEventListener('mouseover', () => label.style.background = '#f0f0f0');
+        label.addEventListener('mouseout', () => label.style.background = '');
+        
+        // Agregar evento para actualizar lista de seleccionadas
+        label.querySelector('input').addEventListener('change', actualizarComunasSeleccionadasScrapeo);
+        
+        comunasContainer.appendChild(label);
+    });
+}
+
+function actualizarComunasSeleccionadasScrapeo() {
+    const checkboxes = document.querySelectorAll('.pub-comuna-checkbox-scrapeo:checked');
+    const nombres = Array.from(checkboxes).map(cb => cb.dataset.nombre);
+    document.getElementById('comunas-selected-scrapeo').textContent = nombres.length > 0 ? nombres.join(', ') : 'Ninguna';
+}
+
+function publicarRedaccionScrapeo() {
+    const titulo = document.getElementById('ia-titulo-value-scrapeo').value.trim();
+    const contenido = document.getElementById('ia-texto-scrapeo').textContent.trim();
+    const categoria_id = document.getElementById('pub-categoria-scrapeo').value;
+    
+    // Obtener comunas seleccionadas
+    const comunasCheckboxes = document.querySelectorAll('.pub-comuna-checkbox-scrapeo:checked');
+    const comunas_ids = Array.from(comunasCheckboxes).map(cb => cb.value);
+    
+    // Validar
+    if (!titulo) {
+        alert('Por favor ingresa un título');
+        return;
+    }
+    if (!contenido) {
+        alert('Por favor ingresa el contenido');
+        return;
+    }
+    if (!categoria_id) {
+        alert('Por favor selecciona una categoría');
+        return;
+    }
+    if (comunas_ids.length === 0) {
+        alert('Por favor selecciona al menos una comuna');
+        return;
+    }
+    
+    // Enviar a publicar-noticia-ia.php
+    fetch('ajax/publicar-noticia-ia.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            titulo: titulo,
+            contenido: contenido,
+            category_id: categoria_id,
+            communes_ids: comunas_ids,
+            medios_contenido_id: noticia_id_actual_scrapeo
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('¡Noticia publicada exitosamente!');
+            cerrarModalScrapeo();
+            // Recargar la lista o hacer algo
+        } else {
+            alert('Error al publicar: ' + (data.error || 'Error desconocido'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error al publicar');
+    });
+}
+
+function htmlEscape(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+// Cerrar modal al hacer clic fuera
+document.addEventListener('click', function(event) {
+    const modal = document.getElementById('modal-noticia-scrapeo');
+    if (event.target === modal) {
+        cerrarModalScrapeo();
+    }
+});
+
+// Cerrar modal con tecla Escape
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        cerrarModalScrapeo();
+    }
+});
+</script>
 
 <?php include 'includes/footer.php'; ?>

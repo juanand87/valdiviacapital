@@ -16,7 +16,13 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-$noticia_id = (int)($_POST['noticia_id'] ?? 0);
+// Soportar tanto form data como JSON
+$input = $_POST;
+if (empty($input) && $_SERVER['CONTENT_TYPE'] === 'application/json') {
+    $input = json_decode(file_get_contents('php://input'), true) ?? [];
+}
+
+$noticia_id = (int)($input['noticia_id'] ?? 0);
 
 if (!$noticia_id) {
     echo json_encode(['error' => 'ID de noticia inválido']);
