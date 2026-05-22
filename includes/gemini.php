@@ -296,6 +296,9 @@ function redactarConCopilot($config, $noticia) {
     if ($modelo === '') {
         $modelo = 'auto';
     }
+    if (in_array(strtolower($modelo), ['claude-sonnet-4.6', 'claude-sonnet-4-6'], true)) {
+        $modelo = 'auto';
+    }
 
     $temperatura = (float)($config['gemini_temperatura'] ?? 0.7);
     $maxTokens = max((int)($config['gemini_max_tokens'] ?? 8192), 3072);

@@ -56,6 +56,9 @@ if (isset($_POST['action']) && $_POST['action'] === 'test_copilot') {
     if ($modelo === '') {
         $modelo = 'auto';
     }
+    if (in_array(strtolower($modelo), ['claude-sonnet-4.6', 'claude-sonnet-4-6'], true)) {
+        $modelo = 'auto';
+    }
 
     $payload = json_encode([
         'model' => $modelo,
@@ -163,7 +166,7 @@ $db->exec("INSERT IGNORE INTO configuracion_ia (nombre, valor, descripcion) VALU
 $db->exec("UPDATE configuracion_ia SET valor = 'https://models.inference.ai.azure.com/chat/completions' WHERE nombre = 'copilot_api_url' AND valor = 'https://api.githubcopilot.com/chat/completions'");
 
 // Migrar modelo antiguo de GitHub Copilot si aún existe
-$db->exec("UPDATE configuracion_ia SET valor = 'auto' WHERE nombre = 'copilot_modelo' AND valor = 'claude-sonnet-4.6'");
+$db->exec("UPDATE configuracion_ia SET valor = 'auto' WHERE nombre = 'copilot_modelo' AND LOWER(TRIM(valor)) IN ('claude-sonnet-4.6', 'claude-sonnet-4-6')");
 
 // Procesar formulario
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
