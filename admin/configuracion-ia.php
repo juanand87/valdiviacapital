@@ -159,6 +159,9 @@ $db->exec("INSERT IGNORE INTO configuracion_ia (nombre, valor, descripcion) VALU
     ('scraping_provider_facebook', 'direct', 'Proveedor de extracción para Facebook: direct | jina | gemini')
 ");
 
+// Migrar URL antigua de GitHub Copilot si aún existe
+$db->exec("UPDATE configuracion_ia SET valor = 'https://models.inference.ai.azure.com/chat/completions' WHERE nombre = 'copilot_api_url' AND valor = 'https://api.githubcopilot.com/chat/completions'");
+
 // Procesar formulario
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
