@@ -476,10 +476,24 @@ function generarRedaccionIA() {
         method: 'POST',
         body: formData
     })
-    .then(r => r.json())
+    .then(async (r) => {
+        const raw = await r.text();
+        let data;
+        try {
+            data = JSON.parse(raw);
+        } catch (e) {
+            throw new Error(raw ? ('Respuesta inválida del servidor: ' + raw.substring(0, 220)) : 'Respuesta vacía del servidor');
+        }
+
+        if (!r.ok) {
+            throw new Error(data.error || ('Error HTTP ' + r.status));
+        }
+
+        return data;
+    })
     .then(data => {
         document.getElementById('ia-loading').style.display = 'none';
-        
+
         if (data.error) {
             document.getElementById('ia-error-msg').textContent = data.error;
             document.getElementById('ia-error').style.display = 'block';
@@ -492,9 +506,9 @@ function generarRedaccionIA() {
             document.getElementById('ia-resultado').style.display = 'block';
         }
     })
-    .catch(() => {
+    .catch((err) => {
         document.getElementById('ia-loading').style.display = 'none';
-        document.getElementById('ia-error-msg').textContent = 'Error de conexión. Intenta de nuevo.';
+        document.getElementById('ia-error-msg').textContent = (err && err.message) ? err.message : 'Error de conexión. Intenta de nuevo.';
         document.getElementById('ia-error').style.display = 'block';
     });
 }
@@ -604,6 +618,7 @@ document.getElementById('modal-noticia').addEventListener('click', function(e) {
 </script>
 
 <?php include 'includes/footer.php'; ?>
+
 
 
 
