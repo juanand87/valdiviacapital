@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 /**
  * AJAX: Publicar noticia generada por IA en la tabla noticias
  */
@@ -18,44 +18,21 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-// Soportar tanto form data como JSON
-$input = $_POST;
-if (empty($input) && $_SERVER['CONTENT_TYPE'] === 'application/json') {
-    $input = json_decode(file_get_contents('php://input'), true) ?? [];
-}
+$db = getDB();
 
-$titulo      = trim($input['titulo']      ?? '');
-$contenido   = trim($input['contenido']   ?? '');
-$categoria_id = (int)($input['category_id'] ?? $input['categoria_id'] ?? 0);
-$noticia_id  = (int)($input['noticia_id'] ?? $input['medios_contenido_id'] ?? 0);
-$autor_id    = (int)$_SESSION['admin_id'];
+$titulo       = trim($_POST['titulo'] ?? '');
+$contenidoMd  = trim($_POST['contenido'] ?? '');
+$categoria_id = (int)($_POST['categoria_id'] ?? 0);
+$noticia_id   = (int)($_POST['noticia_id'] ?? 0);
+$comunas_ids  = is_array($_POST['comunas'] ?? null) ? array_values(array_unique(array_filter(array_map('intval', $_POST['comunas'])))) : [];
+$autor_id     = (int)$_SESSION['admin_id'];
 
-// Manejar comunas: puede venir como array directo o como JSON string
-$comunas_ids = [];
-if (isset($input['comunas_ids'])) {
-    // Caso 1: Array directo desde JSON fetch
-    if (is_array($input['comunas_ids'])) {
-        $comunas_ids = array_map('intval', $input['comunas_ids']);
-    } else {
-        // Caso 2: String JSON desde form data
-        $comunas_ids = json_decode($input['comunas_ids'], true) ?? [];
-        $comunas_ids = array_map('intval', $comunas_ids);
-    }
-} else if (isset($input['comunas'])) {
-    // Caso 3: Parámetro antiguo 'comunas'
-    $comunas_json = trim($input['comunas'] ?? '[]');
-    $comunas_ids = json_decode($comunas_json, true) ?? [];
-    $comunas_ids = array_map('intval', $comunas_ids);
-}
-
-// Convertir Markdown a HTML limpio
 function markdownToHTML($md) {
-    $lines   = explode("\n", $md);
-    $html    = '';
-    $inList  = false;
+    $lines = explode("\n", $md);
+    $html = '';
+    $inList = false;
 
     foreach ($lines as $line) {
-        // Headings
         if (preg_match('/^#{4}\s+(.+)/', $line, $m)) {
             if ($inList) { $html .= '</ul>'; $inList = false; }
             $html .= '<h4>' . $m[1] . '</h4>' . "\n";
@@ -68,15 +45,12 @@ function markdownToHTML($md) {
         } elseif (preg_match('/^#{1}\s+(.+)/', $line, $m)) {
             if ($inList) { $html .= '</ul>'; $inList = false; }
             $html .= '<h2>' . $m[1] . '</h2>' . "\n";
-        // Listas (- item o * item)
         } elseif (preg_match('/^[\*\-]\s+(.+)/', $line, $m)) {
             if (!$inList) { $html .= '<ul>'; $inList = true; }
             $html .= '<li>' . $m[1] . '</li>' . "\n";
-        // Línea vacía → cierra lista o párrafo
         } elseif (trim($line) === '') {
             if ($inList) { $html .= '</ul>'; $inList = false; }
             $html .= "\n";
-        // Párrafo normal
         } else {
             if ($inList) { $html .= '</ul>'; $inList = false; }
             $html .= '<p>' . trim($line) . '</p>' . "\n";
@@ -84,48 +58,70 @@ function markdownToHTML($md) {
     }
     if ($inList) $html .= '</ul>';
 
-    // Inline: **negrita**, *cursiva*, __negrita__, _cursiva_
     $html = preg_replace('/\*\*(.+?)\*\*/s', '<strong>$1</strong>', $html);
-    $html = preg_replace('/__(.+?)__/s',     '<strong>$1</strong>', $html);
-    $html = preg_replace('/\*(.+?)\*/s',     '<em>$1</em>',         $html);
-    $html = preg_replace('/_(.+?)_/s',       '<em>$1</em>',         $html);
-
-    // Limpiar párrafos vacíos
+    $html = preg_replace('/__(.+?)__/s', '<strong>$1</strong>', $html);
+    $html = preg_replace('/\*(.+?)\*/s', '<em>$1</em>', $html);
+    $html = preg_replace('/_(.+?)_/s', '<em>$1</em>', $html);
     $html = preg_replace('/<p>\s*<\/p>/', '', $html);
 
     return trim($html);
 }
 
-$contenido = markdownToHTML($contenido);
+$contenido = markdownToHTML($contenidoMd);
 
-if (!$titulo) {
+if ($titulo === '') {
     echo json_encode(['error' => 'El título es obligatorio']);
     exit;
 }
-if (!$contenido) {
+if ($contenido === '') {
     echo json_encode(['error' => 'El contenido no puede estar vacío']);
     exit;
 }
-if (!$categoria_id) {
+if ($categoria_id <= 0) {
     echo json_encode(['error' => 'Debes seleccionar una categoría']);
     exit;
 }
-if (empty($comunas_ids)) {
-    echo json_encode(['error' => 'Debes seleccionar al menos una comuna']);
-    exit;
-}
 
-$db = getDB();
-
-// Verificar que la categoría existe
-$stmt = $db->prepare("SELECT id FROM categorias WHERE id = :id");
+$stmt = $db->prepare('SELECT id FROM categorias WHERE id = :id');
 $stmt->execute([':id' => $categoria_id]);
 if (!$stmt->fetch()) {
     echo json_encode(['error' => 'Categoría no válida']);
     exit;
 }
 
-// Generar slug único
+$bajada = null;
+$imagen_principal = null;
+if ($noticia_id > 0) {
+    $stmt = $db->prepare('SELECT imagen_url, bajada FROM medios_contenido_sincronizado WHERE id = :id');
+    $stmt->execute([':id' => $noticia_id]);
+    $origen = $stmt->fetch(PDO::FETCH_ASSOC);
+    if ($origen) {
+        $bajada = !empty($origen['bajada']) ? trim((string)$origen['bajada']) : null;
+        $imagen_principal = !empty($origen['imagen_url']) ? trim((string)$origen['imagen_url']) : null;
+    }
+}
+
+if (!empty($_FILES['imagen']['name']) && (int)($_FILES['imagen']['error'] ?? 1) === UPLOAD_ERR_OK) {
+    $uploadDir = '../../uploads/noticias/';
+    if (!is_dir($uploadDir)) {
+        mkdir($uploadDir, 0777, true);
+    }
+
+    $ext = strtolower(pathinfo($_FILES['imagen']['name'], PATHINFO_EXTENSION));
+    $allowedExt = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+    if (!in_array($ext, $allowedExt, true)) {
+        echo json_encode(['error' => 'Formato de imagen no permitido. Usa JPG, PNG, GIF o WEBP.']);
+        exit;
+    }
+
+    $filename = 'ia_' . uniqid('', true) . '.' . $ext;
+    if (!move_uploaded_file($_FILES['imagen']['tmp_name'], $uploadDir . $filename)) {
+        echo json_encode(['error' => 'No se pudo guardar la imagen subida.']);
+        exit;
+    }
+    $imagen_principal = 'uploads/noticias/' . $filename;
+}
+
 function generarSlug($texto) {
     $texto = mb_strtolower($texto, 'UTF-8');
     $from  = ['á','é','í','ó','ú','ü','ñ','à','â','ê','î','ô','û','ä','ë','ï','ö'];
@@ -140,50 +136,48 @@ $slugBase = generarSlug($titulo);
 $slug = $slugBase;
 $i = 1;
 while (true) {
-    $stmt = $db->prepare("SELECT id FROM noticias WHERE slug = :slug");
+    $stmt = $db->prepare('SELECT id FROM noticias WHERE slug = :slug');
     $stmt->execute([':slug' => $slug]);
     if (!$stmt->fetch()) break;
     $slug = $slugBase . '-' . $i;
     $i++;
 }
 
-// Manejar imagen principal (usar la de la noticia escaneada)
-$imagen_principal = '';
-
-// Insertar en tabla noticias
 try {
-    $stmt = $db->prepare("
-        INSERT INTO noticias (titulo, slug, contenido, imagen_principal, categoria_id, autor_id, publicado, fecha_publicacion, created_at, updated_at)
-        VALUES (:titulo, :slug, :contenido, :imagen_principal, :categoria_id, :autor_id, 1, NOW(), NOW(), NOW())
-    ");
+    $stmt = $db->prepare('
+        INSERT INTO noticias (titulo, slug, bajada, contenido, imagen_principal, categoria_id, autor_id, publicado, fecha_publicacion, created_at, updated_at)
+        VALUES (:titulo, :slug, :bajada, :contenido, :imagen_principal, :categoria_id, :autor_id, 1, NOW(), NOW(), NOW())
+    ');
     $stmt->execute([
-        ':titulo'           => $titulo,
-        ':slug'             => $slug,
-        ':contenido'        => $contenido,
-        ':imagen_principal' => $imagen_principal ?: null,
-        ':categoria_id'     => $categoria_id,
-        ':autor_id'         => $autor_id,
+        ':titulo' => $titulo,
+        ':slug' => $slug,
+        ':bajada' => $bajada,
+        ':contenido' => $contenido,
+        ':imagen_principal' => $imagen_principal,
+        ':categoria_id' => $categoria_id,
+        ':autor_id' => $autor_id,
     ]);
-    $nueva_id = $db->lastInsertId();
+    $nueva_id = (int)$db->lastInsertId();
+
+    if (!empty($comunas_ids)) {
+        $insComuna = $db->prepare('INSERT IGNORE INTO noticias_comunas (noticia_id, comuna_id) VALUES (:noticia_id, :comuna_id)');
+        foreach ($comunas_ids as $comuna_id) {
+            if ($comuna_id > 0) {
+                $insComuna->execute([
+                    ':noticia_id' => $nueva_id,
+                    ':comuna_id' => $comuna_id,
+                ]);
+            }
+        }
+    }
+
+    if ($noticia_id > 0) {
+        $stmt = $db->prepare("UPDATE medios_contenido_sincronizado SET estado = 'publicado' WHERE id = :id");
+        $stmt->execute([':id' => $noticia_id]);
+    }
 } catch (PDOException $e) {
     echo json_encode(['error' => 'Error al guardar la noticia: ' . $e->getMessage()]);
     exit;
-}
-
-// Insertar comunas en noticias_comunas
-foreach ($comunas_ids as $comuna_id) {
-    try {
-        $stmt = $db->prepare("INSERT INTO noticias_comunas (noticia_id, comuna_id) VALUES (:noticia_id, :comuna_id)");
-        $stmt->execute([':noticia_id' => $nueva_id, ':comuna_id' => $comuna_id]);
-    } catch (PDOException $e) {
-        // Ignorar duplicados
-    }
-}
-
-// Marcar la noticia escaneada como publicada
-if ($noticia_id > 0) {
-    $stmt = $db->prepare("UPDATE medios_contenido_sincronizado SET estado = 'publicado' WHERE id = :id");
-    $stmt->execute([':id' => $noticia_id]);
 }
 
 cacheInvalidateHomepage();

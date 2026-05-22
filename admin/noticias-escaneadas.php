@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 $page_title = 'Noticias Escaneadas';
 require_once '../includes/config.php';
 include 'includes/header.php';
@@ -43,13 +43,13 @@ $stmt = $db->prepare("
 $stmt->execute($params);
 $noticias = $stmt->fetchAll();
 
-// Obtener categorías para el formulario de publicación
+// Obtener categorÃ­as para el formulario de publicaciÃ³n
 $categorias = $db->query("SELECT id, nombre FROM categorias ORDER BY nombre")->fetchAll();
 
-// Obtener comunas para el formulario de publicación
-$comunas = $db->query("SELECT id, nombre FROM comunas ORDER BY nombre")->fetchAll();
 
-// Obtener estadísticas
+// Obtener comunas para selección tipo tag
+$comunas = $db->query("SELECT id, nombre FROM comunas ORDER BY nombre")->fetchAll();
+// Obtener estadÃ­sticas
 $stmt = $db->prepare("
     SELECT 
         COUNT(*) as total,
@@ -66,14 +66,14 @@ $stats = $stmt->fetch();
 <div class="page-header">
     <div>
         <h1><i class="fas fa-newspaper"></i> Noticias Escaneadas</h1>
-        <p>Noticias extraídas mediante scraping de medios conectados</p>
+        <p>Noticias extraÃ­das mediante scraping de medios conectados</p>
     </div>
     <a href="medios-conectados.php" class="btn btn-secondary">
         <i class="fas fa-arrow-left"></i> Volver
     </a>
 </div>
 
-<!-- Estadísticas -->
+<!-- EstadÃ­sticas -->
 <div class="stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
     <div class="stat-card" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
         <div style="color: #7f8c8d; font-size: 14px; margin-bottom: 5px;">Total</div>
@@ -133,7 +133,7 @@ $stats = $stmt->fetch();
         <?php if (empty($noticias)): ?>
             <div style="text-align: center; padding: 40px; color: #7f8c8d;">
                 <i class="fas fa-inbox" style="font-size: 48px; margin-bottom: 15px; opacity: 0.5;"></i>
-                <p style="margin: 0;">No hay noticias escaneadas aún</p>
+                <p style="margin: 0;">No hay noticias escaneadas aÃºn</p>
             </div>
         <?php else: ?>
             <div style="display: grid; gap: 15px;">
@@ -211,7 +211,7 @@ $stats = $stmt->fetch();
                                 class="btn btn-sm"
                                 style="background: #8e44ad; color: white;"
                                 onclick="redactarIA(<?php echo $noticia['id']; ?>)">
-                                <i class="fas fa-robot"></i> Redacción IA
+                                <i class="fas fa-robot"></i> RedacciÃ³n IA
                             </button>
                             <a href="<?php echo htmlspecialchars($noticia['url_original']); ?>" 
                                target="_blank" 
@@ -231,7 +231,7 @@ $stats = $stmt->fetch();
 const noticias = <?php echo json_encode(array_values($noticias), JSON_UNESCAPED_UNICODE); ?>;
 </script>
 
-<!-- Modal Ver Noticia / Redacción IA -->
+<!-- Modal Ver Noticia / RedacciÃ³n IA -->
 <div id="modal-noticia" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; overflow-y:auto;">
     <div style="background:white; max-width:850px; margin:40px auto; border-radius:12px; overflow:hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
         
@@ -251,7 +251,7 @@ const noticias = <?php echo json_encode(array_values($noticias), JSON_UNESCAPED_
             </button>
             <button id="tab-ia" onclick="mostrarTab('ia')" 
                 style="padding: 15px 25px; border: none; background: transparent; border-bottom: 3px solid transparent; cursor: pointer; font-size: 15px; color: #7f8c8d;">
-                <i class="fas fa-robot"></i> Redacción IA
+                <i class="fas fa-robot"></i> RedacciÃ³n IA
             </button>
         </div>
         
@@ -277,30 +277,30 @@ const noticias = <?php echo json_encode(array_values($noticias), JSON_UNESCAPED_
             </div>
         </div>
         
-        <!-- Tab: Redacción IA -->
+        <!-- Tab: RedacciÃ³n IA -->
         <div id="panel-ia" style="padding: 25px; display: none;">
             <div id="ia-sin-generar">
                 <div style="text-align: center; padding: 30px; background: #f8f9fa; border-radius: 8px; margin-bottom: 20px;">
                     <i class="fas fa-robot" style="font-size: 48px; color: #8e44ad; margin-bottom: 15px;"></i>
-                    <p style="color: #555; font-size: 16px; margin: 0;">La IA redactará un artículo periodístico profesional basado en la información de la noticia original.</p>
+                    <p style="color: #555; font-size: 16px; margin: 0;">La IA redactarÃ¡ un artÃ­culo periodÃ­stico profesional basado en la informaciÃ³n de la noticia original.</p>
                 </div>
                 <div style="text-align: center;">
                     <button id="btn-generar" onclick="generarRedaccionIA()" 
                         class="btn btn-primary"
                         style="background: #8e44ad; padding: 12px 30px; font-size: 16px;">
-                        <i class="fas fa-magic"></i> Generar Redacción con IA
+                        <i class="fas fa-magic"></i> Generar RedacciÃ³n con IA
                     </button>
                 </div>
             </div>
             
             <div id="ia-loading" style="display: none; text-align: center; padding: 50px;">
                 <div style="display: inline-block; width: 50px; height: 50px; border: 4px solid #e0e0e0; border-top-color: #8e44ad; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
-                <p style="margin-top: 20px; color: #7f8c8d; font-size: 16px;">La IA está redactando el artículo...</p>
+                <p style="margin-top: 20px; color: #7f8c8d; font-size: 16px;">La IA estÃ¡ redactando el artÃ­culo...</p>
             </div>
             
             <div id="ia-resultado" style="display: none;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <h3 style="margin: 0; color: #27ae60;"><i class="fas fa-check-circle"></i> Redacción completada</h3>
+                    <h3 style="margin: 0; color: #27ae60;"><i class="fas fa-check-circle"></i> RedacciÃ³n completada</h3>
                     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                         <button onclick="copiarRedaccion()" class="btn btn-sm btn-secondary">
                             <i class="fas fa-copy"></i> Copiar
@@ -314,16 +314,16 @@ const noticias = <?php echo json_encode(array_values($noticias), JSON_UNESCAPED_
                     </div>
                 </div>
 
-                <!-- Campo título generado por IA -->
+                <!-- Campo tÃ­tulo generado por IA -->
                 <div style="margin-bottom: 15px;">
-                    <label style="font-size: 13px; font-weight: 600; color: #555; margin-bottom: 6px; display: block;">Título del artículo</label>
+                    <label style="font-size: 13px; font-weight: 600; color: #555; margin-bottom: 6px; display: block;">TÃ­tulo del artÃ­culo</label>
                     <input type="text" id="ia-titulo-value"
                         style="width: 100%; padding: 10px 14px; border: 2px solid #8e44ad; border-radius: 6px; font-size: 15px; font-weight: 600; box-sizing: border-box;">
                 </div>
 
                 <div id="ia-texto" style="line-height: 1.9; color: #2d3748; font-size: 15px; background: #f9f9f9; padding: 20px; border-radius: 8px; border-left: 4px solid #8e44ad; white-space: pre-wrap;"></div>
 
-                <!-- Formulario de publicación -->
+                <!-- Formulario de publicaciÃ³n -->
                 <div id="form-publicar" style="display: none; margin-top: 20px; padding: 20px; background: #f0fff4; border: 2px solid #27ae60; border-radius: 8px;">
                     <h4 style="margin: 0 0 15px 0; color: #27ae60;"><i class="fas fa-paper-plane"></i> Publicar en el sitio</h4>
 
@@ -338,25 +338,27 @@ const noticias = <?php echo json_encode(array_values($noticias), JSON_UNESCAPED_
                     </div>
 
                     <div class="form-group">
-                        <label style="font-weight: 600;">Comunas <span style="color:red">*</span></label>
-                        <div id="pub-comunas-container" style="border: 1px solid #ddd; border-radius: 6px; padding: 10px; background: white; min-height: 40px; max-height: 200px; overflow-y: auto;">
-                            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px;">
-                                <?php foreach ($comunas as $com): ?>
-                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 6px; border-radius: 4px; transition: background 0.2s;">
-                                        <input type="checkbox" value="<?php echo $com['id']; ?>" class="pub-comuna-checkbox" data-nombre="<?php echo htmlspecialchars($com['nombre']); ?>" style="cursor: pointer;">
-                                        <span style="font-size: 14px;"><?php echo htmlspecialchars($com['nombre']); ?></span>
-                                    </label>
-                                <?php endforeach; ?>
-                            </div>
+                        <label style="font-weight: 600;">Comunas (una o más)</label>
+                        <div id="pub-comunas-tags" style="display:flex; flex-wrap:wrap; gap:8px; padding:10px; border:1px solid #d9e2ec; border-radius:8px; background:#fff; max-height:180px; overflow:auto;">
+                            <?php foreach ($comunas as $com): ?>
+                                <button type="button" class="comuna-tag" data-id="<?php echo (int)$com['id']; ?>" style="border:1px solid #cbd5e1; background:#f8fafc; color:#334155; border-radius:999px; padding:6px 10px; font-size:12px; cursor:pointer;">
+                                    <?php echo htmlspecialchars($com['nombre']); ?>
+                                </button>
+                            <?php endforeach; ?>
                         </div>
-                        <div id="pub-comunas-selected" style="margin-top: 10px; display: flex; gap: 6px; flex-wrap: wrap; min-height: 30px;"></div>
+                        <small style="display:block; margin-top:6px; color:#64748b;">Haz clic para seleccionar una o más comunas.</small>
                     </div>
 
+                    <div class="form-group">
+                        <label style="font-weight: 600;">Imagen principal</label>
+                        <input type="file" id="pub-imagen-file" accept="image/*" class="form-control">
+                        <small style="display:block; margin-top:6px; color:#64748b;">Opcional. Si no subes imagen, se usará la imagen original si existe.</small>
+                    </div>
                     <div id="pub-msg" style="display: none; margin-bottom: 10px;"></div>
 
                     <div style="display: flex; gap: 10px;">
                         <button onclick="publicarNoticia()" class="btn btn-primary" style="background: #27ae60;" id="btn-publicar-final">
-                            <i class="fas fa-check"></i> Confirmar publicación
+                            <i class="fas fa-check"></i> Confirmar publicaciÃ³n
                         </button>
                         <button onclick="document.getElementById('form-publicar').style.display='none'" class="btn btn-secondary">
                             Cancelar
@@ -372,7 +374,7 @@ const noticias = <?php echo json_encode(array_values($noticias), JSON_UNESCAPED_
                 </div>
                 <div style="text-align: center; margin-top: 15px;">
                     <a href="configuracion-ia.php" class="btn btn-primary">
-                        <i class="fas fa-cog"></i> Ir a Configuración IA
+                        <i class="fas fa-cog"></i> Ir a ConfiguraciÃ³n IA
                     </a>
                     <button onclick="generarRedaccionIA()" class="btn btn-secondary" style="margin-left: 10px;">
                         <i class="fas fa-redo"></i> Reintentar
@@ -445,13 +447,18 @@ function cerrarModal() {
     document.getElementById('ia-titulo-value').value = '';
     document.getElementById('ia-texto').textContent = '';
     document.getElementById('pub-categoria').value = '';
-    document.querySelectorAll('.pub-comuna-checkbox').forEach(cb => cb.checked = false);
-    document.getElementById('pub-comunas-selected').innerHTML = '';
+    document.getElementById('pub-imagen-file').value = '';
+    document.querySelectorAll('#pub-comunas-tags .comuna-tag.selected').forEach(tag => {
+        tag.classList.remove('selected');
+        tag.style.background = '#f8fafc';
+        tag.style.color = '#334155';
+        tag.style.borderColor = '#cbd5e1';
+    });
     document.getElementById('pub-msg').style.display = 'none';
     const btnFinal = document.getElementById('btn-publicar-final');
     btnFinal.style.display = '';
     btnFinal.disabled = false;
-    btnFinal.innerHTML = '<i class="fas fa-check"></i> Confirmar publicación';
+    btnFinal.innerHTML = '<i class="fas fa-check"></i> Confirmar publicaciÃ³n';
 }
 
 function generarRedaccionIA() {
@@ -477,7 +484,7 @@ function generarRedaccionIA() {
             document.getElementById('ia-error-msg').textContent = data.error;
             document.getElementById('ia-error').style.display = 'block';
         } else {
-            // Poblar título: usar el generado por IA o el original
+            // Poblar tÃ­tulo: usar el generado por IA o el original
             const tituloIA = data.titulo || noticiaActual.titulo;
             document.getElementById('ia-titulo-value').value = tituloIA;
             document.getElementById('ia-texto').textContent = data.texto;
@@ -487,7 +494,7 @@ function generarRedaccionIA() {
     })
     .catch(() => {
         document.getElementById('ia-loading').style.display = 'none';
-        document.getElementById('ia-error-msg').textContent = 'Error de conexión. Intenta de nuevo.';
+        document.getElementById('ia-error-msg').textContent = 'Error de conexiÃ³n. Intenta de nuevo.';
         document.getElementById('ia-error').style.display = 'block';
     });
 }
@@ -506,44 +513,39 @@ function copiarRedaccion() {
     });
 }
 
+function initComunaTags() {
+    document.querySelectorAll('#pub-comunas-tags .comuna-tag').forEach(tag => {
+        if (tag.dataset.bound === '1') return;
+        tag.dataset.bound = '1';
+        tag.addEventListener('click', function () {
+            this.classList.toggle('selected');
+            const active = this.classList.contains('selected');
+            this.style.background = active ? '#16a34a' : '#f8fafc';
+            this.style.color = active ? '#ffffff' : '#334155';
+            this.style.borderColor = active ? '#15803d' : '#cbd5e1';
+        });
+    });
+}
+
 function mostrarFormPublicar() {
     const formPublicar = document.getElementById('form-publicar');
     const visible = formPublicar.style.display !== 'none';
     formPublicar.style.display = visible ? 'none' : 'block';
     if (!visible) {
+        initComunaTags();
         formPublicar.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 }
-
-function toggleImagenOpciones(tipo) {
-    // Función obsoleta, se puede eliminar
-}
-
-// Actualizar display de comunas seleccionadas
-document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('.pub-comuna-checkbox').forEach(checkbox => {
-        checkbox.addEventListener('change', function() {
-            const selected = Array.from(document.querySelectorAll('.pub-comuna-checkbox:checked'))
-                .map(cb => ({ id: cb.value, nombre: cb.dataset.nombre }));
-            
-            const container = document.getElementById('pub-comunas-selected');
-            container.innerHTML = selected.map(c => 
-                `<span style="background:#e0f2fe;color:#0369a1;padding:4px 12px;border-radius:12px;font-size:13px;font-weight:600;">${c.nombre}</span>`
-            ).join('');
-        });
-    });
-});
 
 function publicarNoticia() {
     const titulo = document.getElementById('ia-titulo-value').value.trim();
     const contenido = document.getElementById('ia-texto').textContent.trim();
     const categoriaId = document.getElementById('pub-categoria').value;
-    const comunasSeleccionadas = Array.from(document.querySelectorAll('.pub-comuna-checkbox:checked')).map(cb => cb.value);
-    const msgDiv = document.getElementById('pub-msg');
+    const imagenFile = document.getElementById('pub-imagen-file').files[0];
+    const comunasSeleccionadas = Array.from(document.querySelectorAll('#pub-comunas-tags .comuna-tag.selected')).map(el => el.dataset.id);
 
     if (!titulo) { mostrarMsgPublicar('El título es obligatorio', 'error'); return; }
     if (!categoriaId) { mostrarMsgPublicar('Debes seleccionar una categoría', 'error'); return; }
-    if (comunasSeleccionadas.length === 0) { mostrarMsgPublicar('Debes seleccionar al menos una comuna', 'error'); return; }
     if (!contenido) { mostrarMsgPublicar('No hay contenido generado', 'error'); return; }
 
     const btn = document.getElementById('btn-publicar-final');
@@ -554,8 +556,11 @@ function publicarNoticia() {
     formData.append('titulo', titulo);
     formData.append('contenido', contenido);
     formData.append('categoria_id', categoriaId);
-    formData.append('comunas', JSON.stringify(comunasSeleccionadas));
     formData.append('noticia_id', noticiaActual.id);
+    comunasSeleccionadas.forEach(id => formData.append('comunas[]', id));
+    if (imagenFile) {
+        formData.append('imagen', imagenFile);
+    }
 
     fetch('ajax/publicar-noticia-ia.php', {
         method: 'POST',
@@ -570,7 +575,6 @@ function publicarNoticia() {
         } else {
             mostrarMsgPublicar('¡Noticia publicada correctamente! <a href="noticias.php" style="color:white;font-weight:bold;">Ver en noticias →</a>', 'success');
             btn.style.display = 'none';
-            // Actualizar badge en la card de la noticia
             document.querySelectorAll('[data-noticia-id="' + noticiaActual.id + '"]').forEach(badge => {
                 badge.textContent = 'Publicado';
                 badge.style.cssText = 'background: #27ae60; color: white; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600;';
@@ -600,3 +604,6 @@ document.getElementById('modal-noticia').addEventListener('click', function(e) {
 </script>
 
 <?php include 'includes/footer.php'; ?>
+
+
+
