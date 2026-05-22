@@ -47,9 +47,9 @@ if (isset($_POST['action']) && $_POST['action'] === 'test_copilot') {
         exit;
     }
 
-    $apiUrl = trim((string)($config['copilot_api_url'] ?? 'https://api.githubcopilot.com/chat/completions'));
+    $apiUrl = trim((string)($config['copilot_api_url'] ?? 'https://models.inference.ai.azure.com/chat/completions'));
     if ($apiUrl === '') {
-        $apiUrl = 'https://api.githubcopilot.com/chat/completions';
+        $apiUrl = 'https://models.inference.ai.azure.com/chat/completions';
     }
 
     $modelo = trim((string)($config['copilot_modelo'] ?? 'claude-sonnet-4.6'));
@@ -154,7 +154,7 @@ $db->exec("INSERT IGNORE INTO configuracion_ia (nombre, valor, descripcion) VALU
     ('redaccion_provider', 'gemini', 'Proveedor para redacción IA: gemini | jina | copilot'),
     ('copilot_api_key', '', 'API Key para GitHub Copilot (chat completions)'),
     ('copilot_modelo', 'claude-sonnet-4.6', 'Modelo para GitHub Copilot (auto o claude-sonnet-4.6)'),
-    ('copilot_api_url', 'https://api.githubcopilot.com/chat/completions', 'Endpoint API para GitHub Copilot'),
+    ('copilot_api_url', 'https://models.inference.ai.azure.com/chat/completions', 'Endpoint API para GitHub Copilot (GitHub Models)'),
     ('scraping_provider_diarios', 'direct', 'Proveedor de extracción para diarios: direct | jina | gemini'),
     ('scraping_provider_facebook', 'direct', 'Proveedor de extracción para Facebook: direct | jina | gemini')
 ");

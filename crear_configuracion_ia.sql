@@ -16,7 +16,7 @@ INSERT IGNORE INTO configuracion_ia (nombre, valor, descripcion) VALUES
 ('jina_redaccion_api_url', 'https://api.jina.ai/v1/chat/completions', 'Endpoint API para redacción con Jina'),
 ('copilot_api_key', '', 'API Key para GitHub Copilot (chat completions)'),
 ('copilot_modelo', 'claude-sonnet-4.6', 'Modelo para GitHub Copilot (auto o claude-sonnet-4.6)'),
-('copilot_api_url', 'https://api.githubcopilot.com/chat/completions', 'Endpoint API para GitHub Copilot'),
+('copilot_api_url', 'https://models.inference.ai.azure.com/chat/completions', 'Endpoint API para GitHub Copilot (GitHub Models)'),
 ('jina_api_key', '', 'API Key opcional de Jina AI Reader (r.jina.ai)'),
 ('gemini_prompt_base', 'Eres un periodista profesional. A partir de la siguiente información extraída de una noticia, escribe un artículo periodístico completo, profesional y bien redactado. Mantén la objetividad y el estilo periodístico. La información es:\n\nTítulo: {titulo}\nAutor: {autor}\nCategoría: {categoria}\nContenido original: {contenido}\n\nEscribe el artículo completo con introducción, desarrollo y conclusión. Mantén un tono profesional y objetivo.', 'Prompt base para generar redacciones con IA. Usa {titulo}, {autor}, {categoria}, {contenido} como variables'),
 ('gemini_modelo', 'gemini-1.5-flash', 'Modelo de Gemini a utilizar (gemini-1.5-flash o gemini-1.5-pro)'),

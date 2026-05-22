@@ -151,12 +151,13 @@ function llamarCopilot($apiKey, $apiUrl, $modelo, $temperatura, $maxTokens, $pro
 
     $response = @file_get_contents($apiUrl, false, stream_context_create($opts));
     if ($response === false) {
-        return ['error' => 'No se pudo conectar con la API de GitHub Copilot.'];
+        return ['error' => 'No se pudo conectar con la API de GitHub Copilot. Verifica la URL y tu conexion a Internet.'];
     }
 
     $data = json_decode($response, true);
     if (!is_array($data)) {
-        return ['error' => 'Respuesta invalida de GitHub Copilot.'];
+        $preview = mb_substr(trim((string)$response), 0, 300);
+        return ['error' => 'Respuesta invalida de GitHub Copilot. Respuesta recibida: ' . $preview];
     }
 
     if (isset($data['error'])) {
@@ -286,9 +287,9 @@ function redactarConCopilot($config, $noticia) {
         return ['error' => 'No hay API Key de GitHub Copilot configurada. Ve a Configuracion IA para agregarla.'];
     }
 
-    $apiUrl = trim((string)($config['copilot_api_url'] ?? 'https://api.githubcopilot.com/chat/completions'));
+    $apiUrl = trim((string)($config['copilot_api_url'] ?? 'https://models.inference.ai.azure.com/chat/completions'));
     if ($apiUrl === '') {
-        $apiUrl = 'https://api.githubcopilot.com/chat/completions';
+        $apiUrl = 'https://models.inference.ai.azure.com/chat/completions';
     }
 
     $modelo = trim((string)($config['copilot_modelo'] ?? 'claude-sonnet-4.6'));
