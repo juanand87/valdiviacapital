@@ -137,6 +137,63 @@ function geminiStructuredExtract($cfg, $prompt, $maxTokens = 2048) {
     return ['ok' => true, 'data' => $json];
 }
 
+function copilotStructuredExtract($cfg, $prompt, $maxTokens = 2048) {
+    if (empty($cfg['copilot_api_key'])) {
+        return ['error' => 'No hay copilot_api_key configurada'];
+    }
+
+    $apiUrl = trim((string)($cfg['copilot_api_url'] ?? 'https://models.inference.ai.azure.com/chat/completions'));
+    if ($apiUrl === '') {
+        $apiUrl = 'https://models.inference.ai.azure.com/chat/completions';
+    }
+
+    $modelo = trim((string)($cfg['copilot_modelo'] ?? 'auto'));
+    if ($modelo === '') {
+        $modelo = 'auto';
+    }
+
+    $payload = json_encode([
+        'model' => $modelo,
+        'messages' => [
+            ['role' => 'user', 'content' => $prompt]
+        ],
+        'temperature' => 0.3,
+        'max_tokens' => (int)$maxTokens
+    ]);
+
+    $opts = [
+        'http' => [
+            'method' => 'POST',
+            'header' => "Content-Type: application/json\r\nAuthorization: Bearer {$cfg['copilot_api_key']}\r\nAccept: application/json\r\n",
+            'content' => $payload,
+            'timeout' => 60,
+            'ignore_errors' => true
+        ]
+    ];
+
+    $response = @file_get_contents($apiUrl, false, stream_context_create($opts));
+    if ($response === false) {
+        return ['error' => 'No se pudo conectar con GitHub Copilot'];
+    }
+
+    $data = json_decode($response, true);
+    if (isset($data['error'])) {
+        $msg = is_array($data['error']) ? ($data['error']['message'] ?? 'Error desconocido') : (string)$data['error'];
+        return ['error' => $msg];
+    }
+
+    $text = $data['choices'][0]['message']['content'] ?? '';
+    $text = preg_replace('/^```json\s*/i', '', trim($text));
+    $text = preg_replace('/\s*```$/', '', $text);
+
+    $json = json_decode(trim($text), true);
+    if (!is_array($json)) {
+        return ['error' => 'GitHub Copilot devolvió respuesta no JSON'];
+    }
+
+    return ['ok' => true, 'data' => $json];
+}
+
 function extractDiarioArticleByProvider($db, $url, $html, $providerCfg) {
     $mode = $providerCfg['provider_diarios'] ?? 'direct';
 
@@ -195,6 +252,28 @@ function extractFacebookPostsByProvider($providerCfg, $pageUrl, $html) {
                   "Si no hay timestamp, usa 0. HTML:\n{$sample}";
 
         $res = geminiStructuredExtract($providerCfg, $prompt, 1800);
+        if (!empty($res['ok']) && !empty($res['data']['posts']) && is_array($res['data']['posts'])) {
+            $out = [];
+            foreach ($res['data']['posts'] as $p) {
+                $texto = trim((string)($p['texto'] ?? ''));
+                if (mb_strlen($texto) < 10) continue;
+                $out[] = [
+                    'texto' => $texto,
+                    'timestamp' => (int)($p['timestamp'] ?? 0),
+                ];
+            }
+            return $out;
+        }
+        return [];
+    }
+
+    if ($mode === 'copilot') {
+        $sample = mb_substr((string)$html, 0, 18000);
+        $prompt = "Desde el siguiente HTML de una página de Facebook pública, extrae hasta 5 posts recientes y devuelve JSON válido sin texto adicional con esta forma exacta: " .
+                  "{\"posts\":[{\"texto\":\"...\",\"timestamp\":1234567890}]}. " .
+                  "Si no hay timestamp, usa 0. HTML:\n{$sample}";
+
+        $res = copilotStructuredExtract($providerCfg, $prompt, 1800);
         if (!empty($res['ok']) && !empty($res['data']['posts']) && is_array($res['data']['posts'])) {
             $out = [];
             foreach ($res['data']['posts'] as $p) {

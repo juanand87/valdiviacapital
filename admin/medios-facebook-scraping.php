@@ -1,10 +1,35 @@
 <?php
+session_start();
 $page_title = 'Scraping Facebook';
 require_once '../includes/config.php';
 require_once '../includes/scraping_ai.php';
 
 $db = getDB();
 $providerCfg = getScrapingProviderConfig($db);
+
+// Procesar cambio de proveedor via AJAX
+if ($_POST['action'] ?? '' === 'change_provider' && isset($_POST['provider'])) {
+    header('Content-Type: application/json');
+    if (!isset($_SESSION['admin_id'])) {
+        echo json_encode(['error' => 'No autorizado']);
+        exit;
+    }
+    
+    $provider = $_POST['provider'];
+    if (!in_array($provider, ['direct', 'jina', 'gemini', 'copilot'], true)) {
+        echo json_encode(['error' => 'Proveedor inválido']);
+        exit;
+    }
+    
+    try {
+        $db->prepare("UPDATE configuracion_ia SET valor = :valor WHERE nombre = 'scraping_provider_facebook'")
+           ->execute([':valor' => $provider]);
+        echo json_encode(['ok' => true, 'provider' => $provider]);
+    } catch (PDOException $e) {
+        echo json_encode(['error' => $e->getMessage()]);
+    }
+    exit;
+}
 
 // Procesar formulario
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -93,10 +118,24 @@ $paginas = $stmt->fetchAll();
     <div>
         <h1><i class="fab fa-facebook"></i> Scraping Facebook</h1>
         <p>Extrae publicaciones de páginas públicas de Facebook sin necesidad de API</p>
-        <p style="margin-top:6px; color:#666; font-size:13px;">
-            Proveedor activo: <strong><?php echo htmlspecialchars($providerCfg['provider_facebook'] ?? 'direct'); ?></strong>
-            <a href="configuracion-ia.php" style="margin-left:8px;">cambiar en Configuración IA</a>
-        </p>
+        <div style="margin-top:12px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+            <label for="provider-selector" style="margin:0; color:#666; font-size:13px;">Proveedor de extracción:</label>
+            <select id="provider-selector" class="form-control" style="flex:0 0 auto; width:200px; max-width:100%;" onchange="cambiarProveedor()">
+                <option value="direct" <?php echo ($providerCfg['provider_facebook'] ?? 'direct') === 'direct' ? 'selected' : ''; ?>>
+                    Directo (HTML/Regex)
+                </option>
+                <option value="jina" <?php echo ($providerCfg['provider_facebook'] ?? 'direct') === 'jina' ? 'selected' : ''; ?>>
+                    Jina AI Reader
+                </option>
+                <option value="gemini" <?php echo ($providerCfg['provider_facebook'] ?? 'direct') === 'gemini' ? 'selected' : ''; ?>>
+                    Gemini
+                </option>
+                <option value="copilot" <?php echo ($providerCfg['provider_facebook'] ?? 'direct') === 'copilot' ? 'selected' : ''; ?>>
+                    GitHub Copilot
+                </option>
+            </select>
+            <span id="provider-status" style="color:#666; font-size:12px;"></span>
+        </div>
     </div>
     <a href="medios-conectados.php" class="btn btn-secondary">
         <i class="fas fa-arrow-left"></i> Volver
@@ -415,6 +454,47 @@ function escapeHtml(str) {
     var d = document.createElement('div');
     d.textContent = str || '';
     return d.innerHTML;
+}
+
+function cambiarProveedor() {
+    var selector = document.getElementById('provider-selector');
+    var status = document.getElementById('provider-status');
+    var nuevoProvider = selector.value;
+    
+    status.textContent = '';
+    status.style.color = '#666';
+    selector.disabled = true;
+    
+    var formData = new FormData();
+    formData.append('action', 'change_provider');
+    formData.append('provider', nuevoProvider);
+    
+    fetch(window.location.href, {
+        method: 'POST',
+        body: formData
+    })
+    .then(function(response) { return response.json(); })
+    .then(function(data) {
+        if (data.ok) {
+            status.textContent = '✓ Proveedor actualizado';
+            status.style.color = '#27ae60';
+            setTimeout(function() {
+                status.textContent = '';
+            }, 3000);
+        } else {
+            status.textContent = '✗ ' + (data.error || 'Error desconocido');
+            status.style.color = '#e74c3c';
+            selector.value = selector.options[0].value; // Revertir
+        }
+    })
+    .catch(function(err) {
+        status.textContent = '✗ Error de red';
+        status.style.color = '#e74c3c';
+        selector.value = selector.options[0].value; // Revertir
+    })
+    .finally(function() {
+        selector.disabled = false;
+    });
 }
 </script>
 

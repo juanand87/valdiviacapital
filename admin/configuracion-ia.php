@@ -159,7 +159,7 @@ $db->exec("INSERT IGNORE INTO configuracion_ia (nombre, valor, descripcion) VALU
     ('copilot_modelo', 'auto', 'Modelo para GitHub Copilot (auto o gpt-4o-mini)'),
     ('copilot_api_url', 'https://models.inference.ai.azure.com/chat/completions', 'Endpoint API para GitHub Copilot (GitHub Models)'),
     ('scraping_provider_diarios', 'direct', 'Proveedor de extracción para diarios: direct | jina | gemini'),
-    ('scraping_provider_facebook', 'direct', 'Proveedor de extracción para Facebook: direct | jina | gemini')
+    ('scraping_provider_facebook', 'direct', 'Proveedor de extracción para Facebook: direct | jina | gemini | copilot')
 ");
 
 // Migrar URL antigua de GitHub Copilot si aún existe
@@ -327,8 +327,13 @@ $config = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                 Jina AI Reader (r.jina.ai)
                             </option>
                             <option value="gemini" <?php echo $item['valor'] === 'gemini' ? 'selected' : ''; ?>>
-                                Gemini (extracción estructurada por IA)
+                                Gemini (extracción estructurada)
                             </option>
+                            <?php if ($item['nombre'] === 'scraping_provider_facebook'): ?>
+                            <option value="copilot" <?php echo $item['valor'] === 'copilot' ? 'selected' : ''; ?>>
+                                GitHub Copilot (extracción estructurada)
+                            </option>
+                            <?php endif; ?>
                         </select>
                     <?php elseif ($item['nombre'] === 'gemini_api_key'): ?>
                         <input 
