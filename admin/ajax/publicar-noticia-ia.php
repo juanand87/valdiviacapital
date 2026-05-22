@@ -39,7 +39,9 @@ register_shutdown_function(function () {
         }
         echo json_encode([
             'error' => 'Error fatal al publicar la noticia IA.',
-            'debug' => $error['message'] ?? 'error desconocido'
+            'debug' => $error['message'] ?? 'error desconocido',
+            'file' => $error['file'] ?? 'desconocido',
+            'line' => $error['line'] ?? 0
         ], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
     }
 });
@@ -51,19 +53,6 @@ if (!isset($_SESSION['admin_id'])) {
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     responderJson(['error' => 'Método no permitido'], 405);
 }
-
-try {
-    $db = getDB();
-} catch (PDOException $e) {
-    responderJson(['error' => 'No se pudo conectar con la base de datos', 'debug' => $e->getMessage()], 500);
-}
-
-$titulo       = trim($_POST['titulo'] ?? '');
-$contenidoMd  = trim($_POST['contenido'] ?? '');
-$categoria_id = (int)($_POST['categoria_id'] ?? 0);
-$noticia_id   = (int)($_POST['noticia_id'] ?? 0);
-$comunas_ids  = is_array($_POST['comunas'] ?? null) ? array_values(array_unique(array_filter(array_map('intval', $_POST['comunas'])))) : [];
-$autor_id     = (int)$_SESSION['admin_id'];
 
 function markdownToHTML($md) {
     $lines = explode("\n", $md);
@@ -105,54 +94,64 @@ function markdownToHTML($md) {
     return trim($html);
 }
 
-$contenido = markdownToHTML($contenidoMd);
+try {
+    $db = getDB();
 
-if ($titulo === '') {
-    responderJson(['error' => 'El título es obligatorio'], 422);
-}
-if ($contenido === '') {
-    responderJson(['error' => 'El contenido no puede estar vacío'], 422);
-}
-if ($categoria_id <= 0) {
-    responderJson(['error' => 'Debes seleccionar una categoría'], 422);
-}
+    $titulo       = trim($_POST['titulo'] ?? '');
+    $contenidoMd  = trim($_POST['contenido'] ?? '');
+    $categoria_id = (int)($_POST['categoria_id'] ?? 0);
+    $noticia_id   = (int)($_POST['noticia_id'] ?? 0);
+    $comunas_ids  = is_array($_POST['comunas'] ?? null) ? array_values(array_unique(array_filter(array_map('intval', $_POST['comunas'])))) : [];
+    $autor_id     = (int)$_SESSION['admin_id'];
 
-$stmt = $db->prepare('SELECT id FROM categorias WHERE id = :id');
-$stmt->execute([':id' => $categoria_id]);
-if (!$stmt->fetch()) {
-    responderJson(['error' => 'Categoría no válida'], 422);
-}
+    $contenido = markdownToHTML($contenidoMd);
 
-$bajada = null;
-$imagen_principal = null;
-if ($noticia_id > 0) {
-    $stmt = $db->prepare('SELECT imagen_url, bajada FROM medios_contenido_sincronizado WHERE id = :id');
-    $stmt->execute([':id' => $noticia_id]);
-    $origen = $stmt->fetch(PDO::FETCH_ASSOC);
-    if ($origen) {
-        $bajada = !empty($origen['bajada']) ? trim((string)$origen['bajada']) : null;
-        $imagen_principal = !empty($origen['imagen_url']) ? trim((string)$origen['imagen_url']) : null;
+    if ($titulo === '') {
+        responderJson(['error' => 'El título es obligatorio'], 422);
     }
-}
-
-if (!empty($_FILES['imagen']['name']) && (int)($_FILES['imagen']['error'] ?? 1) === UPLOAD_ERR_OK) {
-    $uploadDir = '../../uploads/noticias/';
-    if (!is_dir($uploadDir)) {
-        mkdir($uploadDir, 0777, true);
+    if ($contenido === '') {
+        responderJson(['error' => 'El contenido no puede estar vacío'], 422);
+    }
+    if ($categoria_id <= 0) {
+        responderJson(['error' => 'Debes seleccionar una categoría'], 422);
     }
 
-    $ext = strtolower(pathinfo($_FILES['imagen']['name'], PATHINFO_EXTENSION));
-    $allowedExt = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-    if (!in_array($ext, $allowedExt, true)) {
-        responderJson(['error' => 'Formato de imagen no permitido. Usa JPG, PNG, GIF o WEBP.'], 422);
+    $stmt = $db->prepare('SELECT id FROM categorias WHERE id = :id');
+    $stmt->execute([':id' => $categoria_id]);
+    if (!$stmt->fetch()) {
+        responderJson(['error' => 'Categoría no válida'], 422);
     }
 
-    $filename = 'ia_' . uniqid('', true) . '.' . $ext;
-    if (!move_uploaded_file($_FILES['imagen']['tmp_name'], $uploadDir . $filename)) {
-        responderJson(['error' => 'No se pudo guardar la imagen subida.'], 500);
+    $bajada = null;
+    $imagen_principal = null;
+    if ($noticia_id > 0) {
+        $stmt = $db->prepare('SELECT imagen_url, bajada FROM medios_contenido_sincronizado WHERE id = :id');
+        $stmt->execute([':id' => $noticia_id]);
+        $origen = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($origen) {
+            $bajada = !empty($origen['bajada']) ? trim((string)$origen['bajada']) : null;
+            $imagen_principal = !empty($origen['imagen_url']) ? trim((string)$origen['imagen_url']) : null;
+        }
     }
-    $imagen_principal = 'uploads/noticias/' . $filename;
-}
+
+    if (!empty($_FILES['imagen']['name']) && (int)($_FILES['imagen']['error'] ?? 1) === UPLOAD_ERR_OK) {
+        $uploadDir = '../../uploads/noticias/';
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0777, true);
+        }
+
+        $ext = strtolower(pathinfo($_FILES['imagen']['name'], PATHINFO_EXTENSION));
+        $allowedExt = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+        if (!in_array($ext, $allowedExt, true)) {
+            responderJson(['error' => 'Formato de imagen no permitido. Usa JPG, PNG, GIF o WEBP.'], 422);
+        }
+
+        $filename = 'ia_' . uniqid('', true) . '.' . $ext;
+        if (!move_uploaded_file($_FILES['imagen']['tmp_name'], $uploadDir . $filename)) {
+            responderJson(['error' => 'No se pudo guardar la imagen subida.'], 500);
+        }
+        $imagen_principal = 'uploads/noticias/' . $filename;
+    }
 
 function generarSlug($texto) {
     $texto = function_exists('mb_strtolower') ? mb_strtolower($texto, 'UTF-8') : strtolower($texto);
@@ -164,18 +163,17 @@ function generarSlug($texto) {
     return substr($texto, 0, 200);
 }
 
-$slugBase = generarSlug($titulo);
-$slug = $slugBase;
-$i = 1;
-while (true) {
-    $stmt = $db->prepare('SELECT id FROM noticias WHERE slug = :slug');
-    $stmt->execute([':slug' => $slug]);
-    if (!$stmt->fetch()) break;
-    $slug = $slugBase . '-' . $i;
-    $i++;
-}
+    $slugBase = generarSlug($titulo);
+    $slug = $slugBase;
+    $i = 1;
+    while (true) {
+        $stmt = $db->prepare('SELECT id FROM noticias WHERE slug = :slug');
+        $stmt->execute([':slug' => $slug]);
+        if (!$stmt->fetch()) break;
+        $slug = $slugBase . '-' . $i;
+        $i++;
+    }
 
-try {
     $stmt = $db->prepare('
         INSERT INTO noticias (titulo, slug, bajada, contenido, imagen_principal, categoria_id, autor_id, publicado, fecha_publicacion, created_at, updated_at)
         VALUES (:titulo, :slug, :bajada, :contenido, :imagen_principal, :categoria_id, :autor_id, 1, NOW(), NOW(), NOW())
@@ -207,10 +205,15 @@ try {
         $stmt = $db->prepare("UPDATE medios_contenido_sincronizado SET estado = 'publicado' WHERE id = :id");
         $stmt->execute([':id' => $noticia_id]);
     }
-} catch (PDOException $e) {
-    responderJson(['error' => 'Error al guardar la noticia: ' . $e->getMessage()], 500);
+    cacheInvalidateHomepage();
+
+    responderJson(['success' => true, 'id' => $nueva_id, 'slug' => $slug], 200);
+} catch (Throwable $e) {
+    error_log('publicar-noticia-ia.php: ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine());
+    responderJson([
+        'error' => 'Error interno al publicar la noticia IA.',
+        'debug' => $e->getMessage(),
+        'file' => $e->getFile(),
+        'line' => $e->getLine(),
+    ], 500);
 }
-
-cacheInvalidateHomepage();
-
-responderJson(['success' => true, 'id' => $nueva_id, 'slug' => $slug], 200);
