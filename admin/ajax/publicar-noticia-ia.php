@@ -15,6 +15,8 @@ function responderJson(array $payload, int $status = 200): void {
     if (!headers_sent()) {
         http_response_code($status);
         header('Content-Type: application/json; charset=UTF-8');
+        header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+        header('Pragma: no-cache');
     }
     while (ob_get_level() > 0) {
         ob_end_clean();
@@ -37,11 +39,14 @@ register_shutdown_function(function () {
             http_response_code(500);
             header('Content-Type: application/json; charset=UTF-8');
         }
+        $debug = $error['message'] ?? 'error desconocido';
+        $file = $error['file'] ?? 'desconocido';
+        $line = $error['line'] ?? 0;
         echo json_encode([
-            'error' => 'Error fatal al publicar la noticia IA.',
-            'debug' => $error['message'] ?? 'error desconocido',
-            'file' => $error['file'] ?? 'desconocido',
-            'line' => $error['line'] ?? 0
+            'error' => 'Error fatal al publicar la noticia IA. [' . $debug . ' @ ' . $file . ':' . $line . ']',
+            'debug' => $debug,
+            'file' => $file,
+            'line' => $line
         ], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
     }
 });
@@ -210,9 +215,13 @@ function generarSlug($texto) {
     responderJson(['success' => true, 'id' => $nueva_id, 'slug' => $slug], 200);
 } catch (Throwable $e) {
     error_log('publicar-noticia-ia.php: ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine());
+    $debug = trim((string)$e->getMessage());
+    if ($debug === '') {
+        $debug = get_class($e);
+    }
     responderJson([
-        'error' => 'Error interno al publicar la noticia IA.',
-        'debug' => $e->getMessage(),
+        'error' => 'Error interno al publicar la noticia IA. [' . $debug . ' @ ' . $e->getFile() . ':' . $e->getLine() . ']',
+        'debug' => $debug,
         'file' => $e->getFile(),
         'line' => $e->getLine(),
     ], 500);
