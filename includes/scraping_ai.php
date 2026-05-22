@@ -14,12 +14,15 @@ function getScrapingProviderConfig($db) {
     }
 
     return [
-        'provider_diarios'  => $cfg['scraping_provider_diarios'] ?? 'direct',
-        'provider_facebook' => $cfg['scraping_provider_facebook'] ?? 'direct',
-        'jina_api_key'      => $cfg['jina_api_key'] ?? '',
-        'gemini_api_key'    => $cfg['gemini_api_key'] ?? '',
-        'gemini_modelo'     => $cfg['gemini_modelo'] ?? 'gemini-2.5-flash',
-        'gemini_temperatura'=> (float)($cfg['gemini_temperatura'] ?? 0.3),
+        'provider_diarios'   => $cfg['scraping_provider_diarios'] ?? 'direct',
+        'provider_facebook'  => $cfg['scraping_provider_facebook'] ?? 'direct',
+        'jina_api_key'       => $cfg['jina_api_key'] ?? '',
+        'gemini_api_key'     => $cfg['gemini_api_key'] ?? '',
+        'gemini_modelo'      => $cfg['gemini_modelo'] ?? 'gemini-2.5-flash',
+        'gemini_temperatura' => (float)($cfg['gemini_temperatura'] ?? 0.3),
+        'copilot_api_key'    => $cfg['copilot_api_key'] ?? '',
+        'copilot_modelo'     => $cfg['copilot_modelo'] ?? 'auto',
+        'copilot_api_url'    => $cfg['copilot_api_url'] ?? 'https://models.inference.ai.azure.com/chat/completions',
     ];
 }
 
@@ -268,25 +271,62 @@ function extractFacebookPostsByProvider($providerCfg, $pageUrl, $html) {
     }
 
     if ($mode === 'copilot') {
-        $sample = mb_substr((string)$html, 0, 18000);
-        $prompt = "Desde el siguiente HTML de una página de Facebook pública, extrae hasta 5 posts recientes y devuelve JSON válido sin texto adicional con esta forma exacta: " .
-                  "{\"posts\":[{\"texto\":\"...\",\"timestamp\":1234567890}]}. " .
-                  "Si no hay timestamp, usa 0. HTML:\n{$sample}";
+        // Extraer texto plano del HTML para no saturar el contexto del LLM
+        $textoPlano = '';
 
-        $res = copilotStructuredExtract($providerCfg, $prompt, 1800);
+        // Intentar primero con Jina Reader para obtener texto limpio
+        $jina = getJinaReaderContent($pageUrl, $providerCfg['jina_api_key'] ?? '');
+        if ($jina['ok'] && mb_strlen(trim((string)$jina['body'])) > 50) {
+            $textoPlano = mb_substr(trim((string)$jina['body']), 0, 12000);
+        } else {
+            // Fallback: strip_tags sobre el HTML para extraer solo texto
+            $stripped = strip_tags(preg_replace('#<script[^>]*>.*?</script>#si', '', (string)$html));
+            $stripped = preg_replace('/\s{2,}/', ' ', $stripped);
+            $textoPlano = mb_substr(trim($stripped), 0, 12000);
+        }
+
+        if (mb_strlen($textoPlano) < 30) {
+            return [];
+        }
+
+        $prompt = "Eres un extractor de datos. Analiza el siguiente texto extraído de una página pública de Facebook " .
+                  "e identifica hasta 5 publicaciones (posts) recientes. " .
+                  "Devuelve ÚNICAMENTE un JSON válido sin texto adicional ni bloques de código, con esta estructura exacta: " .
+                  '{"posts":[{"texto":"contenido del post","timestamp":1234567890}]}. ' .
+                  "Si no encuentras timestamp Unix de 10 dígitos, usa 0. " .
+                  "Texto:\n{$textoPlano}";
+
+        $res = copilotStructuredExtract($providerCfg, $prompt, 2000);
         if (!empty($res['ok']) && !empty($res['data']['posts']) && is_array($res['data']['posts'])) {
             $out = [];
             foreach ($res['data']['posts'] as $p) {
                 $texto = trim((string)($p['texto'] ?? ''));
                 if (mb_strlen($texto) < 10) continue;
                 $out[] = [
-                    'texto' => $texto,
+                    'texto'     => $texto,
                     'timestamp' => (int)($p['timestamp'] ?? 0),
                 ];
             }
-            return $out;
+            if (!empty($out)) return $out;
         }
-        return [];
+
+        // Fallback: extracción directa por regex del HTML original
+        preg_match_all('#"message":\{"text":"((?:[^"\\\\]|\\\\.)*)"\}#', (string)$html, $msgMatches);
+        preg_match_all('#"creation_time":(\d{10})#', (string)$html, $timeMatches);
+        $texts = $msgMatches[1] ?? [];
+        $times = $timeMatches[1] ?? [];
+        $fallback = [];
+        foreach ($texts as $i => $raw) {
+            $texto = @json_decode('"' . $raw . '"');
+            if (!is_string($texto)) $texto = $raw;
+            $texto = trim($texto);
+            if (mb_strlen($texto) < 10) continue;
+            $fallback[] = [
+                'texto'     => $texto,
+                'timestamp' => isset($times[$i]) ? (int)$times[$i] : 0,
+            ];
+        }
+        return $fallback;
     }
 
     // direct (JSON embebido)
