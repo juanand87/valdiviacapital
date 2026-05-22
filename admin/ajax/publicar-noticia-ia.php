@@ -130,11 +130,10 @@ try {
     $bajada = null;
     $imagen_principal = null;
     if ($noticia_id > 0) {
-        $stmt = $db->prepare('SELECT imagen_url, bajada FROM medios_contenido_sincronizado WHERE id = :id');
+        $stmt = $db->prepare('SELECT imagen_url FROM medios_contenido_sincronizado WHERE id = :id');
         $stmt->execute([':id' => $noticia_id]);
         $origen = $stmt->fetch(PDO::FETCH_ASSOC);
         if ($origen) {
-            $bajada = !empty($origen['bajada']) ? trim((string)$origen['bajada']) : null;
             $imagen_principal = !empty($origen['imagen_url']) ? trim((string)$origen['imagen_url']) : null;
         }
     }
