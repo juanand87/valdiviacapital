@@ -31,6 +31,9 @@ $error = null;
 
 // Función para limpiar texto
 function limpiarTexto($texto) {
+    // Decodificar entidades para evitar guardar etiquetas escapadas como texto
+    $texto = html_entity_decode($texto, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
     // Eliminar scripts, estilos y comentarios
     $texto = preg_replace('/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/i', '', $texto);
     $texto = preg_replace('/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/i', '', $texto);
@@ -222,10 +225,34 @@ function hacerScraping($url, $selectores, $db = null, $medio_id = null, &$diagno
                     $selectorContenido = convertirCSSaXPath($selectores['contenido']);
                     $contenidos = @$xpathNoticia->query($selectorContenido);
                     if ($contenidos && $contenidos->length > 0) {
-                        $nodoContenido = $contenidos->item(0);
-                        // Obtener HTML interno para preservar estructura de párrafos
-                        $htmlContenido = $domNoticia->saveHTML($nodoContenido);
-                        $textoContenido = limpiarTexto($htmlContenido);
+                        $fragmentos = [];
+                        foreach ($contenidos as $nodoContenido) {
+                            // Si es selector por párrafos (.news-body p), priorizar texto directo del nodo
+                            $textoNodo = limpiarTexto($nodoContenido->textContent ?? '');
+                            if ($textoNodo !== '' && strlen($textoNodo) > 10) {
+                                $fragmentos[] = $textoNodo;
+                                continue;
+                            }
+
+                            // Fallback: limpiar HTML del nodo si no hubo texto util
+                            $htmlNodo = $domNoticia->saveHTML($nodoContenido);
+                            $textoDesdeHtml = limpiarTexto($htmlNodo);
+                            if ($textoDesdeHtml !== '' && strlen($textoDesdeHtml) > 10) {
+                                $fragmentos[] = $textoDesdeHtml;
+                            }
+                        }
+
+                        // Unir fragmentos y evitar duplicados contiguos
+                        $fragmentos = array_values(array_filter($fragmentos));
+                        $fragmentosUnicos = [];
+                        foreach ($fragmentos as $frag) {
+                            $last = end($fragmentosUnicos);
+                            if ($last !== $frag) {
+                                $fragmentosUnicos[] = $frag;
+                            }
+                        }
+
+                        $textoContenido = trim(implode("\n\n", $fragmentosUnicos));
                         if (strlen($textoContenido) > 50) {
                             $resultado['contenido'] = $textoContenido;
                         }
