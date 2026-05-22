@@ -46,6 +46,9 @@ $noticias = $stmt->fetchAll();
 // Obtener categorías para el formulario de publicación
 $categorias = $db->query("SELECT id, nombre FROM categorias ORDER BY nombre")->fetchAll();
 
+// Obtener comunas para el formulario de publicación
+$comunas = $db->query("SELECT id, nombre FROM comunas ORDER BY nombre")->fetchAll();
+
 // Obtener estadísticas
 $stmt = $db->prepare("
     SELECT 
@@ -335,17 +338,18 @@ const noticias = <?php echo json_encode(array_values($noticias), JSON_UNESCAPED_
                     </div>
 
                     <div class="form-group">
-                        <label style="font-weight: 600;">Bajada / Resumen</label>
-                        <textarea id="pub-bajada" class="form-control" rows="2" placeholder="Breve descripción del artículo (opcional)"></textarea>
-                    </div>
-
-                    <div class="form-group">
-                        <label style="font-weight: 600;">Imagen principal</label>
-                        <div style="display: flex; gap: 10px; flex-direction: column;">
-                            <input type="file" id="pub-imagen-file" accept="image/*" class="form-control" onchange="toggleImagenOpciones('file')">
-                            <div style="text-align: center; color: #888; font-size: 13px;">— o usar URL de imagen —</div>
-                            <input type="url" id="pub-imagen-url" class="form-control" placeholder="https://...url de imagen de la noticia original" onchange="toggleImagenOpciones('url')">
+                        <label style="font-weight: 600;">Comunas <span style="color:red">*</span></label>
+                        <div id="pub-comunas-container" style="border: 1px solid #ddd; border-radius: 6px; padding: 10px; background: white; min-height: 40px; max-height: 200px; overflow-y: auto;">
+                            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px;">
+                                <?php foreach ($comunas as $com): ?>
+                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 6px; border-radius: 4px; transition: background 0.2s;">
+                                        <input type="checkbox" value="<?php echo $com['id']; ?>" class="pub-comuna-checkbox" data-nombre="<?php echo htmlspecialchars($com['nombre']); ?>" style="cursor: pointer;">
+                                        <span style="font-size: 14px;"><?php echo htmlspecialchars($com['nombre']); ?></span>
+                                    </label>
+                                <?php endforeach; ?>
+                            </div>
                         </div>
+                        <div id="pub-comunas-selected" style="margin-top: 10px; display: flex; gap: 6px; flex-wrap: wrap; min-height: 30px;"></div>
                     </div>
 
                     <div id="pub-msg" style="display: none; margin-bottom: 10px;"></div>
@@ -440,10 +444,9 @@ function cerrarModal() {
     document.getElementById('form-publicar').style.display = 'none';
     document.getElementById('ia-titulo-value').value = '';
     document.getElementById('ia-texto').textContent = '';
-    document.getElementById('pub-bajada').value = '';
     document.getElementById('pub-categoria').value = '';
-    document.getElementById('pub-imagen-url').value = '';
-    document.getElementById('pub-imagen-file').value = '';
+    document.querySelectorAll('.pub-comuna-checkbox').forEach(cb => cb.checked = false);
+    document.getElementById('pub-comunas-selected').innerHTML = '';
     document.getElementById('pub-msg').style.display = 'none';
     const btnFinal = document.getElementById('btn-publicar-final');
     btnFinal.style.display = '';
@@ -479,10 +482,6 @@ function generarRedaccionIA() {
             document.getElementById('ia-titulo-value').value = tituloIA;
             document.getElementById('ia-texto').textContent = data.texto;
             document.getElementById('form-publicar').style.display = 'none';
-            // Pre-llenar imagen URL con la de la noticia escaneada
-            if (noticiaActual.imagen_url) {
-                document.getElementById('pub-imagen-url').value = noticiaActual.imagen_url;
-            }
             document.getElementById('ia-resultado').style.display = 'block';
         }
     })
@@ -517,24 +516,34 @@ function mostrarFormPublicar() {
 }
 
 function toggleImagenOpciones(tipo) {
-    if (tipo === 'file' && document.getElementById('pub-imagen-file').files.length > 0) {
-        document.getElementById('pub-imagen-url').value = '';
-    } else if (tipo === 'url' && document.getElementById('pub-imagen-url').value) {
-        document.getElementById('pub-imagen-file').value = '';
-    }
+    // Función obsoleta, se puede eliminar
 }
+
+// Actualizar display de comunas seleccionadas
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.pub-comuna-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const selected = Array.from(document.querySelectorAll('.pub-comuna-checkbox:checked'))
+                .map(cb => ({ id: cb.value, nombre: cb.dataset.nombre }));
+            
+            const container = document.getElementById('pub-comunas-selected');
+            container.innerHTML = selected.map(c => 
+                `<span style="background:#e0f2fe;color:#0369a1;padding:4px 12px;border-radius:12px;font-size:13px;font-weight:600;">${c.nombre}</span>`
+            ).join('');
+        });
+    });
+});
 
 function publicarNoticia() {
     const titulo = document.getElementById('ia-titulo-value').value.trim();
     const contenido = document.getElementById('ia-texto').textContent.trim();
     const categoriaId = document.getElementById('pub-categoria').value;
-    const bajada = document.getElementById('pub-bajada').value.trim();
-    const imagenUrl = document.getElementById('pub-imagen-url').value.trim();
-    const imagenFile = document.getElementById('pub-imagen-file').files[0];
+    const comunasSeleccionadas = Array.from(document.querySelectorAll('.pub-comuna-checkbox:checked')).map(cb => cb.value);
     const msgDiv = document.getElementById('pub-msg');
 
     if (!titulo) { mostrarMsgPublicar('El título es obligatorio', 'error'); return; }
     if (!categoriaId) { mostrarMsgPublicar('Debes seleccionar una categoría', 'error'); return; }
+    if (comunasSeleccionadas.length === 0) { mostrarMsgPublicar('Debes seleccionar al menos una comuna', 'error'); return; }
     if (!contenido) { mostrarMsgPublicar('No hay contenido generado', 'error'); return; }
 
     const btn = document.getElementById('btn-publicar-final');
@@ -545,13 +554,8 @@ function publicarNoticia() {
     formData.append('titulo', titulo);
     formData.append('contenido', contenido);
     formData.append('categoria_id', categoriaId);
-    formData.append('bajada', bajada);
+    formData.append('comunas', JSON.stringify(comunasSeleccionadas));
     formData.append('noticia_id', noticiaActual.id);
-    if (imagenFile) {
-        formData.append('imagen', imagenFile);
-    } else if (imagenUrl) {
-        formData.append('imagen_url', imagenUrl);
-    }
 
     fetch('ajax/publicar-noticia-ia.php', {
         method: 'POST',

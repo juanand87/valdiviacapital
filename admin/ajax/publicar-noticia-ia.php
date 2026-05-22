@@ -20,11 +20,12 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 $titulo      = trim($_POST['titulo']      ?? '');
 $contenido   = trim($_POST['contenido']   ?? '');
-$bajada      = trim($_POST['bajada']      ?? '');
 $categoria_id = (int)($_POST['categoria_id'] ?? 0);
 $noticia_id  = (int)($_POST['noticia_id'] ?? 0);
-$imagen_url  = trim($_POST['imagen_url']  ?? '');
 $autor_id    = (int)$_SESSION['admin_id'];
+$comunas_json = trim($_POST['comunas'] ?? '[]');
+$comunas_ids = json_decode($comunas_json, true) ?? [];
+$comunas_ids = array_map('intval', $comunas_ids);
 
 // Convertir Markdown a HTML limpio
 function markdownToHTML($md) {
@@ -88,6 +89,10 @@ if (!$categoria_id) {
     echo json_encode(['error' => 'Debes seleccionar una categoría']);
     exit;
 }
+if (empty($comunas_ids)) {
+    echo json_encode(['error' => 'Debes seleccionar al menos una comuna']);
+    exit;
+}
 
 $db = getDB();
 
@@ -121,38 +126,18 @@ while (true) {
     $i++;
 }
 
-// Manejar imagen principal
+// Manejar imagen principal (usar la de la noticia escaneada)
 $imagen_principal = '';
-
-if (!empty($_FILES['imagen']['name']) && $_FILES['imagen']['error'] === UPLOAD_ERR_OK) {
-    $uploadDir = '../../uploads/noticias/';
-    if (!is_dir($uploadDir)) {
-        mkdir($uploadDir, 0777, true);
-    }
-    $ext = strtolower(pathinfo($_FILES['imagen']['name'], PATHINFO_EXTENSION));
-    $allowedExt = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-    if (!in_array($ext, $allowedExt)) {
-        echo json_encode(['error' => 'Formato de imagen no permitido. Usa JPG, PNG, GIF o WEBP.']);
-        exit;
-    }
-    $filename = 'ia_' . uniqid() . '.' . $ext;
-    if (move_uploaded_file($_FILES['imagen']['tmp_name'], $uploadDir . $filename)) {
-        $imagen_principal = 'uploads/noticias/' . $filename;
-    }
-} elseif (!empty($imagen_url)) {
-    $imagen_principal = $imagen_url;
-}
 
 // Insertar en tabla noticias
 try {
     $stmt = $db->prepare("
-        INSERT INTO noticias (titulo, slug, bajada, contenido, imagen_principal, categoria_id, autor_id, publicado, fecha_publicacion, created_at, updated_at)
-        VALUES (:titulo, :slug, :bajada, :contenido, :imagen_principal, :categoria_id, :autor_id, 1, NOW(), NOW(), NOW())
+        INSERT INTO noticias (titulo, slug, contenido, imagen_principal, categoria_id, autor_id, publicado, fecha_publicacion, created_at, updated_at)
+        VALUES (:titulo, :slug, :contenido, :imagen_principal, :categoria_id, :autor_id, 1, NOW(), NOW(), NOW())
     ");
     $stmt->execute([
         ':titulo'           => $titulo,
         ':slug'             => $slug,
-        ':bajada'           => $bajada ?: null,
         ':contenido'        => $contenido,
         ':imagen_principal' => $imagen_principal ?: null,
         ':categoria_id'     => $categoria_id,
@@ -162,6 +147,16 @@ try {
 } catch (PDOException $e) {
     echo json_encode(['error' => 'Error al guardar la noticia: ' . $e->getMessage()]);
     exit;
+}
+
+// Insertar comunas en noticias_comunas
+foreach ($comunas_ids as $comuna_id) {
+    try {
+        $stmt = $db->prepare("INSERT INTO noticias_comunas (noticia_id, comuna_id) VALUES (:noticia_id, :comuna_id)");
+        $stmt->execute([':noticia_id' => $nueva_id, ':comuna_id' => $comuna_id]);
+    } catch (PDOException $e) {
+        // Ignorar duplicados
+    }
 }
 
 // Marcar la noticia escaneada como publicada
