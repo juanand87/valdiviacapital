@@ -5,7 +5,7 @@ INSERT IGNORE INTO configuracion_ia (nombre, valor, descripcion) VALUES
 ('jina_redaccion_modelo', 'jina-deepsearch-v1', 'Modelo para redaccion con Jina'),
 ('jina_redaccion_api_url', 'https://api.jina.ai/v1/chat/completions', 'Endpoint API para redaccion con Jina'),
 ('copilot_api_key', '', 'API Key para GitHub Copilot (chat completions)'),
-('copilot_modelo', 'auto', 'Modelo para GitHub Copilot (auto o claude-sonnet-4-5)'),
+('copilot_modelo', 'auto', 'Modelo para GitHub Copilot (auto o gpt-4o-mini)'),
 ('copilot_api_url', 'https://models.inference.ai.azure.com/chat/completions', 'Endpoint API para GitHub Copilot (GitHub Models).');
 
 -- Corregir URL antigua si fue guardada con el valor incorrecto

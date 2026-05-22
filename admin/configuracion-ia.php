@@ -156,7 +156,7 @@ $db->exec("INSERT IGNORE INTO configuracion_ia (nombre, valor, descripcion) VALU
     ('jina_redaccion_api_url', 'https://api.jina.ai/v1/chat/completions', 'Endpoint API para redacción con Jina'),
     ('redaccion_provider', 'gemini', 'Proveedor para redacción IA: gemini | jina | copilot'),
     ('copilot_api_key', '', 'API Key para GitHub Copilot (chat completions)'),
-    ('copilot_modelo', 'auto', 'Modelo para GitHub Copilot (auto o claude-sonnet-4-5)'),
+    ('copilot_modelo', 'auto', 'Modelo para GitHub Copilot (auto o gpt-4o-mini)'),
     ('copilot_api_url', 'https://models.inference.ai.azure.com/chat/completions', 'Endpoint API para GitHub Copilot (GitHub Models)'),
     ('scraping_provider_diarios', 'direct', 'Proveedor de extracción para diarios: direct | jina | gemini'),
     ('scraping_provider_facebook', 'direct', 'Proveedor de extracción para Facebook: direct | jina | gemini')
@@ -309,6 +309,9 @@ $config = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         >
                             <option value="auto" <?php echo $item['valor'] === 'auto' ? 'selected' : ''; ?>>
                                 Auto (Recomendado)
+                            </option>
+                            <option value="gpt-4o-mini" <?php echo $item['valor'] === 'gpt-4o-mini' ? 'selected' : ''; ?>>
+                                GPT-4o mini
                             </option>
                         </select>
                     <?php elseif ($item['nombre'] === 'scraping_provider_diarios' || $item['nombre'] === 'scraping_provider_facebook'): ?>
@@ -477,7 +480,7 @@ function testJina() {
         <ol style="line-height: 2;">
             <li>Selecciona <strong>Proveedor de redacción IA = GitHub Copilot</strong></li>
             <li>Agrega tu API Key en <strong>API Key de GitHub Copilot</strong></li>
-            <li>Selecciona el modelo en <strong>Modelo de GitHub Copilot</strong>: <code>auto</code></li>
+            <li>Selecciona el modelo en <strong>Modelo de GitHub Copilot</strong>: <code>auto</code> o <code>gpt-4o-mini</code></li>
             <li>Si usas otro gateway, ajusta la <strong>URL API de GitHub Copilot</strong></li>
             <li>Usa el botón <strong>Probar GitHub Copilot</strong> para validar conexión</li>
         </ol>
