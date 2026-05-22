@@ -65,7 +65,12 @@ try {
         responderJson(['error' => 'ID de noticia inválido'], 422);
     }
 
-    $db = getDB();
+    try {
+        $db = getDB();
+    } catch (PDOException $e) {
+        responderJson(['error' => 'No se pudo conectar con la base de datos', 'debug' => $e->getMessage()], 500);
+    }
+
     $stmt = $db->prepare('SELECT * FROM medios_contenido_sincronizado WHERE id = :id');
     $stmt->execute([':id' => $noticia_id]);
     $noticia = $stmt->fetch();
@@ -84,3 +89,5 @@ try {
     error_log('redactar-ia.php: ' . $e->getMessage());
     responderJson(['error' => 'Error interno al generar redacción IA: ' . $e->getMessage()], 500);
 }
+
+
