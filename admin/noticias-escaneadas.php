@@ -592,7 +592,10 @@ function publicarNoticia() {
         }
 
         if (!r.ok) {
-            throw new Error(data.error || ('Error HTTP ' + r.status));
+            const detalles = [];
+            if (data.debug) detalles.push(data.debug);
+            if (data.file) detalles.push(data.file + (data.line ? (':' + data.line) : ''));
+            throw new Error((data.error || ('Error HTTP ' + r.status)) + (detalles.length ? (' :: ' + detalles.join(' | ')) : ''));
         }
 
         return data;
@@ -601,7 +604,10 @@ function publicarNoticia() {
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-check"></i> Confirmar publicación';
         if (data.error) {
-            mostrarMsgPublicar(data.error + (data.debug ? ' :: ' + data.debug : ''), 'error');
+            const detalles = [];
+            if (data.debug) detalles.push(data.debug);
+            if (data.file) detalles.push(data.file + (data.line ? (':' + data.line) : ''));
+            mostrarMsgPublicar(data.error + (detalles.length ? ' :: ' + detalles.join(' | ') : ''), 'error');
         } else {
             mostrarMsgPublicar('¡Noticia publicada correctamente! <a href="noticias.php" style="color:white;font-weight:bold;">Ver en noticias →</a>', 'success');
             btn.style.display = 'none';
