@@ -474,7 +474,8 @@ function generarRedaccionIA() {
     
     fetch('ajax/redactar-ia.php', {
         method: 'POST',
-        body: formData
+        body: formData,
+        credentials: 'include'
     })
     .then(async (r) => {
         const raw = await r.text();
@@ -578,7 +579,8 @@ function publicarNoticia() {
 
     fetch('ajax/publicar-noticia-ia.php', {
         method: 'POST',
-        body: formData
+        body: formData,
+        credentials: 'include'
     })
     .then(r => r.json())
     .then(data => {

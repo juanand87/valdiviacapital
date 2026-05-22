@@ -533,7 +533,9 @@ document.getElementById('modal-preview').addEventListener('click', function(e) {
 
 <?php if ($editando): ?>
 // Gráfico de vistas diarias
-fetch('ajax/vistas-chart.php?id=<?php echo (int)$noticia['id']; ?>')
+fetch('ajax/vistas-chart.php?id=<?php echo (int)$noticia['id']; ?>', {
+        credentials: 'include'
+    })
     .then(r => r.json())
     .then(function(res) {
         if (!res.labels) return;

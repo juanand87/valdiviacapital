@@ -144,7 +144,8 @@
             fetch('ajax/toggle-mantenimiento.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: 'estado=' + estado
+                body: 'estado=' + estado,
+                credentials: 'include'
             })
             .then(function (r) { return r.json(); })
             .then(function (data) {
