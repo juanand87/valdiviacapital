@@ -6,6 +6,8 @@ include 'includes/header.php';
 
 $db = getDB();
 $providerCfgVista = getScrapingProviderConfig($db);
+$categorias = $db->query("SELECT id, nombre FROM categorias ORDER BY nombre")->fetchAll();
+$comunas    = $db->query("SELECT id, nombre FROM comunas ORDER BY nombre")->fetchAll();
 $medio_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 
 // Obtener información del medio
@@ -480,6 +482,22 @@ if (isset($_GET['ejecutar']) && $_GET['ejecutar'] == '1') {
             }
             
             // Actualizar última sincronización
+                // Recuperar IDs de las noticias guardadas (necesario para botón IA)
+                $urlsScrapeadas = array_column($resultados, 'url');
+                if (!empty($urlsScrapeadas)) {
+                    $placeholdersIds = implode(',', array_fill(0, count($urlsScrapeadas), '?'));
+                    $stmtIds = $db->prepare(
+                        "SELECT id, url_original FROM medios_contenido_sincronizado
+                         WHERE medio_id = ? AND url_original IN ($placeholdersIds)"
+                    );
+                    $stmtIds->execute(array_merge([$medio_id], $urlsScrapeadas));
+                    $idsPorUrl = array_column($stmtIds->fetchAll(), 'id', 'url_original');
+                    foreach ($resultados as &$r) {
+                        $r['id'] = $idsPorUrl[$r['url']] ?? null;
+                    }
+                    unset($r);
+                }
+
             $stmt = $db->prepare("UPDATE medios_conectados SET ultima_sincronizacion = NOW() WHERE id = :id");
             $stmt->execute([':id' => $medio_id]);
             
@@ -694,7 +712,7 @@ if (isset($_GET['ejecutar']) && $_GET['ejecutar'] == '1') {
         <div class="card-body">
             <div class="noticias-grid">
                 <?php foreach ($resultados as $index => $noticia): ?>
-                    <div class="noticia-card">
+                    <div class="noticia-card" <?php if (!empty($noticia['id'])): ?>data-noticia-id="<?php echo (int)$noticia['id']; ?>"<?php endif; ?>>
                         <div class="noticia-numero">#<?php echo $index + 1; ?></div>
                         
                         <?php if ($noticia['imagen']): ?>
@@ -765,6 +783,16 @@ if (isset($_GET['ejecutar']) && $_GET['ejecutar'] == '1') {
                             <?php else: ?>
                                 <p class="noticia-texto" style="color: #95a5a6; font-style: italic;">Sin contenido</p>
                             <?php endif; ?>
+
+                                <?php if (!empty($noticia['id'])): ?>
+                                <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e0e0e0;">
+                                    <button class="btn btn-sm"
+                                            style="background: #8e44ad; color: white;"
+                                            onclick="redactarIA(<?php echo (int)$noticia['id']; ?>)">
+                                        <i class="fas fa-robot"></i> Redacción IA
+                                    </button>
+                                </div>
+                                <?php endif; ?>
                         </div>
                     </div>
                 <?php endforeach; ?>
@@ -798,6 +826,405 @@ if (isset($_GET['ejecutar']) && $_GET['ejecutar'] == '1') {
     gap: 15px;
     margin-bottom: 20px;
 }
+
+<?php if (!empty($resultados)): ?>
+<?php
+$noticiasParaJs = array_values(array_filter($resultados, fn($r) => !empty($r['id'])));
+$noticiasParaJs = array_map(function($r) use ($medio) {
+    return [
+        'id'          => (int)$r['id'],
+        'titulo'      => $r['titulo'],
+        'contenido'   => $r['contenido'],
+        'imagen_url'  => $r['imagen'],
+        'url_original'=> $r['url'],
+        'autor'       => $r['autor'] ?? '',
+        'categoria'   => $r['categoria'] ?? '',
+        'medio_nombre'=> $medio['nombre'],
+        'created_at'  => date('Y-m-d H:i:s'),
+    ];
+}, $noticiasParaJs);
+?>
+<script>
+const noticias = <?php echo json_encode(array_values($noticiasParaJs), JSON_UNESCAPED_UNICODE); ?>;
+</script>
+
+<!-- Modal Redacción IA -->
+<div id="modal-noticia" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; overflow-y:auto;">
+    <div style="background:white; max-width:850px; margin:40px auto; border-radius:12px; overflow:hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
+
+        <div style="background: linear-gradient(135deg, #667eea, #764ba2); padding: 20px 25px; display: flex; justify-content: space-between; align-items: center;">
+            <h2 style="color: white; margin: 0; font-size: 20px;">
+                <i class="fas fa-newspaper"></i> <span id="modal-titulo-cabecera">Noticia</span>
+            </h2>
+            <button onclick="cerrarModal()" style="background: rgba(255,255,255,0.2); border: none; color: white; width: 35px; height: 35px; border-radius: 50%; cursor: pointer; font-size: 18px;">&times;</button>
+        </div>
+
+        <div style="display: flex; border-bottom: 2px solid #e0e0e0; background: #f8f9fa;">
+            <button id="tab-noticia" onclick="mostrarTab('noticia')"
+                style="padding: 15px 25px; border: none; background: white; border-bottom: 3px solid #667eea; cursor: pointer; font-weight: 600; color: #667eea; font-size: 15px;">
+                <i class="fas fa-file-alt"></i> Noticia Original
+            </button>
+            <button id="tab-ia" onclick="mostrarTab('ia')"
+                style="padding: 15px 25px; border: none; background: transparent; border-bottom: 3px solid transparent; cursor: pointer; font-size: 15px; color: #7f8c8d;">
+                <i class="fas fa-robot"></i> Redacción IA
+            </button>
+        </div>
+
+        <div id="panel-noticia" style="padding: 25px;">
+            <div id="modal-imagen" style="margin-bottom: 20px;"></div>
+            <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px;">
+                <div id="modal-medio" style="font-size: 13px; color: #7f8c8d;"></div>
+                <div id="modal-autor" style="font-size: 13px; color: #7f8c8d;"></div>
+                <div id="modal-categoria" style="font-size: 13px; color: #7f8c8d;"></div>
+                <div id="modal-fecha" style="font-size: 13px; color: #7f8c8d;"></div>
+            </div>
+            <h1 id="modal-titulo" style="font-size: 24px; margin-bottom: 20px; color: #1a202c; line-height: 1.4;"></h1>
+            <div id="modal-contenido" style="line-height: 1.8; color: #2d3748; font-size: 15px; white-space: pre-wrap;"></div>
+            <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
+                <a id="modal-url" href="#" target="_blank" class="btn btn-secondary btn-sm">
+                    <i class="fas fa-external-link-alt"></i> Ver noticia original
+                </a>
+            </div>
+        </div>
+
+        <div id="panel-ia" style="padding: 25px; display: none;">
+            <div id="ia-sin-generar">
+                <div style="text-align: center; padding: 30px; background: #f8f9fa; border-radius: 8px; margin-bottom: 20px;">
+                    <i class="fas fa-robot" style="font-size: 48px; color: #8e44ad; margin-bottom: 15px;"></i>
+                    <p style="color: #555; font-size: 16px; margin: 0;">La IA redactará un artículo periodístico profesional basado en la información de la noticia original.</p>
+                </div>
+                <div style="text-align: center;">
+                    <button id="btn-generar" onclick="generarRedaccionIA()"
+                        class="btn btn-primary"
+                        style="background: #8e44ad; padding: 12px 30px; font-size: 16px;">
+                        <i class="fas fa-magic"></i> Generar Redacción con IA
+                    </button>
+                </div>
+            </div>
+
+            <div id="ia-loading" style="display: none; text-align: center; padding: 50px;">
+                <div style="display: inline-block; width: 50px; height: 50px; border: 4px solid #e0e0e0; border-top-color: #8e44ad; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+                <p style="margin-top: 20px; color: #7f8c8d; font-size: 16px;">La IA está redactando el artículo...</p>
+            </div>
+
+            <div id="ia-resultado" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h3 style="margin: 0; color: #27ae60;"><i class="fas fa-check-circle"></i> Redacción completada</h3>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button onclick="copiarRedaccion()" class="btn btn-sm btn-secondary">
+                            <i class="fas fa-copy"></i> Copiar
+                        </button>
+                        <button onclick="generarRedaccionIA()" class="btn btn-sm" style="background: #8e44ad; color: white;">
+                            <i class="fas fa-redo"></i> Regenerar
+                        </button>
+                        <button onclick="mostrarFormPublicar()" class="btn btn-sm" style="background: #27ae60; color: white;">
+                            <i class="fas fa-paper-plane"></i> Publicar
+                        </button>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <label style="font-size: 13px; font-weight: 600; color: #555; margin-bottom: 6px; display: block;">Título del artículo</label>
+                    <input type="text" id="ia-titulo-value"
+                        style="width: 100%; padding: 10px 14px; border: 2px solid #8e44ad; border-radius: 6px; font-size: 15px; font-weight: 600; box-sizing: border-box;">
+                </div>
+
+                <div id="ia-texto" style="line-height: 1.9; color: #2d3748; font-size: 15px; background: #f9f9f9; padding: 20px; border-radius: 8px; border-left: 4px solid #8e44ad; white-space: pre-wrap;"></div>
+
+                <div id="form-publicar" style="display: none; margin-top: 20px; padding: 20px; background: #f0fff4; border: 2px solid #27ae60; border-radius: 8px;">
+                    <h4 style="margin: 0 0 15px 0; color: #27ae60;"><i class="fas fa-paper-plane"></i> Publicar en el sitio</h4>
+
+                    <div class="form-group">
+                        <label style="font-weight: 600;">Categoría <span style="color:red">*</span></label>
+                        <select id="pub-categoria" class="form-control">
+                            <option value="">-- Seleccionar categoría --</option>
+                            <?php foreach ($categorias as $cat): ?>
+                                <option value="<?php echo $cat['id']; ?>"><?php echo htmlspecialchars($cat['nombre']); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label style="font-weight: 600;">Comunas (una o más)</label>
+                        <div id="pub-comunas-tags" style="display:flex; flex-wrap:wrap; gap:8px; padding:10px; border:1px solid #d9e2ec; border-radius:8px; background:#fff; max-height:180px; overflow:auto;">
+                            <?php foreach ($comunas as $com): ?>
+                                <button type="button" class="comuna-tag" data-id="<?php echo (int)$com['id']; ?>" style="border:1px solid #cbd5e1; background:#f8fafc; color:#334155; border-radius:999px; padding:6px 10px; font-size:12px; cursor:pointer;">
+                                    <?php echo htmlspecialchars($com['nombre']); ?>
+                                </button>
+                            <?php endforeach; ?>
+                        </div>
+                        <small style="display:block; margin-top:6px; color:#64748b;">Haz clic para seleccionar una o más comunas.</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label style="font-weight: 600;">Imagen principal</label>
+                        <input type="file" id="pub-imagen-file" accept="image/*" class="form-control">
+                        <small style="display:block; margin-top:6px; color:#64748b;">Opcional. Si no subes imagen, se usará la imagen original si existe.</small>
+                    </div>
+                    <div id="pub-msg" style="display: none; margin-bottom: 10px;"></div>
+
+                    <div style="display: flex; gap: 10px;">
+                        <button onclick="publicarNoticia()" class="btn btn-primary" style="background: #27ae60;" id="btn-publicar-final">
+                            <i class="fas fa-check"></i> Confirmar publicación
+                        </button>
+                        <button onclick="document.getElementById('form-publicar').style.display='none'" class="btn btn-secondary">
+                            Cancelar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="ia-error" style="display: none;">
+                <div class="alert alert-error">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <span id="ia-error-msg"></span>
+                </div>
+                <div style="text-align: center; margin-top: 15px;">
+                    <a href="configuracion-ia.php" class="btn btn-primary">
+                        <i class="fas fa-cog"></i> Ir a Configuración IA
+                    </a>
+                    <button onclick="generarRedaccionIA()" class="btn btn-secondary" style="margin-left: 10px;">
+                        <i class="fas fa-redo"></i> Reintentar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+
+<script>
+let noticiaActual = null;
+
+function verNoticia(id) {
+    const noticia = noticias.find(n => n.id == id);
+    if (!noticia) return;
+    noticiaActual = noticia;
+
+    document.getElementById('modal-titulo-cabecera').textContent = noticia.titulo.substring(0, 60) + '...';
+    document.getElementById('modal-titulo').textContent = noticia.titulo;
+    document.getElementById('modal-contenido').textContent = noticia.contenido || 'Sin contenido';
+    document.getElementById('modal-url').href = noticia.url_original;
+
+    document.getElementById('modal-medio').innerHTML    = noticia.medio_nombre ? `<i class="fas fa-newspaper"></i> ${noticia.medio_nombre}` : '';
+    document.getElementById('modal-autor').innerHTML    = noticia.autor       ? `<i class="fas fa-user"></i> ${noticia.autor}` : '';
+    document.getElementById('modal-categoria').innerHTML = noticia.categoria  ? `<i class="fas fa-folder"></i> ${noticia.categoria}` : '';
+    document.getElementById('modal-fecha').innerHTML    = noticia.created_at  ? `<i class="fas fa-clock"></i> ${noticia.created_at}` : '';
+
+    const imgDiv = document.getElementById('modal-imagen');
+    imgDiv.innerHTML = noticia.imagen_url
+        ? `<img src="${noticia.imagen_url}" style="width:100%; max-height:300px; object-fit:cover; border-radius:8px;" onerror="this.style.display='none'">`
+        : '';
+
+    mostrarTab('noticia');
+    document.getElementById('modal-noticia').style.display = 'block';
+    document.body.style.overflow = 'hidden';
+}
+
+function redactarIA(id) {
+    verNoticia(id);
+    setTimeout(() => mostrarTab('ia'), 50);
+}
+
+function mostrarTab(tab) {
+    document.getElementById('panel-noticia').style.display = tab === 'noticia' ? 'block' : 'none';
+    document.getElementById('panel-ia').style.display      = tab === 'ia'      ? 'block' : 'none';
+
+    document.getElementById('tab-noticia').style.cssText = tab === 'noticia'
+        ? 'padding:15px 25px;border:none;background:white;border-bottom:3px solid #667eea;cursor:pointer;font-weight:600;color:#667eea;font-size:15px;'
+        : 'padding:15px 25px;border:none;background:transparent;border-bottom:3px solid transparent;cursor:pointer;font-size:15px;color:#7f8c8d;';
+    document.getElementById('tab-ia').style.cssText = tab === 'ia'
+        ? 'padding:15px 25px;border:none;background:white;border-bottom:3px solid #8e44ad;cursor:pointer;font-weight:600;color:#8e44ad;font-size:15px;'
+        : 'padding:15px 25px;border:none;background:transparent;border-bottom:3px solid transparent;cursor:pointer;font-size:15px;color:#7f8c8d;';
+}
+
+function cerrarModal() {
+    document.getElementById('modal-noticia').style.display = 'none';
+    document.body.style.overflow = '';
+    document.getElementById('ia-sin-generar').style.display = 'block';
+    document.getElementById('ia-loading').style.display = 'none';
+    document.getElementById('ia-resultado').style.display = 'none';
+    document.getElementById('ia-error').style.display = 'none';
+    document.getElementById('form-publicar').style.display = 'none';
+    document.getElementById('ia-titulo-value').value = '';
+    document.getElementById('ia-texto').textContent = '';
+    document.getElementById('pub-categoria').value = '';
+    document.getElementById('pub-imagen-file').value = '';
+    document.querySelectorAll('#pub-comunas-tags .comuna-tag.selected').forEach(tag => {
+        tag.classList.remove('selected');
+        tag.style.background = '#f8fafc';
+        tag.style.color = '#334155';
+        tag.style.borderColor = '#cbd5e1';
+    });
+    document.getElementById('pub-msg').style.display = 'none';
+    const btnFinal = document.getElementById('btn-publicar-final');
+    btnFinal.style.display = '';
+    btnFinal.disabled = false;
+    btnFinal.innerHTML = '<i class="fas fa-check"></i> Confirmar publicación';
+}
+
+function generarRedaccionIA() {
+    if (!noticiaActual) return;
+
+    document.getElementById('ia-sin-generar').style.display = 'none';
+    document.getElementById('ia-loading').style.display = 'block';
+    document.getElementById('ia-resultado').style.display = 'none';
+    document.getElementById('ia-error').style.display = 'none';
+
+    const formData = new FormData();
+    formData.append('noticia_id', noticiaActual.id);
+
+    fetch('ajax/redactar-ia.php', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include'
+    })
+    .then(async (r) => {
+        const raw = await r.text();
+        let data;
+        try { data = JSON.parse(raw); } catch(e) {
+            throw new Error(raw ? ('Respuesta inválida del servidor: ' + raw.substring(0, 220)) : 'Respuesta vacía del servidor');
+        }
+        if (!r.ok) throw new Error((data.error || ('Error HTTP ' + r.status)) + (data.debug ? (' :: ' + data.debug) : ''));
+        return data;
+    })
+    .then(data => {
+        document.getElementById('ia-loading').style.display = 'none';
+        if (data.error) {
+            document.getElementById('ia-error-msg').textContent = data.error + (data.debug ? ' :: ' + data.debug : '');
+            document.getElementById('ia-error').style.display = 'block';
+        } else {
+            document.getElementById('ia-titulo-value').value = data.titulo || noticiaActual.titulo;
+            document.getElementById('ia-texto').textContent = data.texto;
+            document.getElementById('form-publicar').style.display = 'none';
+            document.getElementById('ia-resultado').style.display = 'block';
+        }
+    })
+    .catch(err => {
+        document.getElementById('ia-loading').style.display = 'none';
+        document.getElementById('ia-error-msg').textContent = (err && err.message) ? err.message : 'Error de conexión. Intenta de nuevo.';
+        document.getElementById('ia-error').style.display = 'block';
+    });
+}
+
+function copiarRedaccion() {
+    const titulo = document.getElementById('ia-titulo-value').value;
+    const contenido = document.getElementById('ia-texto').textContent;
+    const texto = titulo ? titulo + '\n\n' + contenido : contenido;
+    navigator.clipboard.writeText(texto).then(() => {
+        const btn = event.target.closest('button');
+        const original = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check"></i> Copiado!';
+        btn.style.background = '#27ae60'; btn.style.color = 'white';
+        setTimeout(() => { btn.innerHTML = original; btn.style.background = ''; btn.style.color = ''; }, 2000);
+    });
+}
+
+function initComunaTags() {
+    document.querySelectorAll('#pub-comunas-tags .comuna-tag').forEach(tag => {
+        if (tag.dataset.bound === '1') return;
+        tag.dataset.bound = '1';
+        tag.addEventListener('click', function () {
+            this.classList.toggle('selected');
+            const active = this.classList.contains('selected');
+            this.style.background   = active ? '#16a34a' : '#f8fafc';
+            this.style.color        = active ? '#ffffff' : '#334155';
+            this.style.borderColor  = active ? '#15803d' : '#cbd5e1';
+        });
+    });
+}
+
+function mostrarFormPublicar() {
+    const fp = document.getElementById('form-publicar');
+    const visible = fp.style.display !== 'none';
+    fp.style.display = visible ? 'none' : 'block';
+    if (!visible) {
+        initComunaTags();
+        fp.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+}
+
+function publicarNoticia() {
+    const titulo    = document.getElementById('ia-titulo-value').value.trim();
+    const contenido = document.getElementById('ia-texto').textContent.trim();
+    const categoriaId = document.getElementById('pub-categoria').value;
+    const imagenFile  = document.getElementById('pub-imagen-file').files[0];
+    const comunasSeleccionadas = Array.from(document.querySelectorAll('#pub-comunas-tags .comuna-tag.selected')).map(el => el.dataset.id);
+
+    if (!titulo)      { mostrarMsgPublicar('El título es obligatorio', 'error'); return; }
+    if (!categoriaId) { mostrarMsgPublicar('Debes seleccionar una categoría', 'error'); return; }
+    if (!contenido)   { mostrarMsgPublicar('No hay contenido generado', 'error'); return; }
+
+    const btn = document.getElementById('btn-publicar-final');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Publicando...';
+
+    const formData = new FormData();
+    formData.append('titulo', titulo);
+    formData.append('contenido', contenido);
+    formData.append('categoria_id', categoriaId);
+    formData.append('noticia_id', noticiaActual.id);
+    comunasSeleccionadas.forEach(id => formData.append('comunas[]', id));
+    if (imagenFile) formData.append('imagen', imagenFile);
+
+    fetch('ajax/publicar-noticia-ia.php', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include'
+    })
+    .then(async (r) => {
+        const raw = await r.text();
+        let data;
+        try { data = JSON.parse(raw); } catch(e) {
+            throw new Error(raw ? ('Respuesta inválida del servidor: ' + raw.substring(0, 220)) : 'Respuesta vacía del servidor');
+        }
+        if (!r.ok) {
+            const det = [];
+            if (data.debug) det.push(data.debug);
+            if (data.file)  det.push(data.file + (data.line ? ':' + data.line : ''));
+            throw new Error((data.error || ('Error HTTP ' + r.status)) + (det.length ? ' :: ' + det.join(' | ') : ''));
+        }
+        return data;
+    })
+    .then(data => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-check"></i> Confirmar publicación';
+        if (data.error) {
+            const det = [];
+            if (data.debug) det.push(data.debug);
+            if (data.file)  det.push(data.file + (data.line ? ':' + data.line : ''));
+            mostrarMsgPublicar(data.error + (det.length ? ' :: ' + det.join(' | ') : ''), 'error');
+        } else {
+            mostrarMsgPublicar('¡Noticia publicada correctamente! <a href="noticias.php" style="color:white;font-weight:bold;">Ver en noticias →</a>', 'success');
+            btn.style.display = 'none';
+            document.querySelectorAll('[data-noticia-id="' + noticiaActual.id + '"]').forEach(card => {
+                const badge = card.querySelector('.noticia-numero');
+                if (badge) badge.style.background = '#27ae60';
+            });
+        }
+    })
+    .catch(err => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-check"></i> Confirmar publicación';
+        mostrarMsgPublicar((err && err.message) ? err.message : 'Error de conexión. Intenta de nuevo.', 'error');
+    });
+}
+
+function mostrarMsgPublicar(msg, tipo) {
+    const div = document.getElementById('pub-msg');
+    div.style.cssText = `display:block; padding:10px 15px; border-radius:6px; margin-bottom:10px; ${tipo === 'error' ? 'background:#fde8e8;color:#c0392b;border:1px solid #e74c3c;' : 'background:#e8f8f0;color:#1e8449;border:1px solid #27ae60;'}`;
+    div.innerHTML = msg;
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarModal(); });
+document.getElementById('modal-noticia').addEventListener('click', function(e) {
+    if (e.target === this) cerrarModal();
+});
+</script>
+<?php endif; ?>
 
 .info-item {
     border-left: 3px solid #3498db;
