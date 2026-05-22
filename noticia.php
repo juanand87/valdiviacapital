@@ -48,6 +48,15 @@ if (!$noticia) {
     exit;
 }
 
+$galeriaImagenes = [];
+try {
+    $stmtGal = $db->prepare("SELECT imagen_url, titulo, orden FROM noticias_galeria WHERE noticia_id = ? ORDER BY orden ASC, id ASC");
+    $stmtGal->execute([$noticia['id']]);
+    $galeriaImagenes = $stmtGal->fetchAll();
+} catch (PDOException $e) {
+    $galeriaImagenes = [];
+}
+
 // Obtener noticias TRENDING (para mostrar en sidebar)
 $stmtTrending = $db->prepare("
     SELECT 
@@ -300,6 +309,24 @@ $masLeidas = $db->query("
             background: #f8f9fa;
             font-style: italic;
             border-radius: 0 6px 6px 0;
+        }
+        .article-gallery {
+            margin: 28px 0;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: 12px;
+        }
+        .article-gallery-item {
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #e5e7eb;
+            background: #fff;
+        }
+        .article-gallery-item img {
+            width: 100%;
+            height: 160px;
+            object-fit: cover;
+            display: block;
         }
         .share-buttons {
             display: flex;
@@ -576,6 +603,16 @@ $masLeidas = $db->query("
                 <?php if (!empty($noticia['imagen_caption'])): ?>
                 <p class="image-caption"><i class="fas fa-camera"></i> <?php echo clean($noticia['imagen_caption']); ?></p>
                 <?php endif; ?>
+            </div>
+            <?php endif; ?>
+
+            <?php if (!empty($galeriaImagenes)): ?>
+            <div class="article-gallery">
+                <?php foreach ($galeriaImagenes as $gi): ?>
+                <a href="<?php echo clean($gi['imagen_url']); ?>" target="_blank" rel="noopener noreferrer" class="article-gallery-item" title="Abrir imagen">
+                    <img src="<?php echo clean($gi['imagen_url']); ?>" alt="<?php echo clean($gi['titulo'] ?? $noticia['titulo']); ?>" loading="lazy" onerror="this.parentElement.style.display='none'">
+                </a>
+                <?php endforeach; ?>
             </div>
             <?php endif; ?>
 

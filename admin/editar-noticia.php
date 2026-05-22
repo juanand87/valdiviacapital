@@ -8,6 +8,7 @@ verificarSesion();
 $db = getDB();
 $editando = false;
 $noticia = null;
+$galeria_urls = [];
 
 // Si hay ID, cargar noticia para editar
 if (isset($_GET['id'])) {
@@ -17,6 +18,13 @@ if (isset($_GET['id'])) {
     
     if ($noticia) {
         $editando = true;
+        try {
+            $stmtGal = $db->prepare("SELECT imagen_url FROM noticias_galeria WHERE noticia_id = ? ORDER BY orden ASC, id ASC");
+            $stmtGal->execute([$noticia['id']]);
+            $galeria_urls = array_column($stmtGal->fetchAll(), 'imagen_url');
+        } catch (PDOException $e) {
+            $galeria_urls = [];
+        }
     }
 }
 
@@ -34,6 +42,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $destacado = isset($_POST['destacado']) ? 1 : 0;
     $publicado = isset($_POST['publicado']) ? 1 : 0;
     $imagen_principal = $_POST['imagen_principal'] ?? '';
+    $galeriaTexto = trim($_POST['galeria_imagenes'] ?? '');
+    $galeriaUrls = array_filter(array_map('trim', preg_split('/\r\n|\r|\n/', $galeriaTexto)));
+    $galeriaUrls = array_values(array_unique(array_slice($galeriaUrls, 0, 20)));
     
     if (!$categoria_id) {
         $error = 'Debes seleccionar al menos una categoría.';
@@ -79,6 +90,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             foreach ($comunasPost as $cid) {
                 $stmtCom->execute([$noticia_id, $cid]);
             }
+        }
+
+        // Guardar galería de imágenes (opcional)
+        try {
+            $db->prepare("DELETE FROM noticias_galeria WHERE noticia_id = ?")->execute([$noticia_id]);
+            if (!empty($galeriaUrls)) {
+                $stmtGalIns = $db->prepare("INSERT INTO noticias_galeria (noticia_id, imagen_url, orden) VALUES (?, ?, ?)");
+                foreach ($galeriaUrls as $idx => $urlImg) {
+                    $stmtGalIns->execute([$noticia_id, $urlImg, $idx + 1]);
+                }
+            }
+        } catch (PDOException $e) {
+            // Si la tabla aún no existe en producción, no bloquear el guardado de la noticia.
         }
 
         cacheInvalidateHomepage();
@@ -313,6 +337,20 @@ if ($editando) {
                     </div>
                     <small style="color: #718096; font-size: 12px; display: block; margin-top: 8px;">
                         Selecciona de la biblioteca de Medios o pega una URL (Unsplash, Pexels, etc.)
+                    </small>
+                </div>
+            </div>
+
+            <!-- Galería de imágenes -->
+            <div class="card" style="margin-top: 20px;">
+                <div class="card-header" style="background: #f7fafc;">
+                    <h3 class="card-title" style="font-size: 15px;">Galería de imágenes</h3>
+                </div>
+                <div class="card-body">
+                    <label class="form-label" style="font-size:13px;">URLs (una por línea, máximo 20)</label>
+                    <textarea name="galeria_imagenes" class="form-control" rows="6" placeholder="https://.../foto1.jpg&#10;https://.../foto2.jpg"><?php echo htmlspecialchars(implode("\n", $galeria_urls)); ?></textarea>
+                    <small style="color: #718096; font-size: 12px; display: block; margin-top: 8px;">
+                        Estas imágenes se mostrarán bajo la imagen destacada en la noticia pública.
                     </small>
                 </div>
             </div>
