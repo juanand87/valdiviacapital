@@ -11,6 +11,74 @@ if (!defined('VAPID_PUBLIC_KEY')) {
 }
 if (isMaintenance()) { include 'mantenimiento.php'; exit; }
 
+function vc_inner_html(DOMNode $node): string {
+    $html = '';
+    foreach ($node->childNodes as $child) {
+        $html .= $node->ownerDocument->saveHTML($child);
+    }
+    return $html;
+}
+
+function vc_normalizar_contenido_noticia(string $contenido): string {
+    $contenido = trim($contenido);
+    if ($contenido === '') return '';
+
+    // Si viene escapado (&lt;p&gt;...), decodificar una vez para recuperar HTML real
+    if (strpos($contenido, '&lt;') !== false && strpos($contenido, '&gt;') !== false) {
+        $contenido = html_entity_decode($contenido, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    }
+
+    // Si es texto plano, convertir saltos en párrafos
+    if (strip_tags($contenido) === $contenido) {
+        $bloques = preg_split('/\R{2,}/u', $contenido);
+        $bloques = array_values(array_filter(array_map('trim', $bloques)));
+        if (!empty($bloques)) {
+            return '<p>' . implode('</p><p>', array_map('htmlspecialchars', $bloques)) . '</p>';
+        }
+        return htmlspecialchars($contenido);
+    }
+
+    libxml_use_internal_errors(true);
+    $dom = new DOMDocument();
+    $dom->loadHTML('<?xml encoding="utf-8" ?><div id="vc-wrap">' . $contenido . '</div>', LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
+    libxml_clear_errors();
+
+    $xp = new DOMXPath($dom);
+
+    // Eliminar bloques que suelen romper el layout al venir desde scraping externo
+    $xpathsRemover = [
+        '//script',
+        '//style',
+        '//iframe',
+        '//form',
+        '//nav',
+        '//aside',
+        '//*[contains(concat(" ", normalize-space(@class), " "), " cont_dstemp ")]',
+        '//*[contains(concat(" ", normalize-space(@class), " "), " lazy-banner ")]',
+        '//*[contains(concat(" ", normalize-space(@class), " "), " cont-section ")]',
+        '//*[contains(concat(" ", normalize-space(@class), " "), " adsbygoogle ")]',
+        '//*[contains(concat(" ", normalize-space(@class), " "), " article-footer ")]',
+        '//*[contains(concat(" ", normalize-space(@class), " "), " widget-area ")]',
+    ];
+
+    foreach ($xpathsRemover as $q) {
+        $nodes = $xp->query($q);
+        if (!$nodes) continue;
+        for ($i = $nodes->length - 1; $i >= 0; $i--) {
+            $node = $nodes->item($i);
+            if ($node && $node->parentNode) {
+                $node->parentNode->removeChild($node);
+            }
+        }
+    }
+
+    $wrap = $dom->getElementById('vc-wrap');
+    if (!$wrap) return $contenido;
+
+    $limpio = trim(vc_inner_html($wrap));
+    return $limpio !== '' ? $limpio : $contenido;
+}
+
 // Obtener noticia por slug (o por id como fallback)
 $slug = $_GET['slug'] ?? '';
 $id   = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
@@ -162,6 +230,8 @@ $noticiaComunas = $stmtComunas->fetchAll();
 $masLeidas = $db->query("
     SELECT id, titulo, slug, vistas FROM noticias WHERE publicado = 1 ORDER BY vistas DESC LIMIT 5
 ")->fetchAll();
+
+$contenidoNormalizado = vc_normalizar_contenido_noticia((string)($noticia['contenido'] ?? ''));
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -708,7 +778,7 @@ $masLeidas = $db->query("
             <?php renderBanner('in_article'); ?>
 
             <div class="article-content">
-                <?php echo parseGaleriaShortcodes($noticia['contenido'], $db); ?>
+                <?php echo parseGaleriaShortcodes($contenidoNormalizado, $db); ?>
             </div>
 
             <!-- Botones de compartir -->
