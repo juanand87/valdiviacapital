@@ -245,27 +245,115 @@ $masLeidas = $db->query("
             margin-bottom: 25px;
         }
         .article-image-main {
-            margin: 30px 0;
+            flex-shrink: 0;
+            width: 280px;
+            height: 280px;
             border-radius: var(--radius);
             overflow: hidden;
+            margin: 0;
+            position: sticky;
+            top: 100px;
+            cursor: pointer;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .article-image-main:hover {
+            transform: scale(1.02);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
         }
         .article-image-main img {
             width: 100%;
-            height: auto;
+            height: 100%;
+            object-fit: cover;
+            display: block;
         }
         .image-caption {
             font-size: 14px;
             color: var(--color-gray);
             font-style: italic;
             margin-top: 10px;
+            display: none;
         }
         .article-content {
             font-size: 1.1rem;
             line-height: 1.8;
             color: var(--color-dark);
+            text-align: justify;
+            flex: 1;
         }
         .article-content p {
             margin-bottom: 20px;
+            text-align: justify;
+        }
+        /* Modal para imagen grande */
+        .image-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .image-modal.active {
+            display: flex;
+        }
+        .image-modal-content {
+            max-width: 90vw;
+            max-height: 90vh;
+            border-radius: 8px;
+            overflow: hidden;
+            animation: modalSlideIn 0.3s ease;
+        }
+        .image-modal-content img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        .image-modal-close {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            background: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 24px;
+            transition: all 0.2s;
+            color: #333;
+        }
+        .image-modal-close:hover {
+            background: #f0f0f0;
+            transform: scale(1.1);
+        }
+        @keyframes modalSlideIn {
+            from { transform: scale(0.8); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        /* Layout flexbox con imagen a la izquierda */
+        .article-full {
+            display: flex;
+            gap: 30px;
+            align-items: flex-start;
+        }
+        /* Responsive */
+        @media (max-width: 768px) {
+            .article-full {
+                flex-direction: column;
+            }
+            .article-image-main {
+                width: 100%;
+                height: 300px;
+                position: static;
+            }
         }
         .article-content h2 {
             font-size: 1.7rem;
@@ -914,6 +1002,54 @@ $masLeidas = $db->query("
         } catch (e) {}
     }());
     </script>
+    <!-- Modal para imagen ampliada -->
+    <div id="imageModal" class="image-modal">
+        <button class="image-modal-close" id="closeImageModal">&times;</button>
+        <div class="image-modal-content">
+            <img id="modalImage" src="" alt="Imagen ampliada">
+        </div>
+    </div>
+
+    <script>
+    // ── Modal de imagen ampliada ──────────────────────────────────
+    (function () {
+        var modal = document.getElementById('imageModal');
+        var closeBtn = document.getElementById('closeImageModal');
+        var modalImg = document.getElementById('modalImage');
+        var articleImg = document.querySelector('.article-image-main');
+
+        if (!articleImg || !modal) return;
+
+        // Abrir modal al hacer clic en la imagen
+        articleImg.addEventListener('click', function () {
+            var img = articleImg.querySelector('img');
+            if (img) {
+                modalImg.src = img.src;
+                modal.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            }
+        });
+
+        // Cerrar modal
+        function closeModal() {
+            modal.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        closeBtn.addEventListener('click', closeModal);
+        modal.addEventListener('click', function (e) {
+            if (e.target === modal) closeModal();
+        });
+
+        // Cerrar con tecla Escape
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && modal.classList.contains('active')) {
+                closeModal();
+            }
+        });
+    }());
+    </script>
+
     <!-- Push Notifications: VAPID public key + SW client -->
     <script>window.VAPID_PUBLIC_KEY = '<?php echo defined('VAPID_PUBLIC_KEY') ? addslashes(VAPID_PUBLIC_KEY) : ''; ?>';</script>
     <script src="assets/js/push.js" defer></script>
