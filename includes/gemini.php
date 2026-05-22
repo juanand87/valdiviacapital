@@ -292,9 +292,9 @@ function redactarConCopilot($config, $noticia) {
         $apiUrl = 'https://models.inference.ai.azure.com/chat/completions';
     }
 
-    $modelo = trim((string)($config['copilot_modelo'] ?? 'claude-sonnet-4.6'));
+    $modelo = trim((string)($config['copilot_modelo'] ?? 'auto'));
     if ($modelo === '') {
-        $modelo = 'claude-sonnet-4.6';
+        $modelo = 'auto';
     }
 
     $temperatura = (float)($config['gemini_temperatura'] ?? 0.7);

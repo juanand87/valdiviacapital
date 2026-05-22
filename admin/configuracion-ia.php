@@ -52,9 +52,9 @@ if (isset($_POST['action']) && $_POST['action'] === 'test_copilot') {
         $apiUrl = 'https://models.inference.ai.azure.com/chat/completions';
     }
 
-    $modelo = trim((string)($config['copilot_modelo'] ?? 'claude-sonnet-4.6'));
+    $modelo = trim((string)($config['copilot_modelo'] ?? 'auto'));
     if ($modelo === '') {
-        $modelo = 'claude-sonnet-4.6';
+        $modelo = 'auto';
     }
 
     $payload = json_encode([
@@ -153,7 +153,7 @@ $db->exec("INSERT IGNORE INTO configuracion_ia (nombre, valor, descripcion) VALU
     ('jina_redaccion_api_url', 'https://api.jina.ai/v1/chat/completions', 'Endpoint API para redacción con Jina'),
     ('redaccion_provider', 'gemini', 'Proveedor para redacción IA: gemini | jina | copilot'),
     ('copilot_api_key', '', 'API Key para GitHub Copilot (chat completions)'),
-    ('copilot_modelo', 'claude-sonnet-4.6', 'Modelo para GitHub Copilot (auto o claude-sonnet-4.6)'),
+    ('copilot_modelo', 'auto', 'Modelo para GitHub Copilot (auto o claude-sonnet-4-5)'),
     ('copilot_api_url', 'https://models.inference.ai.azure.com/chat/completions', 'Endpoint API para GitHub Copilot (GitHub Models)'),
     ('scraping_provider_diarios', 'direct', 'Proveedor de extracción para diarios: direct | jina | gemini'),
     ('scraping_provider_facebook', 'direct', 'Proveedor de extracción para Facebook: direct | jina | gemini')
@@ -161,6 +161,9 @@ $db->exec("INSERT IGNORE INTO configuracion_ia (nombre, valor, descripcion) VALU
 
 // Migrar URL antigua de GitHub Copilot si aún existe
 $db->exec("UPDATE configuracion_ia SET valor = 'https://models.inference.ai.azure.com/chat/completions' WHERE nombre = 'copilot_api_url' AND valor = 'https://api.githubcopilot.com/chat/completions'");
+
+// Migrar modelo antiguo de GitHub Copilot si aún existe
+$db->exec("UPDATE configuracion_ia SET valor = 'auto' WHERE nombre = 'copilot_modelo' AND valor = 'claude-sonnet-4.6'");
 
 // Procesar formulario
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -301,11 +304,11 @@ $config = $stmt->fetchAll(PDO::FETCH_ASSOC);
                             name="config[<?php echo $item['nombre']; ?>]" 
                             class="form-control"
                         >
-                            <option value="claude-sonnet-4.6" <?php echo $item['valor'] === 'claude-sonnet-4.6' ? 'selected' : ''; ?>>
-                                Claude Sonnet 4.6 (Recomendado)
-                            </option>
                             <option value="auto" <?php echo $item['valor'] === 'auto' ? 'selected' : ''; ?>>
-                                Auto (selección automática)
+                                Auto (Recomendado)
+                            </option>
+                            <option value="claude-sonnet-4-5" <?php echo $item['valor'] === 'claude-sonnet-4-5' ? 'selected' : ''; ?>>
+                                Claude Sonnet 4.5
                             </option>
                         </select>
                     <?php elseif ($item['nombre'] === 'scraping_provider_diarios' || $item['nombre'] === 'scraping_provider_facebook'): ?>
@@ -474,7 +477,7 @@ function testJina() {
         <ol style="line-height: 2;">
             <li>Selecciona <strong>Proveedor de redacción IA = GitHub Copilot</strong></li>
             <li>Agrega tu API Key en <strong>API Key de GitHub Copilot</strong></li>
-            <li>Selecciona el modelo en <strong>Modelo de GitHub Copilot</strong>: <code>claude-sonnet-4.6</code> o <code>auto</code></li>
+            <li>Selecciona el modelo en <strong>Modelo de GitHub Copilot</strong>: <code>auto</code> o <code>claude-sonnet-4-5</code></li>
             <li>Si usas otro gateway, ajusta la <strong>URL API de GitHub Copilot</strong></li>
             <li>Usa el botón <strong>Probar GitHub Copilot</strong> para validar conexión</li>
         </ol>
