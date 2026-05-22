@@ -56,7 +56,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'test_copilot') {
     if ($modelo === '') {
         $modelo = 'auto';
     }
-    if (in_array(strtolower($modelo), ['claude-sonnet-4.6', 'claude-sonnet-4-6'], true)) {
+    if (in_array(strtolower($modelo), ['claude-sonnet-4.6', 'claude-sonnet-4-6', 'claude-sonnet-4-5', 'claude-sonnet-4.5'], true)) {
         $modelo = 'auto';
     }
 
@@ -165,8 +165,8 @@ $db->exec("INSERT IGNORE INTO configuracion_ia (nombre, valor, descripcion) VALU
 // Migrar URL antigua de GitHub Copilot si aún existe
 $db->exec("UPDATE configuracion_ia SET valor = 'https://models.inference.ai.azure.com/chat/completions' WHERE nombre = 'copilot_api_url' AND valor = 'https://api.githubcopilot.com/chat/completions'");
 
-// Migrar modelo antiguo de GitHub Copilot si aún existe
-$db->exec("UPDATE configuracion_ia SET valor = 'auto' WHERE nombre = 'copilot_modelo' AND LOWER(TRIM(valor)) IN ('claude-sonnet-4.6', 'claude-sonnet-4-6')");
+// Migrar modelos antiguos de GitHub Copilot si aún existen
+$db->exec("UPDATE configuracion_ia SET valor = 'auto' WHERE nombre = 'copilot_modelo' AND LOWER(TRIM(valor)) IN ('claude-sonnet-4.6', 'claude-sonnet-4-6', 'claude-sonnet-4-5', 'claude-sonnet-4.5')");
 
 // Procesar formulario
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -309,9 +309,6 @@ $config = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         >
                             <option value="auto" <?php echo $item['valor'] === 'auto' ? 'selected' : ''; ?>>
                                 Auto (Recomendado)
-                            </option>
-                            <option value="claude-sonnet-4-5" <?php echo $item['valor'] === 'claude-sonnet-4-5' ? 'selected' : ''; ?>>
-                                Claude Sonnet 4.5
                             </option>
                         </select>
                     <?php elseif ($item['nombre'] === 'scraping_provider_diarios' || $item['nombre'] === 'scraping_provider_facebook'): ?>
@@ -480,7 +477,7 @@ function testJina() {
         <ol style="line-height: 2;">
             <li>Selecciona <strong>Proveedor de redacción IA = GitHub Copilot</strong></li>
             <li>Agrega tu API Key en <strong>API Key de GitHub Copilot</strong></li>
-            <li>Selecciona el modelo en <strong>Modelo de GitHub Copilot</strong>: <code>auto</code> o <code>claude-sonnet-4-5</code></li>
+            <li>Selecciona el modelo en <strong>Modelo de GitHub Copilot</strong>: <code>auto</code></li>
             <li>Si usas otro gateway, ajusta la <strong>URL API de GitHub Copilot</strong></li>
             <li>Usa el botón <strong>Probar GitHub Copilot</strong> para validar conexión</li>
         </ol>

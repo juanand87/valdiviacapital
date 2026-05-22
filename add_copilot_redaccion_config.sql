@@ -12,4 +12,4 @@ INSERT IGNORE INTO configuracion_ia (nombre, valor, descripcion) VALUES
 UPDATE configuracion_ia SET valor = 'https://models.inference.ai.azure.com/chat/completions' WHERE nombre = 'copilot_api_url' AND valor = 'https://api.githubcopilot.com/chat/completions';
 
 -- Corregir modelo antiguo si fue guardado con el valor incorrecto
-UPDATE configuracion_ia SET valor = 'auto' WHERE nombre = 'copilot_modelo' AND LOWER(TRIM(valor)) IN ('claude-sonnet-4.6', 'claude-sonnet-4-6');
+UPDATE configuracion_ia SET valor = 'auto' WHERE nombre = 'copilot_modelo' AND LOWER(TRIM(valor)) IN ('claude-sonnet-4.6', 'claude-sonnet-4-6', 'claude-sonnet-4-5', 'claude-sonnet-4.5');

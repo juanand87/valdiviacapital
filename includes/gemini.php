@@ -162,6 +162,12 @@ function llamarCopilot($apiKey, $apiUrl, $modelo, $temperatura, $maxTokens, $pro
 
     if (isset($data['error'])) {
         $msg = is_array($data['error']) ? ($data['error']['message'] ?? 'Error desconocido') : (string)$data['error'];
+
+        // Si el modelo configurado no existe en la cuenta, reintentar con auto.
+        if (stripos($msg, 'Unknown model') !== false && strtolower(trim((string)$modelo)) !== 'auto') {
+            return llamarCopilot($apiKey, $apiUrl, 'auto', $temperatura, $maxTokens, $prompt);
+        }
+
         return ['error' => 'Error de GitHub Copilot: ' . $msg];
     }
 
@@ -296,7 +302,7 @@ function redactarConCopilot($config, $noticia) {
     if ($modelo === '') {
         $modelo = 'auto';
     }
-    if (in_array(strtolower($modelo), ['claude-sonnet-4.6', 'claude-sonnet-4-6'], true)) {
+    if (in_array(strtolower($modelo), ['claude-sonnet-4.6', 'claude-sonnet-4-6', 'claude-sonnet-4-5', 'claude-sonnet-4.5'], true)) {
         $modelo = 'auto';
     }
 
