@@ -115,7 +115,12 @@ $paginas = $stmt->fetchAll();
     <div class="col-8">
         <div class="card">
             <div class="card-header">
-                <h2>Páginas Configuradas</h2>
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; width:100%;">
+                    <h2 style="margin:0;">Páginas Configuradas</h2>
+                    <button type="button" class="btn btn-primary" onclick="analizarTodasPaginas()" <?php echo empty($paginas) ? 'disabled' : ''; ?>>
+                        <i class="fas fa-layer-group"></i> Analizar todas (activas)
+                    </button>
+                </div>
             </div>
             <div class="card-body">
                 <?php if (empty($paginas)): ?>
@@ -135,7 +140,10 @@ $paginas = $stmt->fetchAll();
                         </thead>
                         <tbody>
                             <?php foreach ($paginas as $p): ?>
-                            <tr id="fila-<?php echo $p['id']; ?>">
+                            <tr id="fila-<?php echo $p['id']; ?>"
+                                data-pagina-id="<?php echo (int)$p['id']; ?>"
+                                data-nombre="<?php echo htmlspecialchars($p['nombre'], ENT_QUOTES); ?>"
+                                data-activo="<?php echo (int)$p['activo']; ?>">
                                 <td>
                                     <strong><?php echo htmlspecialchars($p['nombre']); ?></strong>
                                     <?php if ($p['descripcion']): ?>
@@ -260,6 +268,17 @@ $paginas = $stmt->fetchAll();
 </div>
 
 <script>
+function ejecutarScrapingPagina(id) {
+    var data = new FormData();
+    data.append('pagina_id', id);
+
+    return fetch('ajax/scraping-fb-analizar.php', {
+        method: 'POST',
+        body: data,
+        credentials: 'same-origin'
+    }).then(function(r) { return r.json(); });
+}
+
 function analizarPagina(id, nombre) {
     var modal = document.getElementById('modal-analisis');
     var titulo = document.getElementById('modal-titulo');
@@ -269,15 +288,7 @@ function analizarPagina(id, nombre) {
     body.innerHTML = '<p style="text-align:center; padding:20px;"><i class="fas fa-spinner fa-spin"></i> Scrapeando Facebook...</p>';
     modal.style.display = 'flex';
 
-    var data = new FormData();
-    data.append('pagina_id', id);
-
-    fetch('ajax/scraping-fb-analizar.php', {
-        method: 'POST',
-        body: data,
-        credentials: 'same-origin'
-    })
-    .then(function(r) { return r.json(); })
+    ejecutarScrapingPagina(id)
     .then(function(res) {
         if (res.error) {
             body.innerHTML = '<div class="alert alert-error" style="margin:0;">' + escapeHtml(res.error) + '</div>';
@@ -317,13 +328,87 @@ function analizarPagina(id, nombre) {
         html += '</div>';
 
         body.innerHTML = html;
-
-        // Actualizar contador en la tabla
-        location.reload();
     })
     .catch(function(err) {
         body.innerHTML = '<div class="alert alert-error" style="margin:0;">Error de red: ' + escapeHtml(err.message) + '</div>';
     });
+}
+
+async function analizarTodasPaginas() {
+    var modal = document.getElementById('modal-analisis');
+    var titulo = document.getElementById('modal-titulo');
+    var body   = document.getElementById('modal-body');
+
+    var filas = Array.from(document.querySelectorAll('tr[data-pagina-id][data-activo="1"]'));
+    if (filas.length === 0) {
+        titulo.textContent = 'Analizar todas';
+        body.innerHTML = '<div class="alert alert-error" style="margin:0;">No hay páginas activas para analizar.</div>';
+        modal.style.display = 'flex';
+        return;
+    }
+
+    titulo.textContent = 'Analizando páginas activas de Facebook';
+    modal.style.display = 'flex';
+
+    var total = filas.length;
+    var procesadas = 0;
+    var totGuardadas = 0;
+    var totDuplicadas = 0;
+    var totErrores = 0;
+    var log = [];
+
+    function renderProgreso(actualNombre) {
+        var pct = Math.round((procesadas / total) * 100);
+        body.innerHTML =
+            '<p style="margin:0 0 10px 0;"><strong>Procesando:</strong> ' + escapeHtml(actualNombre || '...') + '</p>' +
+            '<div style="width:100%; background:#eef2f7; border-radius:999px; height:14px; overflow:hidden; margin-bottom:10px;">' +
+                '<div style="width:' + pct + '%; height:100%; background:#27ae60; transition:width .2s;"></div>' +
+            '</div>' +
+            '<p style="margin:0 0 12px 0; color:#666; font-size:13px;">' + procesadas + ' de ' + total + ' (' + pct + '%)</p>' +
+            '<div style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:12px;">' +
+                '<div style="text-align:center; background:#e8f8f5; border-radius:6px; padding:10px;"><strong style="font-size:20px; color:#27ae60;">' + totGuardadas + '</strong><div style="font-size:12px; color:#555;">Guardadas</div></div>' +
+                '<div style="text-align:center; background:#fef9e7; border-radius:6px; padding:10px;"><strong style="font-size:20px; color:#f39c12;">' + totDuplicadas + '</strong><div style="font-size:12px; color:#555;">Duplicadas</div></div>' +
+                '<div style="text-align:center; background:#fdecea; border-radius:6px; padding:10px;"><strong style="font-size:20px; color:#e74c3c;">' + totErrores + '</strong><div style="font-size:12px; color:#555;">Errores</div></div>' +
+            '</div>' +
+            '<div style="max-height:220px; overflow:auto; border:1px solid #edf2f7; border-radius:8px; padding:10px; background:#fafbfc;">' +
+                (log.length ? log.join('') : '<small style="color:#999;">Iniciando...</small>') +
+            '</div>';
+    }
+
+    renderProgreso('Iniciando...');
+
+    for (var i = 0; i < filas.length; i++) {
+        var fila = filas[i];
+        var id = parseInt(fila.getAttribute('data-pagina-id'), 10);
+        var nombre = fila.getAttribute('data-nombre') || ('ID ' + id);
+
+        renderProgreso(nombre);
+
+        try {
+            var res = await ejecutarScrapingPagina(id);
+            if (res && !res.error) {
+                totGuardadas += (parseInt(res.guardadas, 10) || 0);
+                totDuplicadas += (parseInt(res.duplicadas, 10) || 0);
+                totErrores += (parseInt(res.errores, 10) || 0);
+                log.unshift('<div style="padding:6px 0; border-bottom:1px solid #f0f2f5;"><strong>' + escapeHtml(nombre) + '</strong><br><small style="color:#666;">+' + (parseInt(res.guardadas, 10) || 0) + ' nuevas, ' + (parseInt(res.duplicadas, 10) || 0) + ' duplicadas</small></div>');
+            } else {
+                totErrores++;
+                log.unshift('<div style="padding:6px 0; border-bottom:1px solid #f0f2f5;"><strong>' + escapeHtml(nombre) + '</strong><br><small style="color:#c0392b;">Error: ' + escapeHtml((res && res.error) ? res.error : 'desconocido') + '</small></div>');
+            }
+        } catch (e) {
+            totErrores++;
+            log.unshift('<div style="padding:6px 0; border-bottom:1px solid #f0f2f5;"><strong>' + escapeHtml(nombre) + '</strong><br><small style="color:#c0392b;">Error de red: ' + escapeHtml(e.message) + '</small></div>');
+        }
+
+        procesadas++;
+        renderProgreso(nombre);
+    }
+
+    var resumen = '<div style="margin-top:14px; display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap;">';
+    resumen += '<a href="noticias-escaneadas.php" class="btn btn-primary"><i class="fas fa-list"></i> Ver Noticias Escaneadas</a>';
+    resumen += '<button onclick="location.reload()" class="btn btn-secondary"><i class="fas fa-sync-alt"></i> Recargar tabla</button>';
+    resumen += '</div>';
+    body.innerHTML += resumen;
 }
 
 function escapeHtml(str) {
