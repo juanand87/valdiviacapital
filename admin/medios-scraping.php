@@ -339,6 +339,13 @@ function convertirCSSaXPath($selector) {
     
     $selector = trim($selector);
     
+    // Selectores con múltiples clases (.clase1.clase2)
+    if (preg_match('/^\.([a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]+)+)$/', $selector, $matches)) {
+        $clases = explode('.', $matches[1]);
+        $conds = array_map(fn($c) => "contains(concat(' ', normalize-space(@class), ' '), ' {$c} ')", $clases);
+        return "//*[" . implode(' and ', $conds) . "]";
+    }
+
     // Selectores con clase (.clase)
     if (preg_match('/^\.([a-zA-Z0-9_-]+)$/', $selector, $matches)) {
         return "//*[contains(concat(' ', normalize-space(@class), ' '), ' {$matches[1]} ')]";
@@ -349,6 +356,14 @@ function convertirCSSaXPath($selector) {
         return "//*[@id='{$matches[1]}']";
     }
     
+    // Etiqueta con múltiples clases (div.clase1.clase2)
+    if (preg_match('/^([a-zA-Z0-9]+)\.([a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]+)+)$/', $selector, $matches)) {
+        $tag = $matches[1];
+        $clases = explode('.', $matches[2]);
+        $conds = array_map(fn($c) => "contains(concat(' ', normalize-space(@class), ' '), ' {$c} ')", $clases);
+        return "//{$tag}[" . implode(' and ', $conds) . "]";
+    }
+
     // Etiqueta con clase (div.clase, h1.clase)
     if (preg_match('/^([a-zA-Z0-9]+)\.([a-zA-Z0-9_-]+)$/', $selector, $matches)) {
         return "//{$matches[1]}[contains(concat(' ', normalize-space(@class), ' '), ' {$matches[2]} ')]";
@@ -366,6 +381,7 @@ function convertirCSSaXPath($selector) {
         foreach ($parts as $part) {
             $part = trim($part);
             if (empty($part)) continue;
+            if ($part === '>') continue; // Tratar child combinator como descendiente simple
 
             if (strpos($part, '.') === 0) {
                 // .clase
