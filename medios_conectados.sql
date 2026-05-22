@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS medios_contenido_sincronizado (
     contenido_id_externo VARCHAR(255),
     noticia_id INT,
     titulo VARCHAR(500),
-    contenido TEXT,
+    contenido LONGTEXT,
     url_original VARCHAR(500),
     fecha_publicacion DATETIME,
     estado ENUM('pendiente', 'procesado', 'publicado', 'error') DEFAULT 'pendiente',
