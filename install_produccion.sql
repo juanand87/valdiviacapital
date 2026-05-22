@@ -161,7 +161,7 @@ CREATE TABLE IF NOT EXISTS medios_contenido_sincronizado (
     contenido_id_externo VARCHAR(255),
     noticia_id INT,
     titulo VARCHAR(500),
-    contenido TEXT,
+    contenido LONGTEXT,
     imagen_url VARCHAR(500),
     url_original VARCHAR(500),
     hash_contenido VARCHAR(32),
