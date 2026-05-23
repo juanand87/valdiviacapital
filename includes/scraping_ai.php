@@ -163,6 +163,190 @@ function normalizeFacebookPosts(array $posts) {
     return $out;
 }
 
+function cleanFacebookPostText($text) {
+    $text = trim((string)$text);
+    if ($text === '') {
+        return '';
+    }
+
+    // Quitar coletillas visuales típicas de Facebook.
+    $text = preg_replace('/\s*(ver\s+menos|see\s+more)\s*$/iu', '', $text);
+    $text = preg_replace('/\s{2,}/u', ' ', $text);
+
+    return trim($text);
+}
+
+function isLikelyTruncatedFacebookPost($text) {
+    $text = trim((string)$text);
+    if ($text === '') {
+        return false;
+    }
+
+    if (preg_match('/(\.\.\.|…)\s*$/u', $text)) {
+        return true;
+    }
+
+    if (preg_match('/\b(ver\s+menos|see\s+more)\s*$/iu', $text)) {
+        return true;
+    }
+
+    return false;
+}
+
+function extractFacebookPermalinkUrls($html, $fallbackPageUrl = '') {
+    $html = (string)$html;
+    $urls = [];
+
+    // URLs serializadas en JSON embebido.
+    preg_match_all('#"wwwURL":"((?:https?:\\/\\/|\\/)[^"\\]+(?:\\.[^"\\]+)*)"#', $html, $m1);
+    preg_match_all('#"story":\{"url":"((?:https?:\\/\\/|\\/)[^"\\]+(?:\\.[^"\\]+)*)"#', $html, $m2);
+
+    $candidates = array_merge($m1[1] ?? [], $m2[1] ?? []);
+    foreach ($candidates as $raw) {
+        $u = str_replace('\\/', '/', (string)$raw);
+        $u = preg_replace('/\\u0025([0-9a-fA-F]{2})/', '%$1', $u);
+        $u = html_entity_decode($u, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+        if (strpos($u, '//') === 0) {
+            $u = 'https:' . $u;
+        } elseif (strpos($u, '/') === 0 && $fallbackPageUrl !== '') {
+            $parts = parse_url($fallbackPageUrl);
+            $scheme = $parts['scheme'] ?? 'https';
+            $host = $parts['host'] ?? 'www.facebook.com';
+            $u = $scheme . '://' . $host . $u;
+        }
+
+        if (!preg_match('#^https?://#i', $u)) {
+            continue;
+        }
+
+        // Normalizar host para evitar variantes m./mbasic./www.
+        $u = preg_replace('#^https?://(?:m|mbasic)\.facebook\.com#i', 'https://www.facebook.com', $u);
+        $urls[] = $u;
+    }
+
+    return array_values(array_unique($urls));
+}
+
+function extractFacebookDirectPostsRaw($html, $pageUrl = '') {
+    preg_match_all('#"message":\{"text":"((?:[^"\\]|\\.)*)"\}#', (string)$html, $msgMatches);
+    preg_match_all('#"creation_time":(\d{10})#', (string)$html, $timeMatches);
+
+    $texts = $msgMatches[1] ?? [];
+    $times = $timeMatches[1] ?? [];
+    $urls = extractFacebookPermalinkUrls($html, $pageUrl);
+
+    $posts = [];
+    foreach ($texts as $i => $raw) {
+        $texto = @json_decode('"' . $raw . '"');
+        if (!is_string($texto)) {
+            $texto = $raw;
+        }
+
+        $texto = cleanFacebookPostText($texto);
+        if (mb_strlen($texto) < 10) continue;
+
+        $posts[] = [
+            'texto' => $texto,
+            'timestamp' => isset($times[$i]) ? (int)$times[$i] : 0,
+            'url_candidata' => $urls[$i] ?? null,
+        ];
+    }
+
+    return $posts;
+}
+
+function tryExpandFacebookPostFromUrl($url, $currentText) {
+    $url = trim((string)$url);
+    if ($url === '' || !preg_match('#^https?://#i', $url)) {
+        return null;
+    }
+
+    $res = scrapingHttpGet($url, 20, [
+        'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language: es-CL,es;q=0.9,en;q=0.8',
+    ]);
+
+    if (empty($res['ok']) || empty($res['body'])) {
+        return null;
+    }
+
+    $html = (string)$res['body'];
+    $best = trim((string)$currentText);
+
+    // En páginas de detalle suele venir una descripción más extensa.
+    if (preg_match('/<meta\s+property="og:description"\s+content="([^"]+)"/iu', $html, $m)) {
+        $og = html_entity_decode((string)$m[1], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $og = cleanFacebookPostText($og);
+        if (!isFacebookNoiseText($og) && mb_strlen($og) > mb_strlen($best)) {
+            $best = $og;
+        }
+    }
+
+    // Reusar extracción directa sobre el detalle y escoger el texto más largo.
+    $candidates = extractFacebookDirectPostsRaw($html, $url);
+    foreach ($candidates as $c) {
+        $txt = cleanFacebookPostText((string)($c['texto'] ?? ''));
+        if (!isFacebookNoiseText($txt) && mb_strlen($txt) > mb_strlen($best)) {
+            $best = $txt;
+        }
+    }
+
+    if (mb_strlen($best) >= mb_strlen((string)$currentText) + 40) {
+        return $best;
+    }
+
+    return null;
+}
+
+function expandTruncatedFacebookPosts(array $posts, $pageUrl = '') {
+    if (empty($posts)) {
+        return $posts;
+    }
+
+    $expanded = $posts;
+    $expandedCount = 0;
+
+    foreach ($expanded as $i => $p) {
+        $texto = (string)($p['texto'] ?? '');
+        $url = (string)($p['url_candidata'] ?? '');
+
+        if (!isLikelyTruncatedFacebookPost($texto)) {
+            continue;
+        }
+        if ($url === '') {
+            continue;
+        }
+
+        $full = tryExpandFacebookPostFromUrl($url, $texto);
+        if (is_string($full) && $full !== '') {
+            $expanded[$i]['texto'] = $full;
+            $expandedCount++;
+        }
+
+        // Limitar requests extra por corrida para no ralentizar/saturar.
+        if ($expandedCount >= 4) {
+            break;
+        }
+    }
+
+    return $expanded;
+}
+
+function finalizeFacebookDirectPosts(array $rawPosts, $pageUrl = '') {
+    $rawPosts = expandTruncatedFacebookPosts($rawPosts, $pageUrl);
+
+    $plain = [];
+    foreach ($rawPosts as $p) {
+        $plain[] = [
+            'texto' => cleanFacebookPostText((string)($p['texto'] ?? '')),
+            'timestamp' => (int)($p['timestamp'] ?? 0),
+        ];
+    }
+
+    return normalizeFacebookPosts($plain);
+}
+
 function geminiStructuredExtract($cfg, $prompt, $maxTokens = 2048) {
     if (empty($cfg['gemini_api_key'])) {
         return ['error' => 'No hay gemini_api_key configurada'];
@@ -383,43 +567,12 @@ function extractFacebookPostsByProvider($providerCfg, $pageUrl, $html) {
             if (!empty($out)) return $out;
         }
 
-        // Fallback: extracción directa por regex del HTML original
-        preg_match_all('#"message":\{"text":"((?:[^"\\\\]|\\\\.)*)"\}#', (string)$html, $msgMatches);
-        preg_match_all('#"creation_time":(\d{10})#', (string)$html, $timeMatches);
-        $texts = $msgMatches[1] ?? [];
-        $times = $timeMatches[1] ?? [];
-        $fallback = [];
-        foreach ($texts as $i => $raw) {
-            $texto = @json_decode('"' . $raw . '"');
-            if (!is_string($texto)) $texto = $raw;
-            $texto = trim($texto);
-            if (mb_strlen($texto) < 10) continue;
-            $fallback[] = [
-                'texto'     => $texto,
-                'timestamp' => isset($times[$i]) ? (int)$times[$i] : 0,
-            ];
-        }
-        return normalizeFacebookPosts($fallback);
+        // Fallback: extracción directa + intento de expansión por permalink.
+        $fallbackRaw = extractFacebookDirectPostsRaw($html, $pageUrl);
+        return finalizeFacebookDirectPosts($fallbackRaw, $pageUrl);
     }
 
-    // direct (JSON embebido)
-    preg_match_all('#"message":\{"text":"((?:[^"\\\\]|\\\\.)*)"\}#', (string)$html, $msgMatches);
-    preg_match_all('#"creation_time":(\d{10})#', (string)$html, $timeMatches);
-
-    $texts = $msgMatches[1] ?? [];
-    $times = $timeMatches[1] ?? [];
-    $posts = [];
-
-    foreach ($texts as $i => $raw) {
-        $texto = @json_decode('"' . $raw . '"');
-        if (!is_string($texto)) $texto = $raw;
-        $texto = trim($texto);
-        if (mb_strlen($texto) < 10) continue;
-        $posts[] = [
-            'texto' => $texto,
-            'timestamp' => isset($times[$i]) ? (int)$times[$i] : 0,
-        ];
-    }
-
-    return normalizeFacebookPosts($posts);
+    // direct (JSON embebido) + expansión por permalink si viene truncado.
+    $directRaw = extractFacebookDirectPostsRaw($html, $pageUrl);
+    return finalizeFacebookDirectPosts($directRaw, $pageUrl);
 }
