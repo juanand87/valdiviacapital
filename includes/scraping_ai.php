@@ -365,15 +365,12 @@ function extractFacebookPostsByProvider($providerCfg, $pageUrl, $html) {
     }
 
     if ($mode === 'gemini') {
-        // Usar más HTML para que Gemini pueda ver más contenido
-        $sample = mb_substr((string)$html, 0, 30000);
-        $prompt = "Desde el siguiente HTML de una página de Facebook pública, extrae hasta 10 posts recientes completos (no resumidos). " .
-                  "Devuelve JSON válido sin texto adicional con esta forma exacta: " .
-                  "{\"posts\":[{\"texto\":\"contenido completo del post\",\"timestamp\":1234567890}]}. " .
-                  "IMPORTANTE: cada post debe tener el contenido COMPLETO, sin '...' ni truncamiento. " .
+        $sample = mb_substr((string)$html, 0, 18000);
+        $prompt = "Desde el siguiente HTML de una página de Facebook pública, extrae hasta 5 posts recientes y devuelve JSON válido sin texto adicional con esta forma exacta: " .
+                  "{\"posts\":[{\"texto\":\"...\",\"timestamp\":1234567890}]}. " .
                   "Si no hay timestamp, usa 0. HTML:\n{$sample}";
 
-        $res = geminiStructuredExtract($providerCfg, $prompt, 2500);
+        $res = geminiStructuredExtract($providerCfg, $prompt, 1800);
         if (!empty($res['ok']) && !empty($res['data']['posts']) && is_array($res['data']['posts'])) {
             $out = [];
             foreach ($res['data']['posts'] as $p) {
@@ -390,17 +387,36 @@ function extractFacebookPostsByProvider($providerCfg, $pageUrl, $html) {
     }
 
     if ($mode === 'copilot') {
-        // Prioridad INVERTIDA: LLM primero, porque el HTML tiene contenido que regex no puede captar
-        $sample = mb_substr((string)$html, 0, 35000);
-        $prompt = "Eres un extractor de datos de páginas públicas de Facebook. " .
-                  "Analiza el siguiente HTML e identifica hasta 10 publicaciones (posts) recientes. " .
-                  "Devuelve ÚNICAMENTE un JSON válido sin texto adicional, con esta estructura exacta: " .
-                  '{"posts":[{"texto":"contenido completo sin resumir","timestamp":1234567890}]}. ' .
-                  "CRÍTICO: cada 'texto' debe ser COMPLETO, sin '...', no resumido, incluyendo todo el párrafo. " .
-                  "Si no encuentras timestamp Unix de 10 dígitos exactos, usa 0. " .
-                  "HTML:\n{$sample}";
+        // Prioridad: extracción directa, conserva texto completo y evita respuestas resumidas del LLM.
+        $directPosts = extractFacebookDirectPosts($html);
+        if (!empty($directPosts)) {
+            return $directPosts;
+        }
 
-        $res = copilotStructuredExtract($providerCfg, $prompt, 2500);
+        // Si no hay JSON embebido usable, usamos LLM como respaldo.
+        $textoPlano = '';
+        $jina = getJinaReaderContent($pageUrl, $providerCfg['jina_api_key'] ?? '');
+        if ($jina['ok'] && mb_strlen(trim((string)$jina['body'])) > 50) {
+            $textoPlano = mb_substr(trim((string)$jina['body']), 0, 12000);
+        } else {
+            $stripped = strip_tags(preg_replace('#<script[^>]*>.*?</script>#si', '', (string)$html));
+            $stripped = preg_replace('/\s{2,}/', ' ', $stripped);
+            $textoPlano = mb_substr(trim($stripped), 0, 12000);
+        }
+
+        if (mb_strlen($textoPlano) < 30) {
+            return [];
+        }
+
+        $prompt = "Eres un extractor de datos. Analiza el siguiente texto extraído de una página pública de Facebook " .
+                  "e identifica hasta 5 publicaciones (posts) recientes. " .
+                  "Devuelve UNICAMENTE un JSON válido sin texto adicional ni bloques de código, con esta estructura exacta: " .
+                  '{"posts":[{"texto":"contenido del post","timestamp":1234567890}]}. ' .
+                  "IMPORTANTE: devuelve el texto completo del post, sin resumir, sin truncar, sin usar '...'. " .
+                  "Si no encuentras timestamp Unix de 10 dígitos, usa 0. " .
+                  "Texto:\n{$textoPlano}";
+
+        $res = copilotStructuredExtract($providerCfg, $prompt, 2000);
         if (!empty($res['ok']) && !empty($res['data']['posts']) && is_array($res['data']['posts'])) {
             $out = [];
             foreach ($res['data']['posts'] as $p) {
@@ -415,8 +431,7 @@ function extractFacebookPostsByProvider($providerCfg, $pageUrl, $html) {
             if (!empty($out)) return $out;
         }
 
-        // Fallback: extracción directa por regex solo si Copilot falla
-        return extractFacebookDirectPosts($html);
+        return [];
     }
 
     // direct (JSON embebido)
