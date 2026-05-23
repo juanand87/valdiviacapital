@@ -91,6 +91,78 @@ function parseJinaMarkdownArticle($markdown, $fallbackUrl = '') {
     ];
 }
 
+function isFacebookNoiseText($text) {
+    $text = trim((string)$text);
+    if ($text === '') {
+        return true;
+    }
+
+    $lower = mb_strtolower($text);
+
+    // Frases típicas de páginas de login/landing que no son publicaciones.
+    $noisePhrases = [
+        'log into facebook',
+        'forgot password',
+        'create new account',
+        'explore the things you love',
+        'join facebook',
+        'sign up for facebook',
+        'inicia sesión en facebook',
+        'crear cuenta nueva',
+        '¿olvidaste tu contraseña?',
+        'olvidaste tu contraseña',
+        'meta ©',
+        'meta © 202',
+        'privacy',
+        'cookies',
+        'terms',
+    ];
+
+    foreach ($noisePhrases as $phrase) {
+        if (mb_strpos($lower, $phrase) !== false) {
+            return true;
+        }
+    }
+
+    // Textos demasiado cortos rara vez corresponden a publicaciones reales.
+    if (mb_strlen($text) < 25) {
+        return true;
+    }
+
+    // Exigir al menos 4 palabras para reducir títulos/menus sueltos.
+    $wordCount = preg_match_all('/[\p{L}\p{N}]+/u', $text, $matches);
+    if ($wordCount < 4) {
+        return true;
+    }
+
+    return false;
+}
+
+function normalizeFacebookPosts(array $posts) {
+    $out = [];
+    $seen = [];
+
+    foreach ($posts as $p) {
+        $texto = trim((string)($p['texto'] ?? ''));
+        if (isFacebookNoiseText($texto)) {
+            continue;
+        }
+
+        $hash = md5(mb_strtolower($texto));
+        if (isset($seen[$hash])) {
+            continue;
+        }
+        $seen[$hash] = true;
+
+        $out[] = [
+            'texto' => $texto,
+            'timestamp' => (int)($p['timestamp'] ?? 0),
+        ];
+    }
+
+    return $out;
+}
+
 function geminiStructuredExtract($cfg, $prompt, $maxTokens = 2048) {
     if (empty($cfg['gemini_api_key'])) {
         return ['error' => 'No hay gemini_api_key configurada'];
@@ -239,10 +311,10 @@ function extractFacebookPostsByProvider($providerCfg, $pageUrl, $html) {
         if ($jina['ok']) {
             $text = trim((string)$jina['body']);
             if ($text !== '' && mb_strlen($text) > 30) {
-                return [[
+                return normalizeFacebookPosts([[
                     'texto' => $text,
                     'timestamp' => time(),
-                ]];
+                ]]);
             }
         }
         return [];
@@ -265,7 +337,7 @@ function extractFacebookPostsByProvider($providerCfg, $pageUrl, $html) {
                     'timestamp' => (int)($p['timestamp'] ?? 0),
                 ];
             }
-            return $out;
+            return normalizeFacebookPosts($out);
         }
         return [];
     }
@@ -307,6 +379,7 @@ function extractFacebookPostsByProvider($providerCfg, $pageUrl, $html) {
                     'timestamp' => (int)($p['timestamp'] ?? 0),
                 ];
             }
+            $out = normalizeFacebookPosts($out);
             if (!empty($out)) return $out;
         }
 
@@ -326,7 +399,7 @@ function extractFacebookPostsByProvider($providerCfg, $pageUrl, $html) {
                 'timestamp' => isset($times[$i]) ? (int)$times[$i] : 0,
             ];
         }
-        return $fallback;
+        return normalizeFacebookPosts($fallback);
     }
 
     // direct (JSON embebido)
@@ -348,5 +421,5 @@ function extractFacebookPostsByProvider($providerCfg, $pageUrl, $html) {
         ];
     }
 
-    return $posts;
+    return normalizeFacebookPosts($posts);
 }
