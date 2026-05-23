@@ -112,8 +112,22 @@ foreach ($paginas as $pagina) {
         }
 
         $lineas = explode("\n", $texto, 2);
-        $titulo = mb_substr(trim($lineas[0]), 0, 200);
-        if (empty($titulo)) $titulo = mb_substr($texto, 0, 200);
+        $tituloRaw = trim((string)($lineas[0] ?? ''));
+        if ($tituloRaw === '') {
+            $tituloRaw = trim($texto);
+        }
+        $tituloRaw = preg_replace('/\s+/u', ' ', $tituloRaw);
+        $titulo = $tituloRaw;
+        if (mb_strlen($titulo) > 500) {
+            $titulo = mb_substr($titulo, 0, 500);
+            $ultimoEspacio = mb_strrpos($titulo, ' ');
+            if ($ultimoEspacio !== false && $ultimoEspacio > 350) {
+                $titulo = mb_substr($titulo, 0, $ultimoEspacio);
+            }
+        }
+        if ($titulo === '') {
+            $titulo = 'Publicación de Facebook';
+        }
 
         $fecha    = date('Y-m-d H:i:s', $timestamp);
         $url_post = 'https://www.facebook.com/' . $slug;
