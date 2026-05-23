@@ -163,50 +163,6 @@ function normalizeFacebookPosts(array $posts) {
     return $out;
 }
 
-function cleanFacebookPostText($text) {
-    $text = trim((string)$text);
-    if ($text === '') {
-        return '';
-    }
-
-    // Remover coletillas típicas de UI al final del post.
-    $text = preg_replace('/\s*(ver\s+menos|see\s+more)\s*$/iu', '', $text);
-
-    // Normalizar espacios manteniendo saltos de línea.
-    $text = preg_replace('/[ \t]{2,}/u', ' ', $text);
-    $text = preg_replace('/\n{3,}/u', "\n\n", $text);
-
-    return trim($text);
-}
-
-function extractFacebookDirectPosts($html) {
-    preg_match_all('#"message":\{"text":"((?:[^"\\\\]|\\\\.)*)"\}#', (string)$html, $msgMatches);
-    preg_match_all('#"creation_time":(\d{10})#', (string)$html, $timeMatches);
-
-    $texts = $msgMatches[1] ?? [];
-    $times = $timeMatches[1] ?? [];
-    $posts = [];
-
-    foreach ($texts as $i => $raw) {
-        $texto = @json_decode('"' . $raw . '"');
-        if (!is_string($texto)) {
-            $texto = $raw;
-        }
-
-        $texto = cleanFacebookPostText($texto);
-        if (mb_strlen($texto) < 10) {
-            continue;
-        }
-
-        $posts[] = [
-            'texto' => $texto,
-            'timestamp' => isset($times[$i]) ? (int)$times[$i] : 0,
-        ];
-    }
-
-    return normalizeFacebookPosts($posts);
-}
-
 function geminiStructuredExtract($cfg, $prompt, $maxTokens = 2048) {
     if (empty($cfg['gemini_api_key'])) {
         return ['error' => 'No hay gemini_api_key configurada'];
@@ -353,7 +309,7 @@ function extractFacebookPostsByProvider($providerCfg, $pageUrl, $html) {
     if ($mode === 'jina') {
         $jina = getJinaReaderContent($pageUrl, $providerCfg['jina_api_key'] ?? '');
         if ($jina['ok']) {
-            $text = cleanFacebookPostText((string)$jina['body']);
+            $text = trim((string)$jina['body']);
             if ($text !== '' && mb_strlen($text) > 30) {
                 return normalizeFacebookPosts([[
                     'texto' => $text,
@@ -374,7 +330,7 @@ function extractFacebookPostsByProvider($providerCfg, $pageUrl, $html) {
         if (!empty($res['ok']) && !empty($res['data']['posts']) && is_array($res['data']['posts'])) {
             $out = [];
             foreach ($res['data']['posts'] as $p) {
-                $texto = cleanFacebookPostText((string)($p['texto'] ?? ''));
+                $texto = trim((string)($p['texto'] ?? ''));
                 if (mb_strlen($texto) < 10) continue;
                 $out[] = [
                     'texto' => $texto,
@@ -387,18 +343,15 @@ function extractFacebookPostsByProvider($providerCfg, $pageUrl, $html) {
     }
 
     if ($mode === 'copilot') {
-        // Prioridad: extracción directa, conserva texto completo y evita respuestas resumidas del LLM.
-        $directPosts = extractFacebookDirectPosts($html);
-        if (!empty($directPosts)) {
-            return $directPosts;
-        }
-
-        // Si no hay JSON embebido usable, usamos LLM como respaldo.
+        // Extraer texto plano del HTML para no saturar el contexto del LLM
         $textoPlano = '';
+
+        // Intentar primero con Jina Reader para obtener texto limpio
         $jina = getJinaReaderContent($pageUrl, $providerCfg['jina_api_key'] ?? '');
         if ($jina['ok'] && mb_strlen(trim((string)$jina['body'])) > 50) {
             $textoPlano = mb_substr(trim((string)$jina['body']), 0, 12000);
         } else {
+            // Fallback: strip_tags sobre el HTML para extraer solo texto
             $stripped = strip_tags(preg_replace('#<script[^>]*>.*?</script>#si', '', (string)$html));
             $stripped = preg_replace('/\s{2,}/', ' ', $stripped);
             $textoPlano = mb_substr(trim($stripped), 0, 12000);
@@ -410,9 +363,8 @@ function extractFacebookPostsByProvider($providerCfg, $pageUrl, $html) {
 
         $prompt = "Eres un extractor de datos. Analiza el siguiente texto extraído de una página pública de Facebook " .
                   "e identifica hasta 5 publicaciones (posts) recientes. " .
-                  "Devuelve UNICAMENTE un JSON válido sin texto adicional ni bloques de código, con esta estructura exacta: " .
+                  "Devuelve ÚNICAMENTE un JSON válido sin texto adicional ni bloques de código, con esta estructura exacta: " .
                   '{"posts":[{"texto":"contenido del post","timestamp":1234567890}]}. ' .
-                  "IMPORTANTE: devuelve el texto completo del post, sin resumir, sin truncar, sin usar '...'. " .
                   "Si no encuentras timestamp Unix de 10 dígitos, usa 0. " .
                   "Texto:\n{$textoPlano}";
 
@@ -420,7 +372,7 @@ function extractFacebookPostsByProvider($providerCfg, $pageUrl, $html) {
         if (!empty($res['ok']) && !empty($res['data']['posts']) && is_array($res['data']['posts'])) {
             $out = [];
             foreach ($res['data']['posts'] as $p) {
-                $texto = cleanFacebookPostText((string)($p['texto'] ?? ''));
+                $texto = trim((string)($p['texto'] ?? ''));
                 if (mb_strlen($texto) < 10) continue;
                 $out[] = [
                     'texto'     => $texto,
@@ -431,9 +383,43 @@ function extractFacebookPostsByProvider($providerCfg, $pageUrl, $html) {
             if (!empty($out)) return $out;
         }
 
-        return [];
+        // Fallback: extracción directa por regex del HTML original
+        preg_match_all('#"message":\{"text":"((?:[^"\\\\]|\\\\.)*)"\}#', (string)$html, $msgMatches);
+        preg_match_all('#"creation_time":(\d{10})#', (string)$html, $timeMatches);
+        $texts = $msgMatches[1] ?? [];
+        $times = $timeMatches[1] ?? [];
+        $fallback = [];
+        foreach ($texts as $i => $raw) {
+            $texto = @json_decode('"' . $raw . '"');
+            if (!is_string($texto)) $texto = $raw;
+            $texto = trim($texto);
+            if (mb_strlen($texto) < 10) continue;
+            $fallback[] = [
+                'texto'     => $texto,
+                'timestamp' => isset($times[$i]) ? (int)$times[$i] : 0,
+            ];
+        }
+        return normalizeFacebookPosts($fallback);
     }
 
     // direct (JSON embebido)
-    return extractFacebookDirectPosts($html);
+    preg_match_all('#"message":\{"text":"((?:[^"\\\\]|\\\\.)*)"\}#', (string)$html, $msgMatches);
+    preg_match_all('#"creation_time":(\d{10})#', (string)$html, $timeMatches);
+
+    $texts = $msgMatches[1] ?? [];
+    $times = $timeMatches[1] ?? [];
+    $posts = [];
+
+    foreach ($texts as $i => $raw) {
+        $texto = @json_decode('"' . $raw . '"');
+        if (!is_string($texto)) $texto = $raw;
+        $texto = trim($texto);
+        if (mb_strlen($texto) < 10) continue;
+        $posts[] = [
+            'texto' => $texto,
+            'timestamp' => isset($times[$i]) ? (int)$times[$i] : 0,
+        ];
+    }
+
+    return normalizeFacebookPosts($posts);
 }
