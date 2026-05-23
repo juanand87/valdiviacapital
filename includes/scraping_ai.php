@@ -198,13 +198,13 @@ function extractFacebookPermalinkUrls($html, $fallbackPageUrl = '') {
     $urls = [];
 
     // URLs serializadas en JSON embebido.
-    preg_match_all('#"wwwURL":"((?:https?:\\/\\/|\\/)[^"\\]+(?:\\.[^"\\]+)*)"#', $html, $m1);
-    preg_match_all('#"story":\{"url":"((?:https?:\\/\\/|\\/)[^"\\]+(?:\\.[^"\\]+)*)"#', $html, $m2);
+    preg_match_all('#"wwwURL":"([^"]+)"#', $html, $m1);
+    preg_match_all('#"story":\{"url":"([^"]+)"#', $html, $m2);
 
     $candidates = array_merge($m1[1] ?? [], $m2[1] ?? []);
     foreach ($candidates as $raw) {
         $u = str_replace('\\/', '/', (string)$raw);
-        $u = preg_replace('/\\u0025([0-9a-fA-F]{2})/', '%$1', $u);
+        $u = preg_replace('/\\\\u0025([0-9a-fA-F]{2})/', '%$1', $u);
         $u = html_entity_decode($u, ENT_QUOTES | ENT_HTML5, 'UTF-8');
 
         if (strpos($u, '//') === 0) {
