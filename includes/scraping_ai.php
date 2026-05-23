@@ -180,47 +180,17 @@ function cleanFacebookPostText($text) {
 }
 
 function extractFacebookDirectPosts($html) {
-    $html = (string)$html;
+    preg_match_all('#"message":\{"text":"((?:[^"\\\\]|\\\\.)*)"\}#', (string)$html, $msgMatches);
+    preg_match_all('#"creation_time":(\d{10})#', (string)$html, $timeMatches);
 
-    // Facebook cambia seguido el formato del JSON embebido; intentamos variantes crudas y escapadas.
-    $messagePatterns = [
-        '#"message":\{"text":"((?:[^"\\\\]|\\\\.)*)"#',
-        '#\\\\"message\\\\":\\\\\{\\\\"text\\\\":\\\\"((?:[^"\\\\]|\\\\.)*)#',
-    ];
-
-    $timePatterns = [
-        '#"creation_time":(\d{10})#',
-        '#\\\\"creation_time\\\\":(\d{10})#',
-    ];
-
-    $texts = [];
-    foreach ($messagePatterns as $pattern) {
-        if (preg_match_all($pattern, $html, $matches) && !empty($matches[1])) {
-            foreach ($matches[1] as $m) {
-                $texts[] = $m;
-            }
-        }
-    }
-
-    $times = [];
-    foreach ($timePatterns as $pattern) {
-        if (preg_match_all($pattern, $html, $matches) && !empty($matches[1])) {
-            foreach ($matches[1] as $t) {
-                $times[] = $t;
-            }
-        }
-    }
-
-    if (empty($texts)) {
-        return [];
-    }
-
+    $texts = $msgMatches[1] ?? [];
+    $times = $timeMatches[1] ?? [];
     $posts = [];
 
     foreach ($texts as $i => $raw) {
         $texto = @json_decode('"' . $raw . '"');
         if (!is_string($texto)) {
-            $texto = stripcslashes((string)$raw);
+            $texto = $raw;
         }
 
         $texto = cleanFacebookPostText($texto);
@@ -391,7 +361,7 @@ function extractFacebookPostsByProvider($providerCfg, $pageUrl, $html) {
                 ]]);
             }
         }
-        return extractFacebookDirectPosts($html);
+        return [];
     }
 
     if ($mode === 'gemini') {
@@ -414,12 +384,9 @@ function extractFacebookPostsByProvider($providerCfg, $pageUrl, $html) {
                     'timestamp' => (int)($p['timestamp'] ?? 0),
                 ];
             }
-            $out = normalizeFacebookPosts($out);
-            if (!empty($out)) {
-                return $out;
-            }
+            return normalizeFacebookPosts($out);
         }
-        return extractFacebookDirectPosts($html);
+        return [];
     }
 
     if ($mode === 'copilot') {
