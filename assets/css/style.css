@@ -1363,6 +1363,34 @@ html.dark-mode .ad-in_article { background: #2a2a2a; border-color: #333; }
     border-radius: 4px;
 }
 
+.mm-format-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    color: #fff;
+    padding: 3px 8px;
+    border-radius: 999px;
+    z-index: 2;
+}
+
+.mm-format-badge.is-reel {
+    background: #f97316;
+}
+
+.mm-format-badge.is-video {
+    background: rgba(17, 24, 39, .85);
+    border: 1px solid rgba(255,255,255,.25);
+}
+
+.mm-format-badge--sm {
+    font-size: 9px;
+    padding: 2px 7px;
+}
+
 /* Titles */
 .mm-featured-title {
     color: #fff;

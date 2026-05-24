@@ -86,6 +86,7 @@ CREATE TABLE IF NOT EXISTS videos (
     titulo       VARCHAR(255) NOT NULL,
     url          VARCHAR(500) NOT NULL,
     tipo         ENUM('youtube','facebook') NOT NULL DEFAULT 'youtube',
+    es_reel      TINYINT(1) NOT NULL DEFAULT 0,
     descripcion  TEXT NULL,
     categoria_id INT UNSIGNED NULL,
     activo       TINYINT(1) NOT NULL DEFAULT 1,

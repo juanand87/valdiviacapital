@@ -27,6 +27,35 @@ function mm_thumb_url(string $url, string $tipo): string {
     return ''; // Facebook no expone thumbnail fiable por URL
 }
 
+function mm_is_reel(array $video): bool {
+    return !empty($video['es_reel']);
+}
+
+/**
+ * Fuerza que el tercer destacado (último de la columna derecha) sea Reel cuando exista uno disponible.
+ */
+function mm_prioritize_rightmost_reel(array $videos): array {
+    if (count($videos) < 3) {
+        return $videos;
+    }
+
+    $reordered = array_values($videos);
+    if (mm_is_reel($reordered[2])) {
+        return $reordered;
+    }
+
+    for ($i = 3; $i < count($reordered); $i++) {
+        if (mm_is_reel($reordered[$i])) {
+            $tmp = $reordered[2];
+            $reordered[2] = $reordered[$i];
+            $reordered[$i] = $tmp;
+            break;
+        }
+    }
+
+    return $reordered;
+}
+
 // ── DB ─────────────────────────────────────────────────────────────────────
 
 /**
@@ -56,6 +85,7 @@ function mm_galeria_videos(int $galeriaId, PDO $db): array {
 function mm_render_videos(array $videos): string {
     if (empty($videos)) return '';
 
+    $videos    = mm_prioritize_rightmost_reel($videos);
     $featured  = $videos[0];
     $secondary = array_slice($videos, 1, 2);
     $carousel  = $videos;
@@ -80,6 +110,9 @@ function mm_render_videos(array $videos): string {
                                 <?= htmlspecialchars($featured['cat_nombre']) ?>
                             </span>
                         <?php endif; ?>
+                        <span class="mm-format-badge <?= mm_is_reel($featured) ? 'is-reel' : 'is-video' ?>">
+                            <?= mm_is_reel($featured) ? 'Reel' : 'Video' ?>
+                        </span>
                     </div>
                     <div class="mm-iframe-wrap" style="display:none;">
                         <iframe src="" frameborder="0" allowfullscreen allow="autoplay; encrypted-media" loading="lazy"></iframe>
@@ -100,6 +133,9 @@ function mm_render_videos(array $videos): string {
                                 <div class="mm-fb-thumb"><i class="fab fa-facebook"></i></div>
                             <?php endif; ?>
                             <div class="mm-play-btn"><i class="fas fa-play"></i></div>
+                            <span class="mm-format-badge <?= mm_is_reel($sv) ? 'is-reel' : 'is-video' ?>">
+                                <?= mm_is_reel($sv) ? 'Reel' : 'Video' ?>
+                            </span>
                         </div>
                         <div class="mm-iframe-wrap" style="display:none;">
                             <iframe src="" frameborder="0" allowfullscreen allow="autoplay; encrypted-media" loading="lazy"></iframe>
@@ -127,6 +163,9 @@ function mm_render_videos(array $videos): string {
                                 <div class="mm-fb-thumb mm-fb-thumb--sm"><i class="fab fa-facebook"></i></div>
                             <?php endif; ?>
                             <div class="mm-play-btn mm-play-btn--sm"><i class="fas fa-play"></i></div>
+                            <span class="mm-format-badge mm-format-badge--sm <?= mm_is_reel($cv) ? 'is-reel' : 'is-video' ?>">
+                                <?= mm_is_reel($cv) ? 'Reel' : 'Video' ?>
+                            </span>
                             <div class="mm-carousel-overlay">
                                 <p><?= htmlspecialchars($cv['titulo']) ?></p>
                             </div>

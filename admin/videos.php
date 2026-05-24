@@ -4,6 +4,12 @@ require_once '../includes/config.php';
 include 'includes/header.php';
 
 $db = getDB();
+$tieneEsReel = false;
+try {
+    $tieneEsReel = (bool)$db->query("SHOW COLUMNS FROM videos LIKE 'es_reel'")->fetch();
+} catch (\Exception $e) {
+    $tieneEsReel = false;
+}
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 function extractYoutubeId(string $url): ?string {
@@ -40,16 +46,27 @@ if ($accion === 'guardar') {
     $categoria_id= (int)($_POST['categoria_id'] ?? 0) ?: null;
     $activo      = isset($_POST['activo']) ? 1 : 0;
     $orden       = (int)($_POST['orden'] ?? 0);
+    $es_reel     = isset($_POST['es_reel']) ? 1 : 0;
 
     if (!$titulo || !$url) {
         $error = 'Título y URL son obligatorios.';
     } else {
         if ($id) {
-            $stmt = $db->prepare("UPDATE videos SET titulo=?,url=?,tipo=?,descripcion=?,categoria_id=?,activo=?,orden=? WHERE id=?");
-            $stmt->execute([$titulo, $url, $tipo, $descripcion, $categoria_id, $activo, $orden, $id]);
+            if ($tieneEsReel) {
+                $stmt = $db->prepare("UPDATE videos SET titulo=?,url=?,tipo=?,es_reel=?,descripcion=?,categoria_id=?,activo=?,orden=? WHERE id=?");
+                $stmt->execute([$titulo, $url, $tipo, $es_reel, $descripcion, $categoria_id, $activo, $orden, $id]);
+            } else {
+                $stmt = $db->prepare("UPDATE videos SET titulo=?,url=?,tipo=?,descripcion=?,categoria_id=?,activo=?,orden=? WHERE id=?");
+                $stmt->execute([$titulo, $url, $tipo, $descripcion, $categoria_id, $activo, $orden, $id]);
+            }
         } else {
-            $stmt = $db->prepare("INSERT INTO videos (titulo,url,tipo,descripcion,categoria_id,activo,orden) VALUES (?,?,?,?,?,?,?)");
-            $stmt->execute([$titulo, $url, $tipo, $descripcion, $categoria_id, $activo, $orden]);
+            if ($tieneEsReel) {
+                $stmt = $db->prepare("INSERT INTO videos (titulo,url,tipo,es_reel,descripcion,categoria_id,activo,orden) VALUES (?,?,?,?,?,?,?,?)");
+                $stmt->execute([$titulo, $url, $tipo, $es_reel, $descripcion, $categoria_id, $activo, $orden]);
+            } else {
+                $stmt = $db->prepare("INSERT INTO videos (titulo,url,tipo,descripcion,categoria_id,activo,orden) VALUES (?,?,?,?,?,?,?)");
+                $stmt->execute([$titulo, $url, $tipo, $descripcion, $categoria_id, $activo, $orden]);
+            }
             $id = $db->lastInsertId();
         }
 
@@ -132,6 +149,7 @@ if (isset($_GET['editar'])) {
                         <th style="width:64px;">Preview</th>
                         <th>Título</th>
                         <th>Tipo</th>
+                        <th>Formato</th>
                         <th>Categoría</th>
                         <th>Comunas</th>
                         <th>Orden</th>
@@ -160,6 +178,13 @@ if (isset($_GET['editar'])) {
                                 <span style="background:#ff0000;color:#fff;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;"><i class="fab fa-youtube"></i> YouTube</span>
                             <?php else: ?>
                                 <span style="background:#1877f2;color:#fff;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;"><i class="fab fa-facebook"></i> Facebook</span>
+                            <?php endif; ?>
+                        </td>
+                        <td>
+                            <?php if (!empty($v['es_reel'])): ?>
+                                <span style="background:#f97316;color:#fff;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700;letter-spacing:.4px;">REEL</span>
+                            <?php else: ?>
+                                <span style="background:#64748b;color:#fff;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700;letter-spacing:.4px;">VIDEO</span>
                             <?php endif; ?>
                         </td>
                         <td><?= htmlspecialchars($v['cat_nombre'] ?? '—') ?></td>
@@ -237,6 +262,17 @@ if (isset($_GET['editar'])) {
                     <label class="form-label">Descripción</label>
                     <textarea name="descripcion" class="form-control" rows="2"><?= htmlspecialchars($editando['descripcion'] ?? '') ?></textarea>
                 </div>
+
+                <?php if ($tieneEsReel): ?>
+                <div class="form-group">
+                    <label class="form-label">Formato</label>
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                        <input type="checkbox" name="es_reel" <?= !empty($editando['es_reel']) ? 'checked' : '' ?>>
+                        <span>Marcar como Reel</span>
+                    </label>
+                    <small style="color:var(--color-gray);">El tercer destacado en portada prioriza videos marcados como Reel.</small>
+                </div>
+                <?php endif; ?>
 
                 <div class="form-group">
                     <label class="form-label">Categoría</label>

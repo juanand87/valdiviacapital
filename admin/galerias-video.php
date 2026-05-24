@@ -4,6 +4,12 @@ require_once '../includes/config.php';
 include 'includes/header.php';
 
 $db = getDB();
+$tieneEsReel = false;
+try {
+    $tieneEsReel = (bool)$db->query("SHOW COLUMNS FROM videos LIKE 'es_reel'")->fetch();
+} catch (\Exception $e) {
+    $tieneEsReel = false;
+}
 
 // ── Acciones POST ──────────────────────────────────────────────────────────
 $accion = $_POST['accion'] ?? '';
@@ -81,10 +87,12 @@ $galerias = $db->query("
     ORDER BY g.orden ASC, g.created_at DESC
 ")->fetchAll();
 
-$todosVideos = $db->query("
-    SELECT v.id, v.titulo, v.tipo, v.url, v.orden
-    FROM videos v WHERE v.activo = 1 ORDER BY v.orden ASC, v.titulo ASC
-")->fetchAll();
+$todosVideos = $db->query(
+    "SELECT v.id, v.titulo, v.tipo, v.url, v.orden, " . ($tieneEsReel ? "v.es_reel" : "0 AS es_reel") . "
+    FROM videos v
+    WHERE v.activo = 1
+    ORDER BY v.orden ASC, v.titulo ASC"
+)->fetchAll();
 
 $categorias = $db->query("SELECT * FROM categorias WHERE activo=1 ORDER BY nombre")->fetchAll();
 
@@ -316,6 +324,11 @@ $galeriaDestacada = $db->query("SELECT id FROM galerias_video WHERE destacada=1 
                                         <i class="fab fa-facebook" style="color:#1877f2;"></i>
                                     <?php endif; ?>
                                     <?= htmlspecialchars($tv['titulo']) ?>
+                                    <?php if (!empty($tv['es_reel'])): ?>
+                                        <span style="margin-left:6px;background:#f97316;color:#fff;padding:1px 6px;border-radius:10px;font-size:10px;font-weight:700;letter-spacing:.4px;">REEL</span>
+                                    <?php else: ?>
+                                        <span style="margin-left:6px;background:#64748b;color:#fff;padding:1px 6px;border-radius:10px;font-size:10px;font-weight:700;letter-spacing:.4px;">VIDEO</span>
+                                    <?php endif; ?>
                                 </span>
                                 <input type="number" name="vorden[<?= $tv['id'] ?>]" value="<?= $vorden ?>"
                                        min="0" max="99" title="Orden"
