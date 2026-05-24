@@ -5,8 +5,10 @@
 
 // Capturar TODOS los errores/warnings antes de que corrompan el JSON
 ob_start();
-set_error_handler(function($errno, $errstr, $errfile, $errline) {
-    error_log("[$errno] $errstr in $errfile:$errline", 3, '/tmp/scraping_errors.log');
+$logFile = dirname(dirname(dirname(__FILE__))) . '/cache/logs/scraping.log';
+@mkdir(dirname($logFile), 0755, true);
+set_error_handler(function($errno, $errstr, $errfile, $errline) use ($logFile) {
+    error_log("[$errno] $errstr in $errfile:$errline", 3, $logFile);
 });
 
 require_once '../../includes/config.php';
@@ -34,10 +36,10 @@ if ($pagina_id <= 0) {
     exit;
 }
 
-try {
-    $db = getDB();
-    $providerCfg = getScrapingProviderConfig($db);
+$db = getDB();
+$providerCfg = getScrapingProviderConfig($db);
 
+try {
     // Obtener datos de la página
     $stmt = $db->prepare("SELECT * FROM medios_conectados WHERE id = :id AND tipo = 'facebook_scraping'");
     $stmt->execute([':id' => $pagina_id]);
@@ -55,7 +57,11 @@ try {
 
     if (empty($slug)) {
         ob_end_clean();
-try {
+        echo json_encode(['error' => 'URL de página inválida: ' . htmlspecialchars($pagina['url'])]);
+        exit;
+    }
+
+    // --- Scraping ---------------------------------------------------------------
     $ch = curl_init();
     curl_setopt_array($ch, [
         CURLOPT_URL            => 'https://www.facebook.com/' . $slug,
@@ -89,29 +95,18 @@ try {
 
     if ($http_code !== 200) {
         ob_end_clean();
-        echo json_encode(['error' => "Facebook devolvió HTTP $http_code para /$slug"]);
+        echo json_encode(['error' => "Facebook devolvió HTTP $http_code"]);
         exit;
     }
 
-    // --- Extraer posts según proveedor configurado -------------------------------
+    // --- Extraer posts según proveedor configurado
     $postsExtraidos = extractFacebookPostsByProvider($providerCfg, 'https://www.facebook.com/' . $slug, $html);
 } catch (Exception $e) {
     ob_end_clean();
-    error_log("Scraping error in scraping-fb-analizar: " . $e->getMessage());
-    echo json_encode(['error' => 'Error al extraer posts: ' . $e->getMessage()]);
+    error_log("Scraping error: " . $e->getMessage(), 3, $logFile);
+    echo json_encode(['error' => 'Error durante el scraping: ' . $e->getMessage()]);
     exit;
 }
-    echo json_encode(['error' => 'Error de red: ' . $curl_err]);
-    exit;
-}
-
-if ($http_code !== 200) {
-    echo json_encode(['error' => "Facebook devolvió HTTP $http_code para /$slug"]);
-    exit;
-}
-
-// --- Extraer posts según proveedor configurado -------------------------------
-$postsExtraidos = extractFacebookPostsByProvider($providerCfg, 'https://www.facebook.com/' . $slug, $html);
 
 $guardadas  = 0;
 $duplicadas = 0;
@@ -183,18 +178,8 @@ foreach ($postsExtraidos as $post) {
 
         $guardadas++;
         $posts_info[] = [
-try {
-    $db->prepare("UPDATE medios_conectados SET ultima_sincronizacion = NOW() WHERE id = :id")
-       ->execute([':id' => $pagina_id]);
-} catch (Exception $e) {
-    error_log("Update timestamp error: " . $e->getMessage());
-}
-
-// Limpiar output buffer para asegurar JSON válido
-$warnings = ob_get_clean();
-if (!empty(trim($warnings))) {
-    error_log("Output buffer warnings in scraping-fb-analizar: " . substr($warnings, 0, 200));
-}
+            'titulo' => mb_substr($titulo, 0, 80),
+            'fecha'  => $fecha,
         ];
     } catch (PDOException $e) {
         $errores++;
@@ -202,8 +187,18 @@ if (!empty(trim($warnings))) {
 }
 
 // Actualizar última sincronización
-$db->prepare("UPDATE medios_conectados SET ultima_sincronizacion = NOW() WHERE id = :id")
-   ->execute([':id' => $pagina_id]);
+try {
+    $db->prepare("UPDATE medios_conectados SET ultima_sincronizacion = NOW() WHERE id = :id")
+       ->execute([':id' => $pagina_id]);
+} catch (Exception $e) {
+    error_log("Update timestamp error: " . $e->getMessage(), 3, $logFile);
+}
+
+// Limpiar output buffer para asegurar JSON válido
+$warnings = ob_get_clean();
+if (!empty(trim($warnings))) {
+    error_log("Output buffer warnings: " . substr($warnings, 0, 300), 3, $logFile);
+}
 
 echo json_encode([
     'ok'         => true,
