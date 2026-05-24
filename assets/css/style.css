@@ -1285,6 +1285,19 @@ html.dark-mode .ad-in_article { background: #2a2a2a; border-color: #333; }
     gap: 16px;
 }
 
+.mm-small-card--reel .mm-thumb,
+.mm-small-card--reel .mm-iframe-wrap {
+    height: 580px;
+}
+
+.mm-small-card--reel .mm-thumb img,
+.mm-small-card--reel .mm-iframe-wrap iframe,
+.mm-small-card--reel .mm-fb-thumb {
+    width: 100%;
+    height: 100%;
+    aspect-ratio: auto;
+}
+
 /* Thumbnail común */
 .mm-thumb {
     position: relative;
@@ -1565,6 +1578,10 @@ html.dark-mode .multimedia-section { background: #0a0a0a; }
     }
     .mm-secondary::-webkit-scrollbar { display: none; }
     .mm-small-card { flex: 0 0 220px; }
+    .mm-small-card--reel .mm-thumb,
+    .mm-small-card--reel .mm-iframe-wrap {
+        height: auto;
+    }
     .mm-carousel-item { flex: 0 0 170px; }
 }
 

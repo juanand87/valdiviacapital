@@ -124,7 +124,7 @@ function mm_render_videos(array $videos): string {
                 <?php if ($secondary): ?>
                 <div class="mm-secondary">
                     <?php foreach ($secondary as $sv): ?>
-                    <div class="mm-small-card" data-embed="<?= htmlspecialchars(mm_embed_url($sv['url'], $sv['tipo'])) ?>">
+                    <div class="mm-small-card <?= mm_is_reel($sv) ? 'mm-small-card--reel' : '' ?>" data-embed="<?= htmlspecialchars(mm_embed_url($sv['url'], $sv['tipo'])) ?>">
                         <?php $st = mm_thumb_url($sv['url'], $sv['tipo']); ?>
                         <div class="mm-thumb">
                             <?php if ($st): ?>
