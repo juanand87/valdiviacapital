@@ -3,7 +3,6 @@
  * AJAX: Scraping de página de Facebook (sin API, via JSON embebido en HTML)
  */
 
-// Capturar TODOS los errores/warnings antes de que corrompan el JSON
 ob_start();
 $logFile = dirname(dirname(dirname(__FILE__))) . '/cache/logs/scraping.log';
 @mkdir(dirname($logFile), 0755, true);
@@ -40,7 +39,6 @@ $db = getDB();
 $providerCfg = getScrapingProviderConfig($db);
 
 try {
-    // Obtener datos de la página
     $stmt = $db->prepare("SELECT * FROM medios_conectados WHERE id = :id AND tipo = 'facebook_scraping'");
     $stmt->execute([':id' => $pagina_id]);
     $pagina = $stmt->fetch();
@@ -51,27 +49,25 @@ try {
         exit;
     }
 
-    // Extraer slug desde la URL almacenada
     $parsed = parse_url($pagina['url']);
     $slug = trim($parsed['path'] ?? '', '/');
 
-    if (empty($slug)) {
+    if ($slug === '') {
         ob_end_clean();
         echo json_encode(['error' => 'URL de página inválida: ' . htmlspecialchars($pagina['url'])]);
         exit;
     }
 
-    // --- Scraping ---------------------------------------------------------------
     $ch = curl_init();
     curl_setopt_array($ch, [
-        CURLOPT_URL            => 'https://www.facebook.com/' . $slug,
+        CURLOPT_URL => 'https://www.facebook.com/' . $slug,
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_FOLLOWLOCATION => true,
-        CURLOPT_ENCODING       => 'gzip, deflate',
-        CURLOPT_TIMEOUT        => 30,
+        CURLOPT_ENCODING => 'gzip, deflate',
+        CURLOPT_TIMEOUT => 30,
         CURLOPT_SSL_VERIFYPEER => true,
-        CURLOPT_USERAGENT      => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        CURLOPT_HTTPHEADER     => [
+        CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        CURLOPT_HTTPHEADER => [
             'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
             'Accept-Language: es-CL,es;q=0.9,en;q=0.8',
             'Sec-Fetch-Dest: document',
@@ -82,9 +78,9 @@ try {
         ],
     ]);
 
-    $html      = curl_exec($ch);
+    $html = curl_exec($ch);
     $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $curl_err  = curl_error($ch);
+    $curl_err = curl_error($ch);
     curl_close($ch);
 
     if ($curl_err) {
@@ -99,35 +95,53 @@ try {
         exit;
     }
 
-    // --- Extraer posts según proveedor configurado
     $postsExtraidos = extractFacebookPostsByProvider($providerCfg, 'https://www.facebook.com/' . $slug, $html);
 } catch (Exception $e) {
     ob_end_clean();
-    error_log("Scraping error: " . $e->getMessage(), 3, $logFile);
+    error_log('Scraping error: ' . $e->getMessage(), 3, $logFile);
     echo json_encode(['error' => 'Error durante el scraping: ' . $e->getMessage()]);
     exit;
 }
 
-$guardadas  = 0;
+$guardadas = 0;
 $duplicadas = 0;
-$errores    = 0;
+$errores = 0;
 $posts_info = [];
-$vistos     = [];
+$vistoIds = [];
 
 foreach ($postsExtraidos as $post) {
     $texto = trim((string)($post['texto'] ?? ''));
-    if (mb_strlen($texto) < 10) continue;
+    $externalId = trim((string)($post['contenido_id_externo'] ?? ''));
+    $urlPost = trim((string)($post['url_original'] ?? ''));
+    $hash = trim((string)($post['hash_contenido'] ?? ''));
 
-    $hash = md5($texto);
-    if (isset($vistos[$hash])) continue; // dedup en memoria
-    $vistos[$hash] = true;
+    if ($texto === '' && $externalId === '') {
+        continue;
+    }
+    if ($externalId === '' && mb_strlen($texto) < 10) {
+        continue;
+    }
+
+    if ($externalId === '') {
+        $externalId = 'fbtxt:' . md5($pagina['url'] . '|' . mb_strtolower($texto));
+    }
+    if ($urlPost === '') {
+        $urlPost = 'https://www.facebook.com/' . $slug;
+    }
+    if ($hash === '') {
+        $hash = md5($texto);
+    }
+
+    if (isset($vistoIds[$externalId])) {
+        continue;
+    }
+    $vistoIds[$externalId] = true;
 
     $timestamp = (int)($post['timestamp'] ?? 0);
     if ($timestamp <= 0) {
         $timestamp = time();
     }
 
-    // Título: primera línea (máx 500 chars, sin cortar palabras al final)
     $lineas = explode("\n", $texto, 2);
     $tituloRaw = trim((string)($lineas[0] ?? ''));
     if ($tituloRaw === '') {
@@ -147,66 +161,60 @@ foreach ($postsExtraidos as $post) {
     }
 
     $fecha = date('Y-m-d H:i:s', $timestamp);
-    $url_post = 'https://www.facebook.com/' . $slug;
 
-    // Verificar si ya existe en la BD (dedup persistente)
-    $chk = $db->prepare("SELECT id FROM medios_contenido_sincronizado WHERE hash_contenido = :hash");
-    $chk->execute([':hash' => $hash]);
+    $chk = $db->prepare("SELECT id FROM medios_contenido_sincronizado WHERE medio_id = :medio_id AND contenido_id_externo = :contenido_id_externo");
+    $chk->execute([
+        ':medio_id' => $pagina_id,
+        ':contenido_id_externo' => $externalId,
+    ]);
     if ($chk->fetch()) {
         $duplicadas++;
         continue;
     }
 
     try {
-        $ins = $db->prepare("
-            INSERT INTO medios_contenido_sincronizado
-                (medio_id, titulo, contenido, imagen_url, url_original, hash_contenido,
-                 fecha_publicacion, autor, categoria, estado)
-            VALUES
-                (:medio_id, :titulo, :contenido, NULL, :url_original, :hash,
-                 :fecha, :autor, NULL, 'pendiente')
-        ");
+        $ins = $db->prepare("\n            INSERT INTO medios_contenido_sincronizado\n                (medio_id, contenido_id_externo, titulo, contenido, imagen_url, url_original, hash_contenido,\n                 fecha_publicacion, autor, categoria, estado)\n            VALUES\n                (:medio_id, :contenido_id_externo, :titulo, :contenido, NULL, :url_original, :hash,\n                 :fecha, :autor, NULL, 'pendiente')\n        ");
         $ins->execute([
-            ':medio_id'    => $pagina_id,
-            ':titulo'      => $titulo,
-            ':contenido'   => $texto,
-            ':url_original'=> $url_post,
-            ':hash'        => $hash,
-            ':fecha'       => $fecha,
-            ':autor'       => $pagina['nombre'],
+            ':medio_id' => $pagina_id,
+            ':contenido_id_externo' => $externalId,
+            ':titulo' => $titulo,
+            ':contenido' => $texto,
+            ':url_original' => $urlPost,
+            ':hash' => $hash,
+            ':fecha' => $fecha,
+            ':autor' => $pagina['nombre'],
         ]);
 
         $guardadas++;
         $posts_info[] = [
             'titulo' => mb_substr($titulo, 0, 80),
-            'fecha'  => $fecha,
+            'fecha' => $fecha,
+            'url' => $urlPost,
         ];
     } catch (PDOException $e) {
         $errores++;
     }
 }
 
-// Actualizar última sincronización
 try {
     $db->prepare("UPDATE medios_conectados SET ultima_sincronizacion = NOW() WHERE id = :id")
        ->execute([':id' => $pagina_id]);
 } catch (Exception $e) {
-    error_log("Update timestamp error: " . $e->getMessage(), 3, $logFile);
+    error_log('Update timestamp error: ' . $e->getMessage(), 3, $logFile);
 }
 
-// Limpiar output buffer para asegurar JSON válido
 $warnings = ob_get_clean();
 if (!empty(trim($warnings))) {
-    error_log("Output buffer warnings: " . substr($warnings, 0, 300), 3, $logFile);
+    error_log('Output buffer warnings: ' . substr($warnings, 0, 300), 3, $logFile);
 }
 
 echo json_encode([
-    'ok'         => true,
-    'guardadas'  => $guardadas,
+    'ok' => true,
+    'guardadas' => $guardadas,
     'duplicadas' => $duplicadas,
-    'errores'    => $errores,
+    'errores' => $errores,
     'total_html' => count($postsExtraidos),
-    'provider'   => $providerCfg['provider_facebook'] ?? 'direct',
-    'posts'      => $posts_info,
-    'pagina'     => $pagina['nombre'],
+    'provider' => $providerCfg['provider_facebook'] ?? 'direct',
+    'posts' => $posts_info,
+    'pagina' => $pagina['nombre'],
 ]);

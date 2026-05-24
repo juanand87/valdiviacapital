@@ -138,25 +138,101 @@ function isFacebookNoiseText($text) {
     return false;
 }
 
-function normalizeFacebookPosts(array $posts) {
+function normalizeFacebookPermalinkUrl($url, $fallbackPageUrl = '') {
+    $u = trim((string)$url);
+    if ($u === '') {
+        return '';
+    }
+
+    $u = str_replace('\\/', '/', $u);
+    $u = preg_replace('/\\u0025([0-9a-fA-F]{2})/', '%$1', $u);
+    $u = html_entity_decode($u, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+    if (strpos($u, '//') === 0) {
+        $u = 'https:' . $u;
+    } elseif (strpos($u, '/') === 0 && $fallbackPageUrl !== '') {
+        $parts = parse_url($fallbackPageUrl);
+        $scheme = $parts['scheme'] ?? 'https';
+        $host = $parts['host'] ?? 'www.facebook.com';
+        $u = $scheme . '://' . $host . $u;
+    }
+
+    if (!preg_match('#^https?://#i', $u)) {
+        return '';
+    }
+
+    $u = preg_replace('#^https?://(?:m|mbasic)\.facebook\.com#i', 'https://www.facebook.com', $u);
+
+    $parts = parse_url($u);
+    if (empty($parts['host'])) {
+        return $u;
+    }
+
+    $scheme = $parts['scheme'] ?? 'https';
+    $host = $parts['host'];
+    $path = $parts['path'] ?? '';
+    $query = '';
+
+    if (!empty($parts['query'])) {
+        parse_str($parts['query'], $queryParts);
+        $keep = [];
+        foreach (['story_fbid', 'fbid', 'id', 'post_id', 'comment_id'] as $key) {
+            if (isset($queryParts[$key]) && $queryParts[$key] !== '') {
+                $keep[$key] = $queryParts[$key];
+            }
+        }
+        if (!empty($keep)) {
+            $query = '?' . http_build_query($keep);
+        }
+    }
+
+    return $scheme . '://' . $host . $path . $query;
+}
+
+function facebookPostExternalId(array $post, $pageUrl = '') {
+    $url = normalizeFacebookPermalinkUrl((string)($post['url_original'] ?? $post['url_candidata'] ?? ''), $pageUrl);
+    if ($url !== '') {
+        return 'fburl:' . md5($url);
+    }
+
+    $timestamp = (int)($post['timestamp'] ?? 0);
+    $texto = mb_strtolower(trim((string)($post['texto'] ?? '')));
+    $base = trim((string)$pageUrl);
+    return 'fbtxt:' . md5($base . '|' . $timestamp . '|' . $texto);
+}
+
+function normalizeFacebookPosts(array $posts, $pageUrl = '') {
     $out = [];
     $seen = [];
 
     foreach ($posts as $p) {
         $texto = trim((string)($p['texto'] ?? ''));
-        if (isFacebookNoiseText($texto)) {
+        $externalId = trim((string)($p['contenido_id_externo'] ?? ''));
+        if ($texto === '' && $externalId === '') {
+            continue;
+        }
+        if ($externalId === '' && isFacebookNoiseText($texto)) {
+            continue;
+        }
+        if ($externalId === '' && mb_strlen($texto) < 10) {
             continue;
         }
 
-        $hash = md5(mb_strtolower($texto));
-        if (isset($seen[$hash])) {
+        $urlOriginal = normalizeFacebookPermalinkUrl((string)($p['url_original'] ?? $p['url_candidata'] ?? ''), $pageUrl);
+        $externalId = $externalId !== '' ? $externalId : facebookPostExternalId($p, $pageUrl);
+        $identity = $externalId !== '' ? $externalId : ('fbtxt:' . md5(mb_strtolower($texto)));
+
+        if (isset($seen[$identity])) {
             continue;
         }
-        $seen[$hash] = true;
+        $seen[$identity] = true;
 
         $out[] = [
             'texto' => $texto,
             'timestamp' => (int)($p['timestamp'] ?? 0),
+            'url_original' => $urlOriginal,
+            'contenido_id_externo' => $identity,
+            'hash_contenido' => md5(mb_strtolower($texto)),
         ];
     }
 
@@ -250,6 +326,7 @@ function extractFacebookDirectPostsRaw($html, $pageUrl = '') {
             'texto' => $texto,
             'timestamp' => isset($times[$i]) ? (int)$times[$i] : 0,
             'url_candidata' => $urls[$i] ?? null,
+            'url_original' => $urls[$i] ?? null,
         ];
     }
 
@@ -338,13 +415,16 @@ function finalizeFacebookDirectPosts(array $rawPosts, $pageUrl = '') {
 
     $plain = [];
     foreach ($rawPosts as $p) {
+        $urlOriginal = normalizeFacebookPermalinkUrl((string)($p['url_original'] ?? $p['url_candidata'] ?? ''), $pageUrl);
         $plain[] = [
             'texto' => cleanFacebookPostText((string)($p['texto'] ?? '')),
             'timestamp' => (int)($p['timestamp'] ?? 0),
+            'url_original' => $urlOriginal,
+            'contenido_id_externo' => $urlOriginal !== '' ? ('fburl:' . md5($urlOriginal)) : facebookPostExternalId($p, $pageUrl),
         ];
     }
 
-    return normalizeFacebookPosts($plain);
+    return normalizeFacebookPosts($plain, $pageUrl);
 }
 
 function geminiStructuredExtract($cfg, $prompt, $maxTokens = 2048) {
@@ -498,7 +578,7 @@ function extractFacebookPostsByProvider($providerCfg, $pageUrl, $html) {
                 return normalizeFacebookPosts([[
                     'texto' => $text,
                     'timestamp' => time(),
-                ]]);
+                ]], $pageUrl);
             }
         }
         return [];
@@ -521,7 +601,7 @@ function extractFacebookPostsByProvider($providerCfg, $pageUrl, $html) {
                     'timestamp' => (int)($p['timestamp'] ?? 0),
                 ];
             }
-            return normalizeFacebookPosts($out);
+            return normalizeFacebookPosts($out, $pageUrl);
         }
         return [];
     }
@@ -563,7 +643,7 @@ function extractFacebookPostsByProvider($providerCfg, $pageUrl, $html) {
                     'timestamp' => (int)($p['timestamp'] ?? 0),
                 ];
             }
-            $out = normalizeFacebookPosts($out);
+            $out = normalizeFacebookPosts($out, $pageUrl);
             if (!empty($out)) return $out;
         }
 
