@@ -85,12 +85,20 @@ function mm_galeria_videos(int $galeriaId, PDO $db): array {
 function mm_render_videos(array $videos, bool $useReelSpotlight = false): string {
     if (empty($videos)) return '';
 
-    $videos         = mm_prioritize_rightmost_reel($videos);
-    $featured       = $videos[0];
-    $secondary      = array_slice($videos, 1, 2);
-    $carousel       = $videos;
-    $uid            = 'mmcar' . mt_rand(10000, 99999); // id único para múltiples galerías en la misma página
-    $reelSpotlight  = $useReelSpotlight && isset($secondary[1]) && mm_is_reel($secondary[1]) ? $secondary[1] : null;
+    $videos        = mm_prioritize_rightmost_reel($videos);
+    $featured      = $videos[0];
+    $secondary     = array_slice($videos, 1, 2);
+    $carousel      = $videos;
+    $uid           = 'mmcar' . mt_rand(10000, 99999); // id único para múltiples galerías en la misma página
+    $reelSpotlight = null;
+    if ($useReelSpotlight && !empty($secondary)) {
+        for ($i = count($secondary) - 1; $i >= 0; $i--) {
+            if (mm_is_reel($secondary[$i])) {
+                $reelSpotlight = $secondary[$i];
+                break;
+            }
+        }
+    }
 
     ob_start(); ?>
             <?php if ($reelSpotlight): ?>
