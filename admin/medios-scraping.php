@@ -937,6 +937,20 @@ const noticias = <?php echo json_encode(array_values($noticiasParaJs), JSON_UNES
                     <i class="fas fa-robot" style="font-size: 48px; color: #8e44ad; margin-bottom: 15px;"></i>
                     <p style="color: #555; font-size: 16px; margin: 0;">La IA redactará un artículo periodístico profesional basado en la información de la noticia original.</p>
                 </div>
+
+                    <div style="margin-bottom: 20px;">
+                        <label style="font-weight: 600; display: block; margin-bottom: 10px; color: #333;">
+                            <i class="fas fa-plus-circle" style="color: #8e44ad;"></i> Información complementaria (opcional)
+                        </label>
+                        <textarea id="ia-info-complementaria"
+                            placeholder="Pega información adicional que la IA debe considerar para la redacción. Por ejemplo: comunicados, datos estatísticos, contexto histórico, etc."
+                            style="width: 100%; min-height: 120px; padding: 12px 14px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 14px; font-family: Arial, sans-serif; box-sizing: border-box; resize: vertical;"
+                        ></textarea>
+                        <small style="display: block; margin-top: 6px; color: #7f8c8d;">
+                            💡 Tip: Incluye información adicional para mejorar la calidad de la redacción IA.
+                        </small>
+                    </div>
+
                 <div style="text-align: center;">
                     <button id="btn-generar" onclick="generarRedaccionIA()"
                         class="btn btn-primary"
@@ -1095,6 +1109,7 @@ function cerrarModal() {
     document.getElementById('form-publicar').style.display = 'none';
     document.getElementById('ia-titulo-value').value = '';
     document.getElementById('ia-texto').textContent = '';
+        document.getElementById('ia-info-complementaria').value = '';
     document.getElementById('pub-categoria').value = '';
     document.getElementById('pub-imagen-file').value = '';
     document.querySelectorAll('#pub-comunas-tags .comuna-tag.selected').forEach(tag => {
@@ -1126,7 +1141,17 @@ function generarRedaccionIA() {
         body: formData,
         credentials: 'include'
     })
-    .then(async (r) => {
+        const infoComplementaria = document.getElementById('ia-info-complementaria').value.trim();
+        if (infoComplementaria) {
+            formData.append('info_complementaria', infoComplementaria);
+        }
+
+        fetch('ajax/redactar-ia.php', {
+            method: 'POST',
+            body: formData,
+            credentials: 'include'
+        })
+        .then(async (r) => {
         const raw = await r.text();
         let data;
         try { data = JSON.parse(raw); } catch(e) {

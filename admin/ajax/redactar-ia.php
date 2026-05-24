@@ -79,7 +79,20 @@ try {
         responderJson(['error' => 'Noticia no encontrada'], 404);
     }
 
-    $resultado = redactarConIA($db, $noticia);
+        $info_complementaria = isset($input['info_complementaria']) 
+            ? trim((string)$input['info_complementaria']) 
+            : '';
+
+        $resultado = redactarConIA($db, $noticia, $info_complementaria);
+        $info_complementaria = isset($input['info_complementaria']) 
+            ? trim((string)$input['info_complementaria']) 
+            : '';
+
+        if (!empty($info_complementaria)) {
+            $noticia['contenido'] .= "\n\n### INFORMACIÓN ADICIONAL:\n" . $info_complementaria;
+        }
+
+        $resultado = redactarConIA($db, $noticia);
     if (!is_array($resultado)) {
         responderJson(['error' => 'Respuesta inválida del motor de IA'], 500);
     }
