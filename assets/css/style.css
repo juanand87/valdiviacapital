@@ -1416,7 +1416,7 @@ html.dark-mode .ad-in_article { background: #2a2a2a; border-color: #333; }
 
 .mm-format-badge.is-reel {
     background: #f97316;
-    transform: rotate(-5deg);
+    transform: rotate(0deg);
     transform-origin: top right;
 }
 
