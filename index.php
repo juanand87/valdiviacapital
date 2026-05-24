@@ -391,7 +391,7 @@ if (empty($multimediaVideos)) {
                     <span class="mm-galeria-label"><?= htmlspecialchars($multimediaTitulo) ?></span>
                 <?php endif; ?>
             </h2>
-            <?= mm_render_videos($multimediaVideos) ?>
+            <?= mm_render_videos($multimediaVideos, true) ?>
         </div>
     </section>
     <?php endif; ?>
