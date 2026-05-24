@@ -95,28 +95,61 @@ function mm_render_videos(array $videos, bool $useReelSpotlight = false): string
     ob_start(); ?>
             <?php if ($reelSpotlight): ?>
             <div class="mm-showcase mm-showcase--reel">
-                <div class="mm-featured" data-embed="<?= htmlspecialchars(mm_embed_url($featured['url'], $featured['tipo'])) ?>">
-                    <?php $ft = mm_thumb_url($featured['url'], $featured['tipo']); ?>
-                    <div class="mm-thumb">
-                        <?php if ($ft): ?>
-                            <img src="<?= htmlspecialchars($ft) ?>" alt="<?= htmlspecialchars($featured['titulo']) ?>" loading="lazy">
-                        <?php else: ?>
-                            <div class="mm-fb-thumb"><i class="fab fa-facebook"></i></div>
-                        <?php endif; ?>
-                        <div class="mm-play-btn"><i class="fas fa-play"></i></div>
-                        <?php if (!empty($featured['cat_nombre'])): ?>
-                            <span class="mm-cat-badge" style="background:<?= htmlspecialchars($featured['cat_color'] ?? 'var(--color-primary)') ?>;">
-                                <?= htmlspecialchars($featured['cat_nombre']) ?>
+                <div class="mm-showcase-main">
+                    <div class="mm-featured" data-embed="<?= htmlspecialchars(mm_embed_url($featured['url'], $featured['tipo'])) ?>">
+                        <?php $ft = mm_thumb_url($featured['url'], $featured['tipo']); ?>
+                        <div class="mm-thumb">
+                            <?php if ($ft): ?>
+                                <img src="<?= htmlspecialchars($ft) ?>" alt="<?= htmlspecialchars($featured['titulo']) ?>" loading="lazy">
+                            <?php else: ?>
+                                <div class="mm-fb-thumb"><i class="fab fa-facebook"></i></div>
+                            <?php endif; ?>
+                            <div class="mm-play-btn"><i class="fas fa-play"></i></div>
+                            <?php if (!empty($featured['cat_nombre'])): ?>
+                                <span class="mm-cat-badge" style="background:<?= htmlspecialchars($featured['cat_color'] ?? 'var(--color-primary)') ?>;">
+                                    <?= htmlspecialchars($featured['cat_nombre']) ?>
+                                </span>
+                            <?php endif; ?>
+                            <span class="mm-format-badge <?= mm_is_reel($featured) ? 'is-reel' : 'is-video' ?>">
+                                <?= mm_is_reel($featured) ? 'Reel' : 'Video' ?>
                             </span>
-                        <?php endif; ?>
-                        <span class="mm-format-badge <?= mm_is_reel($featured) ? 'is-reel' : 'is-video' ?>">
-                            <?= mm_is_reel($featured) ? 'Reel' : 'Video' ?>
-                        </span>
+                        </div>
+                        <div class="mm-iframe-wrap" style="display:none;">
+                            <iframe src="" frameborder="0" allowfullscreen allow="autoplay; encrypted-media" loading="lazy"></iframe>
+                        </div>
+                        <p class="mm-featured-title"><?= htmlspecialchars($featured['titulo']) ?></p>
                     </div>
-                    <div class="mm-iframe-wrap" style="display:none;">
-                        <iframe src="" frameborder="0" allowfullscreen allow="autoplay; encrypted-media" loading="lazy"></iframe>
+
+                    <?php if (count($carousel) > 1): ?>
+                    <div class="mm-carousel-wrap">
+                        <button class="mm-carousel-btn mm-prev" aria-label="Anterior"><i class="fas fa-chevron-left"></i></button>
+                        <div class="mm-carousel" id="<?= $uid ?>">
+                            <?php foreach ($carousel as $cv): ?>
+                            <?php $ct = mm_thumb_url($cv['url'], $cv['tipo']); ?>
+                            <div class="mm-carousel-item" data-embed="<?= htmlspecialchars(mm_embed_url($cv['url'], $cv['tipo'])) ?>">
+                                <div class="mm-thumb">
+                                    <?php if ($ct): ?>
+                                        <img src="<?= htmlspecialchars($ct) ?>" alt="<?= htmlspecialchars($cv['titulo']) ?>" loading="lazy">
+                                    <?php else: ?>
+                                        <div class="mm-fb-thumb mm-fb-thumb--sm"><i class="fab fa-facebook"></i></div>
+                                    <?php endif; ?>
+                                    <div class="mm-play-btn mm-play-btn--sm"><i class="fas fa-play"></i></div>
+                                    <span class="mm-format-badge mm-format-badge--sm <?= mm_is_reel($cv) ? 'is-reel' : 'is-video' ?>">
+                                        <?= mm_is_reel($cv) ? 'Reel' : 'Video' ?>
+                                    </span>
+                                    <div class="mm-carousel-overlay">
+                                        <p><?= htmlspecialchars($cv['titulo']) ?></p>
+                                    </div>
+                                </div>
+                                <div class="mm-iframe-wrap" style="display:none;">
+                                    <iframe src="" frameborder="0" allowfullscreen allow="autoplay; encrypted-media" loading="lazy"></iframe>
+                                </div>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
+                        <button class="mm-carousel-btn mm-next" aria-label="Siguiente"><i class="fas fa-chevron-right"></i></button>
                     </div>
-                    <p class="mm-featured-title"><?= htmlspecialchars($featured['titulo']) ?></p>
+                    <?php endif; ?>
                 </div>
 
                 <div class="mm-reel-spotlight mm-small-card mm-small-card--reel" data-embed="<?= htmlspecialchars(mm_embed_url($reelSpotlight['url'], $reelSpotlight['tipo'])) ?>">
@@ -135,12 +168,6 @@ function mm_render_videos(array $videos, bool $useReelSpotlight = false): string
                     </div>
                     <p class="mm-small-title"><?= htmlspecialchars($reelSpotlight['titulo']) ?></p>
                 </div>
-
-                <?php if (count($carousel) > 1): ?>
-                <div class="mm-carousel-wrap">
-            <?php else: ?>
-                <div></div>
-            <?php endif; ?>
             <?php else: ?>
             <!-- Grid principal: 1 grande + 2 pequeños -->
             <div class="mm-grid">
@@ -204,7 +231,7 @@ function mm_render_videos(array $videos, bool $useReelSpotlight = false): string
             <?php endif; ?>
             <?php endif; ?>
 
-            <?php if (count($carousel) > 1): ?>
+            <?php if (count($carousel) > 1 && !$reelSpotlight): ?>
                 <button class="mm-carousel-btn mm-prev" aria-label="Anterior"><i class="fas fa-chevron-left"></i></button>
                 <div class="mm-carousel" id="<?= $uid ?>">
                     <?php foreach ($carousel as $cv): ?>
