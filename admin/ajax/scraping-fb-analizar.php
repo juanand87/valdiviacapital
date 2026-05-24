@@ -2,6 +2,13 @@
 /**
  * AJAX: Scraping de página de Facebook (sin API, via JSON embebido en HTML)
  */
+
+// Capturar TODOS los errores/warnings antes de que corrompan el JSON
+ob_start();
+set_error_handler(function($errno, $errstr, $errfile, $errline) {
+    error_log("[$errno] $errstr in $errfile:$errline", 3, '/tmp/scraping_errors.log');
+});
+
 require_once '../../includes/config.php';
 require_once '../../includes/scraping_ai.php';
 session_start();
@@ -9,70 +16,91 @@ session_start();
 header('Content-Type: application/json');
 
 if (!isset($_SESSION['admin_id'])) {
+    ob_end_clean();
     echo json_encode(['error' => 'No autorizado']);
     exit;
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    ob_end_clean();
     echo json_encode(['error' => 'Método no permitido']);
     exit;
 }
 
 $pagina_id = (int)($_POST['pagina_id'] ?? 0);
 if ($pagina_id <= 0) {
+    ob_end_clean();
     echo json_encode(['error' => 'ID de página inválido']);
     exit;
 }
 
-$db = getDB();
-$providerCfg = getScrapingProviderConfig($db);
+try {
+    $db = getDB();
+    $providerCfg = getScrapingProviderConfig($db);
 
-// Obtener datos de la página
-$stmt = $db->prepare("SELECT * FROM medios_conectados WHERE id = :id AND tipo = 'facebook_scraping'");
-$stmt->execute([':id' => $pagina_id]);
-$pagina = $stmt->fetch();
+    // Obtener datos de la página
+    $stmt = $db->prepare("SELECT * FROM medios_conectados WHERE id = :id AND tipo = 'facebook_scraping'");
+    $stmt->execute([':id' => $pagina_id]);
+    $pagina = $stmt->fetch();
 
-if (!$pagina) {
-    echo json_encode(['error' => 'Página no encontrada']);
+    if (!$pagina) {
+        ob_end_clean();
+        echo json_encode(['error' => 'Página no encontrada']);
+        exit;
+    }
+
+    // Extraer slug desde la URL almacenada
+    $parsed = parse_url($pagina['url']);
+    $slug = trim($parsed['path'] ?? '', '/');
+
+    if (empty($slug)) {
+        ob_end_clean();
+try {
+    $ch = curl_init();
+    curl_setopt_array($ch, [
+        CURLOPT_URL            => 'https://www.facebook.com/' . $slug,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_ENCODING       => 'gzip, deflate',
+        CURLOPT_TIMEOUT        => 30,
+        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_USERAGENT      => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        CURLOPT_HTTPHEADER     => [
+            'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language: es-CL,es;q=0.9,en;q=0.8',
+            'Sec-Fetch-Dest: document',
+            'Sec-Fetch-Mode: navigate',
+            'Sec-Fetch-Site: none',
+            'Cache-Control: max-age=0',
+            'Upgrade-Insecure-Requests: 1',
+        ],
+    ]);
+
+    $html      = curl_exec($ch);
+    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curl_err  = curl_error($ch);
+    curl_close($ch);
+
+    if ($curl_err) {
+        ob_end_clean();
+        echo json_encode(['error' => 'Error de red: ' . $curl_err]);
+        exit;
+    }
+
+    if ($http_code !== 200) {
+        ob_end_clean();
+        echo json_encode(['error' => "Facebook devolvió HTTP $http_code para /$slug"]);
+        exit;
+    }
+
+    // --- Extraer posts según proveedor configurado -------------------------------
+    $postsExtraidos = extractFacebookPostsByProvider($providerCfg, 'https://www.facebook.com/' . $slug, $html);
+} catch (Exception $e) {
+    ob_end_clean();
+    error_log("Scraping error in scraping-fb-analizar: " . $e->getMessage());
+    echo json_encode(['error' => 'Error al extraer posts: ' . $e->getMessage()]);
     exit;
 }
-
-// Extraer slug desde la URL almacenada
-$parsed = parse_url($pagina['url']);
-$slug = trim($parsed['path'] ?? '', '/');
-
-if (empty($slug)) {
-    echo json_encode(['error' => 'URL de página inválida: ' . htmlspecialchars($pagina['url'])]);
-    exit;
-}
-
-// --- Scraping ---------------------------------------------------------------
-$ch = curl_init();
-curl_setopt_array($ch, [
-    CURLOPT_URL            => 'https://www.facebook.com/' . $slug,
-    CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_FOLLOWLOCATION => true,
-    CURLOPT_ENCODING       => 'gzip, deflate',
-    CURLOPT_TIMEOUT        => 30,
-    CURLOPT_SSL_VERIFYPEER => true,
-    CURLOPT_USERAGENT      => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    CURLOPT_HTTPHEADER     => [
-        'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language: es-CL,es;q=0.9,en;q=0.8',
-        'Sec-Fetch-Dest: document',
-        'Sec-Fetch-Mode: navigate',
-        'Sec-Fetch-Site: none',
-        'Cache-Control: max-age=0',
-        'Upgrade-Insecure-Requests: 1',
-    ],
-]);
-
-$html      = curl_exec($ch);
-$http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-$curl_err  = curl_error($ch);
-curl_close($ch);
-
-if ($curl_err) {
     echo json_encode(['error' => 'Error de red: ' . $curl_err]);
     exit;
 }
@@ -155,8 +183,18 @@ foreach ($postsExtraidos as $post) {
 
         $guardadas++;
         $posts_info[] = [
-            'titulo' => mb_substr($titulo, 0, 80),
-            'fecha'  => $fecha,
+try {
+    $db->prepare("UPDATE medios_conectados SET ultima_sincronizacion = NOW() WHERE id = :id")
+       ->execute([':id' => $pagina_id]);
+} catch (Exception $e) {
+    error_log("Update timestamp error: " . $e->getMessage());
+}
+
+// Limpiar output buffer para asegurar JSON válido
+$warnings = ob_get_clean();
+if (!empty(trim($warnings))) {
+    error_log("Output buffer warnings in scraping-fb-analizar: " . substr($warnings, 0, 200));
+}
         ];
     } catch (PDOException $e) {
         $errores++;
