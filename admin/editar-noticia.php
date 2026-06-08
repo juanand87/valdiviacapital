@@ -348,9 +348,18 @@ if ($editando) {
                 </div>
                 <div class="card-body">
                     <label class="form-label" style="font-size:13px;">URLs (una por línea, máximo 20)</label>
-                    <textarea name="galeria_imagenes" class="form-control" rows="6" placeholder="https://.../foto1.jpg&#10;https://.../foto2.jpg"><?php echo htmlspecialchars(implode("\n", $galeria_urls)); ?></textarea>
+                    <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;">
+                        <button type="button" class="btn btn-primary" onclick="abrirMediaPicker('galeria_imagenes','image', true)">
+                            <i class="fas fa-images"></i> Seleccionar imágenes
+                        </button>
+                        <button type="button" class="btn" onclick="document.getElementById('galeria_imagenes').value=''; actualizarGaleriaPreview();">
+                            <i class="fas fa-trash-alt"></i> Limpiar
+                        </button>
+                    </div>
+                    <textarea id="galeria_imagenes" name="galeria_imagenes" class="form-control" rows="6" placeholder="https://.../foto1.jpg&#10;https://.../foto2.jpg"><?php echo htmlspecialchars(implode("\n", $galeria_urls)); ?></textarea>
+                    <div id="galeria-preview" style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;"></div>
                     <small style="color: #718096; font-size: 12px; display: block; margin-top: 8px;">
-                        Estas imágenes se mostrarán bajo la imagen destacada en la noticia pública.
+                        Estas imágenes se mostrarán bajo la imagen destacada en la noticia pública. También puedes arrastrar/soltar y subir nuevas imágenes desde la pestaña "Subir".
                     </small>
                 </div>
             </div>
@@ -571,3 +580,39 @@ fetch('ajax/vistas-chart.php?id=<?php echo (int)$noticia['id']; ?>', {
 
 <?php include 'includes/media-picker.php'; ?>
 <?php include 'includes/footer.php'; ?>
+
+<script>
+function actualizarGaleriaPreview() {
+    const ta = document.getElementById('galeria_imagenes');
+    const wrap = document.getElementById('galeria-preview');
+    if (!wrap || !ta) return;
+    wrap.innerHTML = '';
+    const urls = (ta.value || '').split(/\r\n|\r|\n/).map(s => s.trim()).filter(Boolean).slice(0,20);
+    urls.forEach(u => {
+        const a = document.createElement('a');
+        a.href = u;
+        a.target = '_blank';
+        a.style.display = 'block';
+        a.style.width = '90px';
+        a.style.height = '70px';
+        a.style.overflow = 'hidden';
+        a.style.borderRadius = '6px';
+        a.style.border = '1px solid #e2e8f0';
+        a.style.background = '#f7fafc';
+        a.style.display = 'inline-block';
+        const img = document.createElement('img');
+        img.src = u;
+        img.style.width = '100%';
+        img.style.height = '100%';
+        img.style.objectFit = 'cover';
+        a.appendChild(img);
+        wrap.appendChild(a);
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    actualizarGaleriaPreview();
+    const ta = document.getElementById('galeria_imagenes');
+    if (ta) ta.addEventListener('change', actualizarGaleriaPreview);
+});
+</script>

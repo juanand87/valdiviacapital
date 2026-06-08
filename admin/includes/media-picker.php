@@ -97,7 +97,9 @@ const _mp = {
     mimeFilter: '',         // '' | 'image' forzado desde código llamante
     mimeActual: '',         // mime activo en el filtro UI
     medios: [],             // caché de todos los medios
-    seleccionado: null,     // objeto medio seleccionado
+    seleccionado: null,     // objeto medio seleccionado (single)
+    seleccionados: [],      // array de objetos medios (multi)
+    multi: false,          // modo selección múltiple
     cargado: false
 };
 
@@ -123,10 +125,12 @@ document.head.appendChild(_mpStyle);
  * @param {string} targetId  - id del <input> que recibirá la URL
  * @param {string} [filter]  - '' (todos) | 'image' (solo imágenes)
  */
-function abrirMediaPicker(targetId, filter) {
+function abrirMediaPicker(targetId, filter, allowMultiple) {
     _mp.targetId   = targetId;
     _mp.mimeFilter = filter || '';
     _mp.seleccionado = null;
+    _mp.seleccionados = [];
+    _mp.multi = !!allowMultiple;
 
     // Si se fuerza filtro imagen, ocultamos botón Docs
     document.querySelectorAll('.mp-filtro[data-mime="document"]').forEach(b => {
@@ -265,6 +269,21 @@ function mpIcono(mime) {
 }
 
 function mpSeleccionar(card, medio) {
+    if (_mp.multi) {
+        // Toggle selection on the card
+        const was = card.classList.contains('mp-sel');
+        if (was) {
+            card.classList.remove('mp-sel');
+            _mp.seleccionados = _mp.seleccionados.filter(s => s.url !== medio.url);
+        } else {
+            card.classList.add('mp-sel');
+            _mp.seleccionados.push(medio);
+        }
+        _mpActualizarPie();
+        return;
+    }
+
+    // Single selection behavior
     document.querySelectorAll('#mp-grid .mp-card').forEach(c => c.classList.remove('mp-sel'));
     card.classList.add('mp-sel');
     _mp.seleccionado = medio;
@@ -274,6 +293,20 @@ function mpSeleccionar(card, medio) {
 function _mpActualizarPie() {
     const label = document.getElementById('mp-sel-label');
     const btn   = document.getElementById('mp-btn-insertar');
+    if (_mp.multi) {
+        const n = _mp.seleccionados.length;
+        if (n > 0) {
+            label.textContent = '✔ ' + n + ' archivo(s) seleccionado(s)';
+            btn.disabled = false;
+            btn.style.opacity = '1';
+        } else {
+            label.textContent = 'Haz clic en las imágenes para seleccionarlas';
+            btn.disabled = true;
+            btn.style.opacity = '.5';
+        }
+        return;
+    }
+
     if (_mp.seleccionado) {
         label.textContent = '✔ ' + _mp.seleccionado.nombre_original;
         btn.disabled      = false;
@@ -286,11 +319,23 @@ function _mpActualizarPie() {
 }
 
 function mpInsertar() {
-    if (!_mp.seleccionado || !_mp.targetId) return;
+    if (!_mp.targetId) return;
     const input = document.getElementById(_mp.targetId);
-    if (input) {
+    if (!_mp.multi) {
+        if (!_mp.seleccionado || !input) return;
         input.value = _mp.seleccionado.url;
-        // Disparar evento change para que otros listeners reaccionen
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        cerrarMediaPicker();
+        return;
+    }
+
+    // Multi-insert: append selected URLs to textarea-like input
+    if (_mp.multi && input) {
+        const urls = _mp.seleccionados.map(s => s.url);
+        const existing = (input.value || '').split(/\r\n|\r|\n/).map(s => s.trim()).filter(Boolean);
+        const merged = Array.from(new Set(existing.concat(urls))).slice(0, 20);
+        input.value = merged.join('\n');
         input.dispatchEvent(new Event('change', { bubbles: true }));
         input.dispatchEvent(new Event('input', { bubbles: true }));
     }
