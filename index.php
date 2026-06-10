@@ -538,6 +538,30 @@ if (empty($multimediaVideos)) {
     <?php if (!empty($comunasPortada)): ?>
     <section class="comunas-home-section">
         <div class="container">
+            <!-- Carrusel de logos -->
+            <div class="logos-carrusel-section">
+                <div class="logos-carrusel-track">
+                    <!-- Logos de ejemplo -->
+                    <img src="https://via.placeholder.com/150x60?text=Logo+1" alt="Logo 1" class="logo-item">
+                    <img src="https://via.placeholder.com/150x60?text=Logo+2" alt="Logo 2" class="logo-item">
+                    <img src="https://via.placeholder.com/150x60?text=Logo+3" alt="Logo 3" class="logo-item">
+                    <img src="https://via.placeholder.com/150x60?text=Logo+4" alt="Logo 4" class="logo-item">
+                    <img src="https://via.placeholder.com/150x60?text=Logo+5" alt="Logo 5" class="logo-item">
+                    <img src="https://via.placeholder.com/150x60?text=Logo+6" alt="Logo 6" class="logo-item">
+                    <img src="https://via.placeholder.com/150x60?text=Logo+7" alt="Logo 7" class="logo-item">
+                    <img src="https://via.placeholder.com/150x60?text=Logo+8" alt="Logo 8" class="logo-item">
+                    <!-- Duplicados para efecto infinito -->
+                    <img src="https://via.placeholder.com/150x60?text=Logo+1" alt="Logo 1" class="logo-item">
+                    <img src="https://via.placeholder.com/150x60?text=Logo+2" alt="Logo 2" class="logo-item">
+                    <img src="https://via.placeholder.com/150x60?text=Logo+3" alt="Logo 3" class="logo-item">
+                    <img src="https://via.placeholder.com/150x60?text=Logo+4" alt="Logo 4" class="logo-item">
+                    <img src="https://via.placeholder.com/150x60?text=Logo+5" alt="Logo 5" class="logo-item">
+                    <img src="https://via.placeholder.com/150x60?text=Logo+6" alt="Logo 6" class="logo-item">
+                    <img src="https://via.placeholder.com/150x60?text=Logo+7" alt="Logo 7" class="logo-item">
+                    <img src="https://via.placeholder.com/150x60?text=Logo+8" alt="Logo 8" class="logo-item">
+                </div>
+            </div>
+            
             <div class="comunas-home-header">
                 <div>
                     <span class="comunas-home-kicker">Cobertura local</span>
