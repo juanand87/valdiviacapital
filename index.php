@@ -541,24 +541,39 @@ if (empty($multimediaVideos)) {
             <!-- Carrusel de logos -->
             <div class="logos-carrusel-section">
                 <div class="logos-carrusel-track">
-                    <!-- Logos de ejemplo -->
-                    <img src="https://via.placeholder.com/150x60?text=Logo+1" alt="Logo 1" class="logo-item">
-                    <img src="https://via.placeholder.com/150x60?text=Logo+2" alt="Logo 2" class="logo-item">
-                    <img src="https://via.placeholder.com/150x60?text=Logo+3" alt="Logo 3" class="logo-item">
-                    <img src="https://via.placeholder.com/150x60?text=Logo+4" alt="Logo 4" class="logo-item">
-                    <img src="https://via.placeholder.com/150x60?text=Logo+5" alt="Logo 5" class="logo-item">
-                    <img src="https://via.placeholder.com/150x60?text=Logo+6" alt="Logo 6" class="logo-item">
-                    <img src="https://via.placeholder.com/150x60?text=Logo+7" alt="Logo 7" class="logo-item">
-                    <img src="https://via.placeholder.com/150x60?text=Logo+8" alt="Logo 8" class="logo-item">
-                    <!-- Duplicados para efecto infinito -->
-                    <img src="https://via.placeholder.com/150x60?text=Logo+1" alt="Logo 1" class="logo-item">
-                    <img src="https://via.placeholder.com/150x60?text=Logo+2" alt="Logo 2" class="logo-item">
-                    <img src="https://via.placeholder.com/150x60?text=Logo+3" alt="Logo 3" class="logo-item">
-                    <img src="https://via.placeholder.com/150x60?text=Logo+4" alt="Logo 4" class="logo-item">
-                    <img src="https://via.placeholder.com/150x60?text=Logo+5" alt="Logo 5" class="logo-item">
-                    <img src="https://via.placeholder.com/150x60?text=Logo+6" alt="Logo 6" class="logo-item">
-                    <img src="https://via.placeholder.com/150x60?text=Logo+7" alt="Logo 7" class="logo-item">
-                    <img src="https://via.placeholder.com/150x60?text=Logo+8" alt="Logo 8" class="logo-item">
+                    <?php
+                    // Obtener logos activos desde la base de datos
+                    $logosQuery = "SELECT imagen, nombre, url_destino FROM logos_portada WHERE activo = 1 ORDER BY orden ASC";
+                    $logosResult = $conn->query($logosQuery);
+                    
+                    if ($logosResult && $logosResult->num_rows > 0) {
+                        // Mostrar logos reales
+                        while ($logo = $logosResult->fetch_assoc()) {
+                            $imgSrc = htmlspecialchars($logo['imagen']);
+                            $altText = htmlspecialchars($logo['nombre'] ?? 'Logo');
+                            $urlDest = htmlspecialchars($logo['url_destino'] ?? '#');
+                            echo "<a href=\"{$urlDest}\" target=\"_blank\" rel=\"noopener\"><img src=\"{$imgSrc}\" alt=\"{$altText}\" class=\"logo-item\"></a>";
+                        }
+                        // Duplicar para efecto infinito (si hay menos de 8, repetir)
+                        if ($logosResult->num_rows < 8) {
+                            $logosResult->data_seek(0);
+                            while ($logo = $logosResult->fetch_assoc()) {
+                                $imgSrc = htmlspecialchars($logo['imagen']);
+                                $altText = htmlspecialchars($logo['nombre'] ?? 'Logo');
+                                $urlDest = htmlspecialchars($logo['url_destino'] ?? '#');
+                                echo "<a href=\"{$urlDest}\" target=\"_blank\" rel=\"noopener\"><img src=\"{$imgSrc}\" alt=\"{$altText}\" class=\"logo-item\"></a>";
+                            }
+                        }
+                    } else {
+                        // Logos de ejemplo si no hay datos
+                        for ($i = 1; $i <= 8; $i++) {
+                            echo "<img src=\"https://via.placeholder.com/150x60?text=Logo+{$i}\" alt=\"Logo {$i}\" class=\"logo-item\">";
+                        }
+                        for ($i = 1; $i <= 7; $i++) {
+                            echo "<img src=\"https://via.placeholder.com/150x60?text=Logo+{$i}\" alt=\"Logo {$i}\" class=\"logo-item\">";
+                        }
+                    }
+                    ?>
                 </div>
             </div>
             
