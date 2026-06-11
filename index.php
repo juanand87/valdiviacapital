@@ -542,22 +542,23 @@ if (empty($multimediaVideos)) {
             <div class="logos-carrusel-section">
                 <div class="logos-carrusel-track">
                     <?php
-                    // Obtener logos activos desde la base de datos
+// Obtener logos activos desde la base de datos
                     $logosQuery = "SELECT imagen, nombre, url_destino FROM logos_portada WHERE activo = 1 ORDER BY orden ASC";
-                    $logosResult = $db->query($logosQuery);
-                    
-                    if ($logosResult && $logosResult->num_rows > 0) {
+                    $logosStmt = $db->prepare($logosQuery);
+                    $logosStmt->execute();
+                    $logos = $logosStmt->fetchAll(PDO::FETCH_ASSOC);
+
+                    if ($logos && count($logos) > 0) {
                         // Mostrar logos reales
-                        while ($logo = $logosResult->fetch_assoc()) {
+                        foreach ($logos as $logo) {
                             $imgSrc = htmlspecialchars($logo['imagen']);
                             $altText = htmlspecialchars($logo['nombre'] ?? 'Logo');
                             $urlDest = htmlspecialchars($logo['url_destino'] ?? '#');
                             echo "<a href=\"{$urlDest}\" target=\"_blank\" rel=\"noopener\"><img src=\"{$imgSrc}\" alt=\"{$altText}\" class=\"logo-item\"></a>";
                         }
                         // Duplicar para efecto infinito (si hay menos de 8, repetir)
-                        if ($logosResult->num_rows < 8) {
-                            $logosResult->data_seek(0);
-                            while ($logo = $logosResult->fetch_assoc()) {
+                        if (count($logos) < 8) {
+                            foreach ($logos as $logo) {
                                 $imgSrc = htmlspecialchars($logo['imagen']);
                                 $altText = htmlspecialchars($logo['nombre'] ?? 'Logo');
                                 $urlDest = htmlspecialchars($logo['url_destino'] ?? '#');
