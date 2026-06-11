@@ -544,7 +544,7 @@ if (empty($multimediaVideos)) {
                     <?php
                     // Obtener logos activos desde la base de datos
                     $logosQuery = "SELECT imagen, nombre, url_destino FROM logos_portada WHERE activo = 1 ORDER BY orden ASC";
-                    $logosResult = $conn->query($logosQuery);
+                    $logosResult = $db->query($logosQuery);
                     
                     if ($logosResult && $logosResult->num_rows > 0) {
                         // Mostrar logos reales
