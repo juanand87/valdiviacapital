@@ -1,51 +1,67 @@
-# Archivos de configuración local
-includes/config.php
-includes/vapid_config.php
-
-# Carpetas de carga y caché
-uploads/*
-!uploads/.htaccess
-cache/*
-!cache/.htaccess
-
-# Logs
+```
+# Logs and temp files
 *.log
-error_log
-debug.log
+*.tmp
+*.swp
 
-# Archivos del sistema
-.DS_Store
-Thumbs.db
-desktop.ini
+# Environment
+.env
+.env.local
+*.env.*
 
-# IDEs
+# Editors
 .vscode/
 .idea/
-*.sublime-project
-*.sublime-workspace
 
-# Backups
-*.bak
-*.backup
-*.old
-*~
-
-# Archivos temporales
-tmp/
-temp/
-*.tmp
-
-# Node modules (si se usa npm)
+# Dependencies
 node_modules/
+venv/
+.venv/
+__pycache__/
+.mypy_cache/
+.pytest_cache/
+dist/
+build/
+target/
+.gradle/
 
-# Archivos de sistema de control de versiones
-.git/
-.gitignore
+# Compiled files
+*.pyc
+*.class
+*.o
+*.exe
+*.dll
+*.so
+*.a
+*.obj
+*.out
 
-# Archivos de PHP
-*.swp
-*.swo
+# System files
+.DS_Store
+Thumbs.db
 
-# Archivos de base de datos locales
-*.sql.gz
-backup_*.sql
+# Coverage
+coverage/
+htmlcov/
+.coverage
+
+# Compressed files
+*.zip
+*.gz
+*.tar
+*.tgz
+*.bz2
+*.xz
+*.7z
+*.rar
+*.zst
+*.lz4
+*.lzh
+*.cab
+*.arj
+*.rpm
+*.deb
+*.Z
+*.lz
+*.lzo
+```

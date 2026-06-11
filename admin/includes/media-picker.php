@@ -287,7 +287,15 @@ function mpSeleccionar(card, medio) {
     document.querySelectorAll('#mp-grid .mp-card').forEach(c => c.classList.remove('mp-sel'));
     card.classList.add('mp-sel');
     _mp.seleccionado = medio;
-    _mpActualizarPie();
+    
+    // Actualizar label y botón inmediatamente
+    const label = document.getElementById('mp-sel-label');
+    const btn   = document.getElementById('mp-btn-insertar');
+    if (_mp.seleccionado) {
+        label.textContent = '✔ ' + _mp.seleccionado.nombre_original;
+        btn.disabled      = false;
+        btn.style.opacity = '1';
+    }
 }
 
 function _mpActualizarPie() {
