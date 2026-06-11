@@ -100,6 +100,11 @@
             <span>Ticker</span>
         </a>
 
+        <a href="logos-portada.php" class="nav-item <?php echo basename($_SERVER['PHP_SELF']) == 'logos-portada.php' ? 'active' : ''; ?>">
+            <i class="fas fa-images"></i>
+            <span>Logos Portada</span>
+        </a>
+
         <a href="push.php" class="nav-item <?php echo basename($_SERVER['PHP_SELF']) == 'push.php' ? 'active' : ''; ?>">
             <i class="fas fa-bell"></i>
             <span>Push Notifications</span>
