@@ -1,17 +1,16 @@
 <?php
 // ========================================
-// CONFIGURACIÓN DE BASE DE DATOS - PRODUCCIÓN
-// Copiar este archivo como config.php y ajustar los valores
+// CONFIGURACIÓN DE BASE DE DATOS
 // ========================================
 
 define('DB_HOST', 'localhost');
-define('DB_NAME', 'bd_valdivia');        // Nombre de la BD en producción
-define('DB_USER', 'cpses_k007nefycb');  // Usuario del hosting
-define('DB_PASS', 'TU_PASSWORD_AQUI');  // <-- CAMBIAR
+define('DB_NAME', 'bd_valdivia');
+define('DB_USER', 'user_valdivia');
+define('DB_PASS', '5802863aA$$$');
 define('DB_CHARSET', 'utf8mb4');
 
 // Configuración del sitio
-define('SITE_URL', 'https://tudominio.cl'); // <-- CAMBIAR
+define('SITE_URL', 'http://www.valdiviacapital.cl');
 define('SITE_NAME', 'Valdivia Capital');
 define('SITE_DESCRIPTION', 'El principal medio de comunicación digital de la región');
 
@@ -37,12 +36,10 @@ function getDB() {
     return $pdo;
 }
 
-// Función para limpiar HTML
 function clean($string) {
     return htmlspecialchars($string, ENT_QUOTES, 'UTF-8');
 }
 
-// Función para generar slug
 function generateSlug($string) {
     $string = strtolower(trim($string));
     $string = preg_replace('/[^a-z0-9-]/', '-', $string);
@@ -50,7 +47,6 @@ function generateSlug($string) {
     return trim($string, '-');
 }
 
-// Función para formato de fecha
 function formatDate($date) {
     $timestamp = strtotime($date);
     $meses = ['', 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
@@ -62,7 +58,6 @@ function formatDate($date) {
     return "$dia de $mes de $anio, $hora hrs";
 }
 
-// Función para tiempo transcurrido
 function timeAgo($date) {
     $timestamp = strtotime($date);
     $diff = time() - $timestamp;
@@ -82,7 +77,6 @@ function timeAgo($date) {
     }
 }
 
-// Función para truncar texto
 function truncate($text, $length = 150) {
     if (strlen($text) > $length) {
         $text = substr($text, 0, $length);
@@ -92,7 +86,6 @@ function truncate($text, $length = 150) {
     return $text;
 }
 
-// Función para obtener URL base
 function baseUrl($path = '') {
     return SITE_URL . ($path ? '/' . ltrim($path, '/') : '');
 }
