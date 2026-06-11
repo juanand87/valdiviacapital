@@ -246,8 +246,9 @@ function mpRenderGrid() {
     grid.innerHTML = items.map(m => {
         const isImg = m.tipo_mime.startsWith('image/');
         const icon  = mpIcono(m.tipo_mime);
+        const safeM = JSON.stringify(m).replace(/"/g, '&quot;');
         return `<div class="mp-card" data-id="${m.id}" data-url="${_escHtml(m.url)}" data-nombre="${_escHtml(m.nombre_original)}"
-                     onclick="console.log('Click en:', ${JSON.stringify(m).replace(/"/g, '&quot;')}); mpSeleccionar(this, ${JSON.stringify(m)})">
+                     onclick="mpSeleccionar(this, ${safeM})">
             <div class="mp-thumb">
                 ${isImg ? `<img src="${_escHtml(m.url)}" alt="" loading="lazy">` : `<i class="fas ${icon}" style="font-size:36px;color:#a0aec0;"></i>`}
             </div>
