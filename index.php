@@ -542,8 +542,8 @@ if (empty($multimediaVideos)) {
             <div class="logos-carrusel-section">
                 <div class="logos-carrusel-track">
                     <?php
-// Obtener logos activos desde la base de datos
-                    $logosQuery = "SELECT imagen, nombre, url_destino FROM logos_portada WHERE activo = 1 ORDER BY orden ASC";
+// Obtener logos activos desde la base de datos (agrupados por ID para evitar duplicados)
+                    $logosQuery = "SELECT id, imagen, nombre, url_destino FROM logos_portada WHERE activo = 1 GROUP BY id ORDER BY orden ASC";
                     $logosStmt = $db->prepare($logosQuery);
                     $logosStmt->execute();
                     $logos = $logosStmt->fetchAll(PDO::FETCH_ASSOC);
