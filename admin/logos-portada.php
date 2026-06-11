@@ -18,27 +18,27 @@ if (isset($_GET['eliminar'])) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $lid         = (int)($_POST['id'] ?? 0);
     $nombre      = trim(clean($_POST['nombre']      ?? ''));
-    $imagen_url  = trim(clean($_POST['imagen_url']  ?? ''));
+    $imagen      = trim(clean($_POST['imagen']      ?? ''));
     $url_destino = trim(clean($_POST['url_destino'] ?? ''));
     $activo      = isset($_POST['activo']) ? 1 : 0;
     $orden       = max(0, (int)($_POST['orden'] ?? 0));
 
-    if (!$nombre || !$imagen_url) {
+    if (!$nombre || !$imagen) {
         $error = 'Completa los campos obligatorios (Nombre e Imagen).';
     } else {
         try {
             if ($lid) {
                 $db->prepare("
                     UPDATE logos_portada
-                    SET nombre = ?, imagen_url = ?, url_destino = ?, activo = ?, orden = ?
+                    SET nombre = ?, imagen = ?, url_destino = ?, activo = ?, orden = ?
                     WHERE id = ?
-                ")->execute([$nombre, $imagen_url, $url_destino, $activo, $orden, $lid]);
+                ")->execute([$nombre, $imagen, $url_destino, $activo, $orden, $lid]);
                 $mensaje = 'Logo actualizado correctamente';
             } else {
                 $db->prepare("
-                    INSERT INTO logos_portada (nombre, imagen_url, url_destino, activo, orden)
+                    INSERT INTO logos_portada (nombre, imagen, url_destino, activo, orden)
                     VALUES (?, ?, ?, ?, ?)
-                ")->execute([$nombre, $imagen_url, $url_destino, $activo, $orden]);
+                ")->execute([$nombre, $imagen, $url_destino, $activo, $orden]);
                 $mensaje = 'Logo creado correctamente';
             }
             $lid = 0; // Limpiar formulario
@@ -104,18 +104,18 @@ $logos = $db->query("SELECT * FROM logos_portada ORDER BY orden ASC, id DESC")->
                 <div class="form-group">
                     <label class="form-label">Imagen del logo *</label>
                     <div style="display:flex;gap:8px;margin-bottom:8px;">
-                        <input type="url" name="imagen_url" id="imagen_url" class="form-control" required
-                               value="<?php echo $editando ? htmlspecialchars($editando['imagen_url']) : ''; ?>"
+                        <input type="url" name="imagen" id="imagen" class="form-control" required
+                               value="<?php echo $editando ? htmlspecialchars($editando['imagen']) : ''; ?>"
                                placeholder="https://ejemplo.com/logo.png o selecciona de Medios"
                                onchange="document.getElementById('img-preview').src=this.value"
                                oninput="document.getElementById('img-preview').src=this.value">
-                        <button type="button" onclick="abrirMediaPicker('imagen_url','image')" class="btn btn-primary" style="white-space:nowrap;padding:0 14px;" title="Seleccionar de la biblioteca de medios">
+                        <button type="button" onclick="abrirMediaPicker('imagen','image')" class="btn btn-primary" style="white-space:nowrap;padding:0 14px;" title="Seleccionar de la biblioteca de medios">
                             <i class="fas fa-photo-video"></i>
                         </button>
                     </div>
                     <div style="height:130px;background:#f5f5f5;border-radius:6px;overflow:hidden;display:flex;align-items:center;justify-content:center;">
                         <img id="img-preview"
-                             src="<?php echo $editando ? htmlspecialchars($editando['imagen_url']) : ''; ?>"
+                             src="<?php echo $editando ? htmlspecialchars($editando['imagen']) : ''; ?>"
                              alt="Preview"
                              style="max-height:130px;max-width:100%;object-fit:contain;"
                              onerror="this.style.display='none'" onload="this.style.display='block'">
@@ -188,7 +188,7 @@ $logos = $db->query("SELECT * FROM logos_portada ORDER BY orden ASC, id DESC")->
                 <tr>
                     <td>
                         <div style="display:flex;align-items:center;gap:10px;">
-                            <img src="<?php echo htmlspecialchars($l['imagen_url']); ?>"
+                            <img src="<?php echo htmlspecialchars($l['imagen']); ?>"
                                  style="width:100px;height:65px;object-fit:contain;border-radius:4px;background:#eee;"
                                  onerror="this.style.opacity='.2'">
                             <div>
