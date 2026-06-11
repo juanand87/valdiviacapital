@@ -549,15 +549,16 @@ if (empty($multimediaVideos)) {
                     $logos = $logosStmt->fetchAll(PDO::FETCH_ASSOC);
 
                     if ($logos && count($logos) > 0) {
-                        // Mostrar logos reales
+                        // Mostrar logos reales (primera vuelta)
                         foreach ($logos as $logo) {
                             $imgSrc = htmlspecialchars($logo['imagen']);
                             $altText = htmlspecialchars($logo['nombre'] ?? 'Logo');
                             $urlDest = htmlspecialchars($logo['url_destino'] ?? '#');
                             echo "<a href=\"{$urlDest}\" target=\"_blank\" rel=\"noopener\"><img src=\"{$imgSrc}\" alt=\"{$altText}\" class=\"logo-item\"></a>";
                         }
-                        // Duplicar para efecto infinito (si hay menos de 8, repetir)
-                        if (count($logos) < 8) {
+                        // Duplicar solo si hay suficientes logos para evitar repetición inmediata visible
+                        // Si hay menos de 4 logos, no duplicamos para que no se vean pegados
+                        if (count($logos) >= 4) {
                             foreach ($logos as $logo) {
                                 $imgSrc = htmlspecialchars($logo['imagen']);
                                 $altText = htmlspecialchars($logo['nombre'] ?? 'Logo');
