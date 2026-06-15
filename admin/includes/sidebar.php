@@ -27,6 +27,11 @@
             <span>Comentarios</span>
         </a>
         
+        <a href="estadisticas.php" class="nav-item <?php echo basename($_SERVER['PHP_SELF']) == 'estadisticas.php' ? 'active' : ''; ?>">
+            <i class="fas fa-chart-bar"></i>
+            <span>Estadísticas</span>
+        </a>
+        
         <div class="nav-divider"></div>
         
         <a href="medios-conectados.php" class="nav-item <?php echo in_array(basename($_SERVER['PHP_SELF']), ['medios-conectados.php', 'medios-diarios.php', 'medios-facebook.php', 'medios-instagram.php', 'medios-scraping.php', 'noticias-escaneadas.php', 'configuracion-ia.php']) ? 'active' : ''; ?>">
