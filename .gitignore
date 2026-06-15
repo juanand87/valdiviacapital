@@ -1,4 +1,8 @@
 ```
+# Compiled and build artifacts
+*.pyc
+__pycache__/
+
 # Logs and temp files
 *.log
 *.tmp
@@ -13,11 +17,14 @@
 .vscode/
 .idea/
 
+# OS generated files
+.DS_Store
+Thumbs.db
+
 # Dependencies
 node_modules/
 venv/
 .venv/
-__pycache__/
 .mypy_cache/
 .pytest_cache/
 dist/
@@ -25,22 +32,7 @@ build/
 target/
 .gradle/
 
-# Compiled files
-*.pyc
-*.class
-*.o
-*.exe
-*.dll
-*.so
-*.a
-*.obj
-*.out
-
-# System files
-.DS_Store
-Thumbs.db
-
-# Coverage
+# Coverage reports
 coverage/
 htmlcov/
 .coverage
