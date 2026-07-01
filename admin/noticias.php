@@ -155,7 +155,7 @@ $autores = $db->query("SELECT id, nombre FROM usuarios WHERE activo = 1 ORDER BY
                         </tr>
                     <?php else: ?>
                         <?php foreach ($noticias as $noticia): ?>
-                            <tr>
+                            <tr data-id="<?php echo $noticia['id']; ?>">
                                 <td><strong>#<?php echo $noticia['id']; ?></strong></td>
                                 <td>
                                     <strong><?php echo htmlspecialchars(truncate($noticia['titulo'], 50)); ?></strong>
@@ -226,12 +226,18 @@ function eliminarNoticia(id) {
         method: 'POST',
         data: { id: id },
         success: function(response) {
-            const data = JSON.parse(response);
-            if (data.success) {
-                alert('Noticia eliminada correctamente');
-                location.reload();
-            } else {
-                alert('Error: ' + data.message);
+            try {
+                const data = (typeof response === 'object') ? response : JSON.parse(response);
+                if (data.success) {
+                    // Eliminar fila del listado sin recargar
+                    const row = document.querySelector('tr[data-id="' + id + '"]');
+                    if (row) row.remove();
+                    alert('Noticia eliminada correctamente');
+                } else {
+                    alert('Error: ' + (data.message || 'Error desconocido'));
+                }
+            } catch (e) {
+                alert('Respuesta inválida del servidor');
             }
         }
     });
