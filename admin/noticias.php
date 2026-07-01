@@ -229,10 +229,23 @@ function eliminarNoticia(id) {
             try {
                 const data = (typeof response === 'object') ? response : JSON.parse(response);
                 if (data.success) {
-                    // Eliminar fila del listado sin recargar
                     const row = document.querySelector('tr[data-id="' + id + '"]');
-                    if (row) row.remove();
-                    alert('Noticia eliminada correctamente');
+                    if (row) {
+                        // Animación: fijar altura actual, luego contraer + desaparecer
+                        const h = row.offsetHeight;
+                        row.style.boxSizing = 'border-box';
+                        row.style.transition = 'opacity .35s ease, transform .35s ease, height .35s ease, margin .35s ease, padding .35s ease';
+                        row.style.height = h + 'px';
+                        row.style.overflow = 'hidden';
+                        // Forzar reflow
+                        void row.offsetHeight;
+                        row.style.opacity = '0';
+                        row.style.transform = 'translateX(20px)';
+                        row.style.height = '0';
+                        row.style.margin = '0';
+                        row.style.padding = '0';
+                        setTimeout(function() { row.remove(); }, 380);
+                    }
                 } else {
                     alert('Error: ' + (data.message || 'Error desconocido'));
                 }
