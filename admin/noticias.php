@@ -224,10 +224,11 @@ function eliminarNoticia(id) {
     $.ajax({
         url: 'ajax/eliminar-noticia.php',
         method: 'POST',
+        dataType: 'json',
         data: { id: id },
         success: function(response) {
+            const data = response;
             try {
-                const data = (typeof response === 'object') ? response : JSON.parse(response);
                 if (data.success) {
                     const row = document.querySelector('tr[data-id="' + id + '"]');
                     if (row) {
@@ -252,6 +253,15 @@ function eliminarNoticia(id) {
             } catch (e) {
                 alert('Respuesta inválida del servidor');
             }
+        },
+        error: function(xhr) {
+            let message = 'No se pudo eliminar la noticia';
+            if (xhr.responseJSON && xhr.responseJSON.message) {
+                message = xhr.responseJSON.message;
+            } else if (xhr.status === 401) {
+                message = 'Tu sesión expiró. Vuelve a iniciar sesión.';
+            }
+            alert('Error: ' + message);
         }
     });
 }
